@@ -1,5 +1,6 @@
 // main.js — Electron main process: creates the floating, frameless,
-// always-on-top companion window and remembers where the player left it.
+// always-on-top companion window, remembers where the player left it, and
+// reads/writes the game save file for the renderer.
 
 const { app, BrowserWindow, ipcMain, screen } = require('electron');
 const fs = require('fs');
@@ -10,6 +11,10 @@ const WINDOW_HEIGHT = 240;
 
 function stateFile() {
   return path.join(app.getPath('userData'), 'window-state.json');
+}
+
+function saveFile() {
+  return path.join(app.getPath('userData'), 'save.json');
 }
 
 // Returns the saved { x, y }, or {} to let Electron center the window.
@@ -64,6 +69,8 @@ function createWindow() {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
+      // Keep timers running at full rate while minimized so life goes on.
+      backgroundThrottling: false,
     },
   });
 
@@ -79,6 +86,33 @@ ipcMain.on('window:minimize', (event) => {
 
 ipcMain.on('window:close', (event) => {
   BrowserWindow.fromWebContents(event.sender)?.close();
+});
+
+// Returns the parsed save, or null if there is none or it can't be read.
+ipcMain.handle('save:load', () => {
+  try {
+    return JSON.parse(fs.readFileSync(saveFile(), 'utf8'));
+  } catch {
+    return null;
+  }
+});
+
+// Writes to a temp file first so a crash mid-write can't corrupt the save.
+function writeSave(data) {
+  const file = saveFile();
+  try {
+    fs.writeFileSync(`${file}.tmp`, JSON.stringify(data));
+    fs.renameSync(`${file}.tmp`, file);
+  } catch (err) {
+    console.error('Could not write save:', err);
+  }
+}
+
+ipcMain.on('save:write', (event, data) => writeSave(data));
+
+ipcMain.on('save:write-sync', (event, data) => {
+  writeSave(data);
+  event.returnValue = true;
 });
 
 app.whenReady().then(createWindow);

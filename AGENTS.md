@@ -21,10 +21,10 @@ with **Electron and plain JavaScript**.
 
 ## Folder structure
 
-> **Status:** the app shell exists: a floating window showing a placeholder
-> pixel scene. Items marked *(planned)* don't exist yet; follow the planned
-> layout when adding them, and update this section whenever files are added,
-> moved, or removed.
+> **Status:** a pixel character is born, wanders the window, and ages in
+> real time, and the life is saved between launches. Items marked
+> *(planned)* don't exist yet; follow the planned layout when adding them,
+> and update this section whenever files are added, moved, or removed.
 
 ```
 Shift-Life/
@@ -36,35 +36,59 @@ Shift-Life/
 ├── package-lock.json  Locked dependency versions (commit it)
 ├── main.js            Electron main process: creates the frameless,
 │                      transparent, always-on-top 320x240 window, saves and
-│                      restores its position, handles minimize/close IPC
-├── preload.js         Exposes window.shiftLife { minimize, close } to the
-│                      renderer via contextBridge
+│                      restores its position, handles window and save IPC
+├── preload.js         Exposes window.shiftLife { minimize, close, loadSave,
+│                      save, saveSync } to the renderer via contextBridge
 ├── src/
-│   ├── index.html     Renderer page: scene canvas and window buttons
-│   ├── styles.css     Rounded frame, drag region, pixelated canvas, buttons
-│   ├── renderer.js    Renderer entry point: draws the placeholder scene
-│   │                  (dithered sky, grass, pixel text), wires up buttons
-│   ├── game/          (planned) Game logic only (no hard-coded content)
-│   │   ├── clock.js       Real-time simulation clock / ticks
-│   │   ├── character.js   Character state: needs, mood, current activity
-│   │   ├── goals.js       Player-set goals and progress
-│   │   └── events.js      Event engine: picks and resolves bubble events
-│   ├── ui/            (planned) Drawing and interface: sprites, bubbles
-│   └── data/          (planned) Pure game data, no logic
-│       ├── events.js      Speech-bubble event definitions
-│       ├── jobs.js        Jobs/shifts and their effects
-│       └── names.js       Name lists
+│   ├── index.html     Renderer page: scene canvas, label, window buttons
+│   ├── styles.css     Rounded frame, drag region, pixelated canvas, label,
+│   │                  buttons
+│   ├── renderer.js    Renderer entry point (ES module): loads or starts a
+│   │                  life, runs clock, autosave, frame loop, dev shortcut
+│   ├── game/          Game logic only (no hard-coded content)
+│   │   ├── clock.js       Real-time clock: in-game years, fast-forward
+│   │   ├── character.js   Birth (random name/look), age, life stage
+│   │   ├── save.js        Save format (versioned) and load/save calls
+│   │   ├── goals.js       (planned) Player-set goals and progress
+│   │   └── events.js      (planned) Event engine for bubble events
+│   ├── ui/            Drawing and visual-only behavior
+│   │   ├── scene.js       Sky and grass backdrop, scene size constants
+│   │   ├── animator.js    Wandering, pauses, facing, breathing, blinking
+│   │   └── sprite.js      Draws the character in code (all sprite drawing
+│   │                      lives here, to swap for sprite sheets later)
+│   └── data/          Pure game data, no logic
+│       ├── balance.js     Pacing: real minutes per year, fast-forward speed
+│       ├── lifeStages.js  Life stages and the age each one starts at
+│       ├── names.js       Names a newborn can get
+│       ├── appearance.js  Skin, hair, hair style, shirt palettes; fixed
+│       │                  sprite colors (elder hair, pants, shoes, eyes)
+│       ├── events.js      (planned) Speech-bubble event definitions
+│       └── jobs.js        (planned) Jobs/shifts and their effects
 ├── assets/
 │   └── sprites/       (planned) Pixel-art images
 └── test/              (planned) Automated tests
 ```
 
-How the shell works, for anyone extending it:
+How it works, for anyone extending it:
 
+- **Modules:** the renderer uses native ES modules (`<script type="module">`
+  and relative `import`s with `.js` extensions), with no bundler.
+  `main.js` and `preload.js` are CommonJS.
 - **Rendering:** the scene is drawn on a 160x120 canvas that CSS scales 2x
   with `image-rendering: pixelated`. Draw in canvas pixels at integer
-  coordinates. Text goes through `drawPixelText()` in `renderer.js`, which
-  removes anti-aliasing.
+  coordinates. The backdrop is drawn once and copied in every frame; the
+  character is redrawn every frame from `poseOf()` (animator) and
+  `drawCharacter()` (sprite).
+- **Time:** `game/clock.js` stores in-game time as fractional years and
+  advances it on a 250ms timer (not animation frames), so time passes while
+  the window is minimized (`backgroundThrottling: false` in `main.js`).
+  Gaps over 2s, such as the PC sleeping, are capped. Time does not pass
+  while the app is closed. Ages are whole years: `floor(years - bornAt)`.
+- **Dev shortcut:** Ctrl+Shift+F (window focused) toggles fast-forward,
+  shown as `>>` in the label. It isn't saved.
+- **Game vs. visuals:** wandering, blinking, etc. in `ui/animator.js` are
+  cosmetic and never saved. Anything that affects the life belongs in
+  `game/` and the save.
 - **Font:** "Press Start 2P" comes from the `@fontsource/press-start-2p`
   npm package and is linked from `node_modules`, so no network is needed.
   Use it at multiples of 8px.
@@ -74,9 +98,17 @@ How the shell works, for anyone extending it:
 - **Renderer ↔ main:** the renderer has no Node access. Add new
   capabilities as named IPC channels in `main.js` and expose them through
   `window.shiftLife` in `preload.js`.
-- **Saved state:** the window position is stored in
-  `%APPDATA%\shift-life\window-state.json`. It's ignored if it would put
-  the window off every connected screen.
+- **Saved state:** both files live in `%APPDATA%\shift-life\`.
+  - `window-state.json` holds the window position. It's ignored if it
+    would put the window off every connected screen.
+  - `save.json` holds the life: `{ version, clock: { years }, character }`.
+    The renderer autosaves every 10s and saves synchronously on
+    `beforeunload`, so every way of closing is covered. `main.js` writes
+    via a temp file and rename.
+  - If you change the save shape, bump `SAVE_VERSION` in `game/save.js`
+    and handle old versions. Right now an unrecognised save is replaced by
+    a new life.
+  - Delete `save.json` to start a new life.
 
 ## Install, run, and test
 

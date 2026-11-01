@@ -11,11 +11,25 @@ Built with Electron and plain JavaScript.
 
 ## Status
 
-Early development. The app shell runs: a small floating window (320x240,
-frameless, rounded, always on top) with a placeholder pixel scene that says
-"Life loading...". Drag the window by its background, and use the buttons
-in the top-right corner to minimize or close it. It reopens where you left
-it. There's no character or gameplay yet.
+Early development. What works so far:
+
+- A small floating window (320x240, frameless, rounded, always on top).
+  Drag it by its background; minimize or close it with the buttons in the
+  top-right corner. It reopens where you left it.
+- A pixel character is born with a random name and look, and wanders the
+  grass, breathing, blinking, and pausing now and then.
+- Life runs in real time: one in-game year every 3 real minutes. The
+  character grows from baby to child, teen, adult, and elder (grey hair),
+  and the top-left label shows their name and age.
+- The life is saved, so closing and reopening continues it. Time doesn't
+  pass while the app is closed.
+
+No goals or events yet.
+
+**For testing:** with the window focused, Ctrl+Shift+F toggles
+fast-forward (about one year every 5 seconds; the label shows `>>`). To
+start a new life, close the app and delete
+`%APPDATA%\shift-life\save.json`.
 
 ## Requirements
 
