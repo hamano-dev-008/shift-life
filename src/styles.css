@@ -1,5 +1,6 @@
 /* styles.css — Look of the companion window: rounded frame, pixel-crisp
-   scene canvas, name/age label, and the minimize/close buttons. */
+   scene canvas, name/age label and stats panel, event bubble and card,
+   and the minimize/close buttons. */
 
 html,
 body {
@@ -37,7 +38,9 @@ body {
   font: 8px/16px 'Press Start 2P', monospace;
   color: #3d3a4b;
   background: rgba(255, 255, 255, 0.45);
-  pointer-events: none;
+  /* Hover shows the stats panel; click pins it. */
+  cursor: pointer;
+  -webkit-app-region: no-drag;
 }
 
 #label:empty {
@@ -72,4 +75,184 @@ body {
 #controls #close-btn:hover {
   color: #fff;
   background: #e8837a;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+#label:hover,
+#label.pinned {
+  background: rgba(255, 255, 255, 0.85);
+}
+
+#stats {
+  position: absolute;
+  top: 26px;
+  left: 6px;
+  z-index: 3;
+  display: grid;
+  grid-template-columns: auto 48px auto;
+  align-items: center;
+  gap: 4px 6px;
+  max-width: 200px;
+  padding: 6px;
+  border: 2px solid #3d3a4b;
+  border-radius: 4px;
+  font: 8px/12px 'Press Start 2P', monospace;
+  color: #3d3a4b;
+  background: #fffaf0;
+  pointer-events: none;
+}
+
+#stats .bar {
+  height: 6px;
+  border: 1px solid #3d3a4b;
+  background: #e8e2d4;
+}
+
+#stats .bar-fill {
+  display: block;
+  height: 100%;
+}
+
+#stats .bar-health .bar-fill { background: #e07a5f; }
+#stats .bar-happiness .bar-fill { background: #f2cc8f; }
+#stats .bar-smarts .bar-fill { background: #6d9dc5; }
+
+#stats .stat-value {
+  text-align: right;
+}
+
+#stats .stat-money {
+  grid-column: 2 / -1;
+}
+
+#stats .traits {
+  grid-column: 1 / -1;
+  padding-top: 2px;
+  color: #6b6478;
+}
+
+/* Click target over the "!" bubble; the bubble itself is canvas art. */
+#event-bubble {
+  position: absolute;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+}
+
+#event-bubble:focus {
+  outline: none;
+}
+
+/* The bubble saying what happened after an event. */
+#speech {
+  position: absolute;
+  top: 0;
+  left: 0;
+  max-width: 168px;
+  padding: 4px 6px;
+  border: 2px solid #3d3a4b;
+  border-radius: 4px;
+  font: 8px/12px 'Press Start 2P', monospace;
+  color: #3d3a4b;
+  text-align: center;
+  background: #ffffff;
+  pointer-events: none;
+}
+
+/* A square pixel tail; it covers the bubble's bottom border where they
+   meet. --tail-x is set from bubble.js. */
+#speech::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: var(--tail-x, 50%);
+  width: 4px;
+  height: 4px;
+  margin-left: -4px;
+  border: 2px solid #3d3a4b;
+  border-top: none;
+  background: #ffffff;
+}
+
+#speech .deltas {
+  display: block;
+  margin-top: 2px;
+  color: #6b6478;
+}
+
+#event-card {
+  position: absolute;
+  top: 28px;
+  left: 10px;
+  right: 10px;
+  z-index: 2;
+  max-height: calc(100% - 38px);
+  overflow: hidden;
+  padding: 8px;
+  border: 2px solid #3d3a4b;
+  border-radius: 6px;
+  font: 8px/12px 'Press Start 2P', monospace;
+  color: #3d3a4b;
+  background: #fffaf0;
+  box-shadow: 0 3px 0 rgba(61, 58, 75, 0.25);
+  -webkit-app-region: no-drag;
+}
+
+#event-card .event-prompt {
+  margin: 0 18px 8px 0;
+}
+
+#event-card .event-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+#event-card button {
+  font: 8px/12px 'Press Start 2P', monospace;
+  color: #3d3a4b;
+  cursor: pointer;
+}
+
+#event-card button:focus {
+  outline: none;
+}
+
+#event-card .event-choices button {
+  padding: 4px 6px;
+  border: 2px solid #3d3a4b;
+  border-radius: 4px;
+  text-align: left;
+  background: #f6e7c8;
+}
+
+#event-card .event-choices button:hover:not(:disabled) {
+  background: #f2cc8f;
+}
+
+#event-card .event-choices button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+#event-card .event-close {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  line-height: 16px;
+  background: transparent;
+}
+
+#event-card .event-close:hover {
+  background: #f2cc8f;
 }

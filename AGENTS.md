@@ -21,8 +21,9 @@ with **Electron and plain JavaScript**.
 
 ## Folder structure
 
-> **Status:** a pixel character is born, wanders the window, and ages in
-> real time, and the life is saved between launches. Items marked
+> **Status:** a pixel character is born with stats and personality
+> traits, wanders the window, ages in real time, and meets life events as
+> speech bubbles; the life is saved between launches. Items marked
 > *(planned)* don't exist yet; follow the planned layout when adding them,
 > and update this section whenever files are added, moved, or removed.
 
@@ -40,18 +41,21 @@ Shift-Life/
 ├── preload.js         Exposes window.shiftLife { minimize, close, loadSave,
 │                      save, saveSync } to the renderer via contextBridge
 ├── src/
-│   ├── index.html     Renderer page: scene canvas, label, window buttons
+│   ├── index.html     Renderer page: scene canvas, label, stats panel,
+│   │                  event bubble/card, result bubble, window buttons
 │   ├── styles.css     Rounded frame, drag region, pixelated canvas, label,
-│   │                  buttons
+│   │                  stats panel, event card, result bubble, buttons
 │   ├── renderer.js    Renderer entry point (ES module): loads or starts a
-│   │                  life, runs clock, autosave, frame loop, dev shortcuts
+│   │                  life, runs clock, events, autosave, frame loop, dev
+│   │                  shortcuts
 │   ├── game/          Game logic only (no hard-coded content)
 │   │   ├── clock.js       Real-time clock: in-game years, fast-forward
-│   │   ├── character.js   Birth (random name/look), mood and expression,
-│   │   │                  age, life stage
+│   │   ├── character.js   Birth (random name/look/traits), stats,
+│   │   │                  expression, age, life stage
+│   │   ├── events.js      Event engine: scheduling, picking, choices,
+│   │   │                  outcomes, trait-based auto-decide
 │   │   ├── save.js        Save format (versioned) and load/save calls
-│   │   ├── goals.js       (planned) Player-set goals and progress
-│   │   └── events.js      (planned) Event engine for bubble events
+│   │   └── goals.js       (planned) Player-set goals and progress
 │   ├── ui/            Drawing and visual-only behavior
 │   │   ├── pixel.js       Low-res layer helpers: paint, outline, scaled draw
 │   │   ├── scene.js       computeLayout() (data → canvas pixels) and the
@@ -59,22 +63,30 @@ Shift-Life/
 │   │   ├── props.js       Draws the house and tree
 │   │   ├── animator.js    Wandering, prop visits, turning, the walk cycle,
 │   │   │                  breathing, blinking
-│   │   └── sprite.js      Draws the character in code (all character
-│   │                      drawing lives here, to swap for sprite sheets)
+│   │   ├── sprite.js      Draws the character in code (all character
+│   │   │                  drawing lives here, to swap for sprite sheets)
+│   │   ├── bubble.js      The "!" bubble (canvas art + click target) and
+│   │   │                  the result text bubble, both following the head
+│   │   ├── eventCard.js   The event card: prompt and choice buttons
+│   │   └── statsPanel.js  Stats and traits panel under the name label
 │   └── data/          Pure game data, no logic
-│       ├── balance.js     Pacing (minutes per year, fast-forward), default
-│       │                  mood and expression thresholds
+│       ├── balance.js     Pacing (minutes per year, fast-forward), mood
+│       │                  thresholds, event gap, auto-decide wait, whim
+│       ├── stats.js       Starting stats, stat names and short tags
+│       ├── traits.js      Personality trait pairs, how many a newborn gets
 │       ├── layout.js      SCENE_SCALE (the one scene-size knob), ground,
-│       │                  feet row, prop edges/sizes/visit spots, margins
+│       │                  feet row, prop edges/sizes/visit spots, margins,
+│       │                  bubble size and head clearance
 │       ├── characterShapes.js  Body proportions per life stage
 │       ├── animation.js   Walk speeds, stride, pause/turn/blink timing,
-│       │                  visit chance
+│       │                  visit chance, bubble bob, result bubble time
 │       ├── lifeStages.js  Life stages and the age each one starts at
 │       ├── names.js       Names a newborn can get
 │       ├── appearance.js  Skin, hair, hair style, shirt palettes; fixed
 │       │                  character colors (elder hair, clothes, eyes,
 │       │                  mouth, outline, shadow)
-│       ├── events.js      (planned) Speech-bubble event definitions
+│       ├── events.js      Life event definitions (format documented at
+│       │                  the top of the file)
 │       └── jobs.js        (planned) Jobs/shifts and their effects
 ├── assets/
 │   └── sprites/       (planned) Pixel-art images
@@ -123,13 +135,39 @@ How it works, for anyone extending it:
   the window is minimized (`backgroundThrottling: false` in `main.js`).
   Gaps over 2s, such as the PC sleeping, are capped. Time does not pass
   while the app is closed. Ages are whole years: `floor(years - bornAt)`.
-- **Mood:** `character.mood` (0-100, saved) is a placeholder until events
-  affect it. `expressionOf()` maps it to the mouth: smile, neutral, or frown,
-  with thresholds in `data/balance.js`.
+- **Stats and traits:** `character.stats` holds health, happiness and
+  smarts (whole numbers, 0-100) and money (whole dollars, never below 0).
+  Change them only through `setStat()` / `changeStats()`, which clamp.
+  The mouth follows happiness: `expressionOf()` maps it to smile, neutral
+  or frown, with thresholds in `data/balance.js`. `character.traits` is
+  2-3 trait ids rolled at birth, at most one from each opposite pair in
+  `data/traits.js`.
+- **Events:** `game/events.js` runs on its own 250ms timer in the renderer,
+  so events keep coming (and get auto-decided) while minimized.
+  - After each event, the next is due a random `EVENT_GAP_YEARS` later. It
+    picks an event whose `stages` (and optional `minAge`/`maxAge`) fit,
+    favoring the least-seen and never the same one twice in a row. Babies
+    have none.
+  - The waiting event shows a "!" bubble over the head. Clicking it opens
+    the card. If no choice is made within `AUTO_DECIDE_SECONDS` (in-game
+    time, so fast-forward shortens it), the character picks: each trait in
+    a choice's `lean` scores 1, plus a random whim up to `DECISION_WHIM`.
+    The timer is held while the card is open and restarts if it's closed
+    with "x".
+  - A choice either has `effects` + `text`, or `outcomes` picked at random
+    by `weight`. The result text and the actual stat changes show in a
+    text bubble for `RESULT_BUBBLE_SECONDS`. Choices with unmet `needs`
+    are disabled and never auto-picked.
+  - Events never focus, flash or raise the window, so they don't take
+    keyboard focus from other apps.
+- **Stats panel:** hovering the name label shows stats and traits;
+  clicking it pins the panel open.
 - **Dev shortcuts** (window focused):
   - Ctrl+Shift+F toggles fast-forward, shown as `>>` in the label. It
     isn't saved.
-  - Ctrl+Shift+M cycles mood through 80, 50 and 20 (smile, neutral, frown).
+  - Ctrl+Shift+M cycles happiness through 80, 50 and 20 (smile, neutral,
+    frown).
+  - Ctrl+Shift+E starts a fitting event now (if none is waiting).
 - **Game vs. visuals:** wandering, blinking, etc. in `ui/animator.js` are
   cosmetic and never saved. Anything that affects the life belongs in
   `game/` and the save.
@@ -145,12 +183,16 @@ How it works, for anyone extending it:
 - **Saved state:** both files live in `%APPDATA%\shift-life\`.
   - `window-state.json` holds the window position. It's ignored if it
     would put the window off every connected screen.
-  - `save.json` holds the life: `{ version, clock: { years }, character }`.
+  - `save.json` holds the life: `{ version, clock: { years }, character,
+    events }`. `character` includes `stats` and `traits`; `events` holds
+    `nextAt`, the `pending` event, how often each was `seen`, and
+    `lastId`.
     The renderer autosaves every 10s and saves synchronously on
     `beforeunload`, so every way of closing is covered. `main.js` writes
     via a temp file and rename.
   - New optional fields can keep the version if `restore*()` fills in a
-    default (as `mood` does). For breaking changes, bump `SAVE_VERSION` in
+    default (as `stats`, `traits` and `events` do; older saves' `mood`
+    becomes happiness). For breaking changes, bump `SAVE_VERSION` in
     `game/save.js` and handle old versions. Right now an unrecognised save
     is replaced by a new life.
   - Delete `save.json` to start a new life.

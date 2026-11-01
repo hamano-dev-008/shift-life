@@ -3,6 +3,7 @@
 
 import { createClock } from './clock.js';
 import { restoreCharacter } from './character.js';
+import { restoreEventState } from './events.js';
 
 const SAVE_VERSION = 1;
 
@@ -11,15 +12,22 @@ function toSaveData(game) {
     version: SAVE_VERSION,
     clock: { years: game.clock.years },
     character: game.character,
+    events: game.events,
   };
 }
 
-// Returns the saved { clock, character }, or null if there's no usable save.
+// Returns the saved { clock, character, events }, or null if there's no
+// usable save. Saves from before events existed get fresh event state.
 export async function loadGame() {
   const data = await window.shiftLife.loadSave();
   if (data?.version !== SAVE_VERSION || !Number.isFinite(data.clock?.years)) return null;
   const character = restoreCharacter(data.character);
-  return character ? { clock: createClock(data.clock.years), character } : null;
+  if (!character) return null;
+  return {
+    clock: createClock(data.clock.years),
+    character,
+    events: restoreEventState(data.events, data.clock.years),
+  };
 }
 
 export function saveGame(game) {

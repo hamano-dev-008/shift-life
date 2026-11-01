@@ -30,3 +30,9 @@ export const BLINK_DURATION = 0.15;
 
 // Idle breathing: the head dips for the last 40% of each cycle.
 export const BREATH_CYCLE = 2;
+
+// The "!" bubble bobs up 1px for the second half of each cycle.
+export const BUBBLE_BOB_CYCLE = 1;
+
+// How long the bubble saying what happened after an event stays up.
+export const RESULT_BUBBLE_SECONDS = 4;

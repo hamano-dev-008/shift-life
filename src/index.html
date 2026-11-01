@@ -13,7 +13,16 @@
 <body>
   <main id="app">
     <canvas id="scene"></canvas>
-    <div id="label"></div>
+    <!-- Invisible click target over the "!" bubble drawn on the canvas. -->
+    <button id="event-bubble" title="Something's happening!" aria-label="Open event" hidden></button>
+    <div id="speech" hidden></div>
+    <section id="event-card" hidden>
+      <button class="event-close" title="Decide later" aria-label="Decide later">x</button>
+      <p class="event-prompt"></p>
+      <div class="event-choices"></div>
+    </section>
+    <div id="label" title="Stats (click to pin)"></div>
+    <div id="stats" hidden></div>
     <div id="controls">
       <button id="minimize-btn" title="Minimize" aria-label="Minimize">-</button>
       <button id="close-btn" title="Close" aria-label="Close">x</button>

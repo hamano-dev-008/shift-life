@@ -27,3 +27,11 @@ export const PROPS = {
 
 // How close to the window edges the character's center may wander.
 export const WANDER_MARGIN = 6;
+
+// The "!" bubble shown over the character while an event waits: its box
+// size and the height of the tail pointing down at the head.
+export const EVENT_BUBBLE = { width: 7, height: 9, tail: 2 };
+
+// Gap between the top of the character's head and the bubbles above it,
+// leaving room for the tallest hair and the outline.
+export const HEAD_CLEARANCE = 5;
