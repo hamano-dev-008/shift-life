@@ -30,6 +30,7 @@ Shift-Life/
 ├── AGENTS.md          Shared agent instructions (this file)
 ├── CLAUDE.md          Imports AGENTS.md for Claude Code
 ├── README.md          Player/developer-facing overview and run steps
+├── .gitignore         Keeps node_modules, build output, and OS files out of git
 ├── package.json       npm scripts and dependencies (Electron)
 ├── main.js            Electron main process: creates the frameless,
 │                      transparent, always-on-top window; app lifecycle
