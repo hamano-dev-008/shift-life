@@ -32,26 +32,35 @@ Early development. What works so far:
   bubble tells you what they did. Events never steal focus from your other
   windows. There are 18 starter events across childhood, teen years,
   adulthood and old age.
+- Life goals: from age 6, the flag button in the top bar opens the goal
+  menu. Pick Scholar, Fortune, Heart, Healthy or Free spirit. The goal's
+  stat gets a small boost every year, growing the longer you stick with
+  it (switching starts it over). When the character decides an event on
+  their own, the goal comes before their traits, and events that suit
+  the goal come up a bit more often. Each goal has milestones, celebrated
+  with a golden bubble, and the character sometimes does a goal activity
+  while idle: reading under the tree, counting coins by the house, waving,
+  or jogging.
 - Life runs in real time: one in-game year every 3 real minutes. The
   character grows from baby to child, teen, adult, and elder (grey hair),
   and the top-left label shows their name and age.
 - The life is saved, so closing and reopening continues it. Time doesn't
   pass while the app is closed.
 
-No goals yet.
-
 **Scene size:** `SCENE_SCALE` in `src/data/layout.js` sets how big
 everything is drawn (whole numbers; 3 by default, try 2 or 4).
 
 **For testing:** with the window focused, Ctrl+Shift+F toggles
 fast-forward (about one year every 5 seconds; the label shows `>>`),
-Ctrl+Shift+M cycles happiness (smile, neutral, frown), and Ctrl+Shift+E
-starts an event right away (children and older only).
+Ctrl+Shift+M cycles happiness (smile, neutral, frown), Ctrl+Shift+E
+starts an event right away (children and older only), and Ctrl+Shift+A
+starts the goal's idle activity. To start a new life, close the app and
+delete `%APPDATA%\shift-life\save.json`.
 
-**Adding events:** add an entry to `src/data/events.js`; the format is
-described at the top of that file. Event pacing and the auto-decide wait
-are in `src/data/balance.js`. To start a new life,
-close the app and delete `%APPDATA%\shift-life\save.json`.
+**Adding events and goals:** add an entry to `src/data/events.js` or
+`src/data/goals.js`; each file describes its format at the top. Event
+pacing, the auto-decide wait and goal weights are in
+`src/data/balance.js`.
 
 ## Requirements
 

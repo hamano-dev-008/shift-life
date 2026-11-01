@@ -36,3 +36,24 @@ export const BUBBLE_BOB_CYCLE = 1;
 
 // How long the bubble saying what happened after an event stays up.
 export const RESULT_BUBBLE_SECONDS = 4;
+
+// Goal activities (`activity` in data/goals.js). When an idle pause ends,
+// this is the chance the character does their goal's activity instead of
+// wandering. Per activity: where it happens (a prop id from layout.js, or
+// null for right where they are), how long it lasts [min, max] in seconds,
+// and for jogging, the speed as a multiple of WALK_SPEED.
+export const ACTIVITY_CHANCE = 0.3;
+export const ACTIVITIES = {
+  read: { place: 'tree', duration: [5, 9] },
+  coins: { place: 'house', duration: [4, 7] },
+  jog: { place: null, duration: [5, 8], speed: 2.5 },
+  wave: { place: null, duration: [3, 5] },
+};
+
+// Little loops while doing an activity, in seconds: a page flips every
+// pageFlip; a coin is counted every coin; the waving hand rocks every
+// wave; a heart floats up every heart; a sweat drop falls every sweat.
+export const ACTIVITY_LOOPS = { pageFlip: 1.6, coin: 0.9, wave: 0.3, heart: 1.4, sweat: 0.8 };
+
+// How long a milestone celebration bubble stays up.
+export const MILESTONE_BUBBLE_SECONDS = 5;

@@ -1,6 +1,6 @@
 /* styles.css — Look of the companion window: rounded frame, pixel-crisp
    scene canvas, name/age label and stats panel, event bubble and card,
-   and the minimize/close buttons. */
+   goal button and menu, and the minimize/close buttons. */
 
 html,
 body {
@@ -185,7 +185,23 @@ body {
   color: #6b6478;
 }
 
-#event-card {
+/* A milestone celebration: golden bubble with a heading line. */
+#speech.celebrate {
+  background: #f2cc8f;
+}
+
+#speech.celebrate::after {
+  background: #f2cc8f;
+}
+
+#speech .heading {
+  display: block;
+  margin-bottom: 2px;
+  color: #a24f49;
+}
+
+/* Panels inside the window: the event card and the goal menu. */
+.panel {
   position: absolute;
   top: 28px;
   left: 10px;
@@ -203,27 +219,28 @@ body {
   -webkit-app-region: no-drag;
 }
 
-#event-card .event-prompt {
+.panel .event-prompt {
   margin: 0 18px 8px 0;
 }
 
-#event-card .event-choices {
+.panel .event-choices {
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
 
-#event-card button {
+.panel button {
   font: 8px/12px 'Press Start 2P', monospace;
   color: #3d3a4b;
   cursor: pointer;
 }
 
-#event-card button:focus {
+.panel button:focus {
   outline: none;
 }
 
-#event-card .event-choices button {
+.panel .event-choices button,
+.panel .goal-options button {
   padding: 4px 6px;
   border: 2px solid #3d3a4b;
   border-radius: 4px;
@@ -231,16 +248,17 @@ body {
   background: #f6e7c8;
 }
 
-#event-card .event-choices button:hover:not(:disabled) {
+.panel .event-choices button:hover:not(:disabled),
+.panel .goal-options button:hover {
   background: #f2cc8f;
 }
 
-#event-card .event-choices button:disabled {
+.panel .event-choices button:disabled {
   opacity: 0.45;
   cursor: default;
 }
 
-#event-card .event-close {
+.panel .panel-close {
   position: absolute;
   top: 4px;
   right: 4px;
@@ -253,6 +271,112 @@ body {
   background: transparent;
 }
 
-#event-card .event-close:hover {
+.panel .panel-close:hover {
   background: #f2cc8f;
+}
+
+.panel .goal-title {
+  margin: 0 18px 6px 0;
+  font: inherit;
+  color: #a24f49;
+}
+
+.panel .goal-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+
+/* Slimmer than event choices so the whole menu fits the window. */
+.panel .goal-options button {
+  padding-top: 2px;
+  padding-bottom: 2px;
+}
+
+/* Free spirit, the last option, spans the row. */
+.panel .goal-options button:last-child {
+  grid-column: 1 / -1;
+}
+
+.panel .goal-options button.active {
+  color: #fffaf0;
+  background: #81b29a;
+}
+
+.panel .goal-status {
+  margin: 0 0 4px;
+}
+
+.panel .goal-status span {
+  display: block;
+}
+
+.panel .goal-boost {
+  color: #6b6478;
+}
+
+.panel .goal-milestones {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.panel .goal-milestones li {
+  display: flex;
+  gap: 6px;
+  color: #6b6478;
+}
+
+.panel .goal-milestones li.reached {
+  color: #3d3a4b;
+}
+
+.panel .goal-milestones .name {
+  flex: 1;
+}
+
+/* Opens the goal menu; sits left of the minimize/close buttons. A small
+   pixel flag is drawn before the goal's name. */
+#goal-btn {
+  position: absolute;
+  top: 6px;
+  right: 46px;
+  height: 16px;
+  padding: 0 5px 0 13px;
+  border: none;
+  border-radius: 4px;
+  font: 8px/16px 'Press Start 2P', monospace;
+  color: #3d3a4b;
+  background: rgba(255, 255, 255, 0.55);
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+}
+
+#goal-btn::before {
+  content: '';
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: 1px;
+  height: 8px;
+  background: #3d3a4b;
+}
+
+#goal-btn::after {
+  content: '';
+  position: absolute;
+  top: 4px;
+  left: 5px;
+  width: 4px;
+  height: 3px;
+  background: #e07a5f;
+}
+
+#goal-btn:hover {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+#goal-btn:focus {
+  outline: none;
 }

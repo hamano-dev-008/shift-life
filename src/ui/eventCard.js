@@ -17,7 +17,7 @@ export function createEventCard(card, { onChoose, onDismiss }) {
   const prompt = card.querySelector('.event-prompt');
   const choices = card.querySelector('.event-choices');
 
-  card.querySelector('.event-close').addEventListener('click', () => {
+  card.querySelector('.panel-close').addEventListener('click', () => {
     card.hidden = true;
     onDismiss();
   });

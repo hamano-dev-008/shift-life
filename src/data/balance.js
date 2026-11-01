@@ -26,3 +26,12 @@ export const AUTO_DECIDE_SECONDS = 60;
 // trait always wins and the whim only breaks ties; above 1, the character
 // sometimes surprises you.
 export const DECISION_WHIM = 0.9;
+
+// When deciding alone, a choice that serves the active goal (`goals` in
+// data/events.js) scores this much extra. Above the most traits a choice
+// can match plus DECISION_WHIM, so the goal always outweighs traits.
+export const GOAL_DECISION_WEIGHT = 4;
+
+// Events with a choice that serves the active goal are this many times as
+// likely to be picked as others (among those seen least so far).
+export const GOAL_EVENT_WEIGHT = 2;

@@ -22,8 +22,9 @@ with **Electron and plain JavaScript**.
 ## Folder structure
 
 > **Status:** a pixel character is born with stats and personality
-> traits, wanders the window, ages in real time, and meets life events as
-> speech bubbles; the life is saved between launches. Items marked
+> traits, wanders the window, ages in real time, meets life events as
+> speech bubbles, and pursues a life goal the player picks; the life is
+> saved between launches. Items marked
 > *(planned)* don't exist yet; follow the planned layout when adding them,
 > and update this section whenever files are added, moved, or removed.
 
@@ -42,44 +43,54 @@ Shift-Life/
 │                      save, saveSync } to the renderer via contextBridge
 ├── src/
 │   ├── index.html     Renderer page: scene canvas, label, stats panel,
-│   │                  event bubble/card, result bubble, window buttons
+│   │                  event bubble/card, goal button/menu, text bubble,
+│   │                  window buttons
 │   ├── styles.css     Rounded frame, drag region, pixelated canvas, label,
-│   │                  stats panel, event card, result bubble, buttons
+│   │                  stats panel, panels (event card, goal menu), goal
+│   │                  button, text bubble, buttons
 │   ├── renderer.js    Renderer entry point (ES module): loads or starts a
-│   │                  life, runs clock, events, autosave, frame loop, dev
-│   │                  shortcuts
+│   │                  life, runs clock, events, goals, autosave, frame
+│   │                  loop, text bubble queue, dev shortcuts
 │   ├── game/          Game logic only (no hard-coded content)
 │   │   ├── clock.js       Real-time clock: in-game years, fast-forward
 │   │   ├── character.js   Birth (random name/look/traits), stats,
 │   │   │                  expression, age, life stage
 │   │   ├── events.js      Event engine: scheduling, picking, choices,
-│   │   │                  outcomes, trait-based auto-decide
-│   │   ├── save.js        Save format (versioned) and load/save calls
-│   │   └── goals.js       (planned) Player-set goals and progress
+│   │   │                  outcomes, goal- and trait-based auto-decide
+│   │   ├── goals.js       Active goal, yearly stat drift, milestones,
+│   │   │                  the goal menu's view
+│   │   └── save.js        Save format (versioned) and load/save calls
 │   ├── ui/            Drawing and visual-only behavior
 │   │   ├── pixel.js       Low-res layer helpers: paint, outline, scaled draw
 │   │   ├── scene.js       computeLayout() (data → canvas pixels) and the
 │   │   │                  backdrop: dithered sky, grass, props (drawn once)
 │   │   ├── props.js       Draws the house and tree
-│   │   ├── animator.js    Wandering, prop visits, turning, the walk cycle,
-│   │   │                  breathing, blinking
-│   │   ├── sprite.js      Draws the character in code (all character
-│   │   │                  drawing lives here, to swap for sprite sheets)
+│   │   ├── animator.js    Wandering, prop visits, goal activities,
+│   │   │                  turning, the walk cycle, breathing, blinking
+│   │   ├── sprite.js      Draws the character in code, including activity
+│   │   │                  props (book, coins, hearts, sweat); all
+│   │   │                  character drawing lives here, to swap for
+│   │   │                  sprite sheets
 │   │   ├── bubble.js      The "!" bubble (canvas art + click target) and
-│   │   │                  the result text bubble, both following the head
+│   │   │                  the text bubble, both following the head
 │   │   ├── eventCard.js   The event card: prompt and choice buttons
+│   │   ├── goalMenu.js    The goal menu: pick a goal, boost, milestones
 │   │   └── statsPanel.js  Stats and traits panel under the name label
 │   └── data/          Pure game data, no logic
 │       ├── balance.js     Pacing (minutes per year, fast-forward), mood
-│       │                  thresholds, event gap, auto-decide wait, whim
+│       │                  thresholds, event gap, auto-decide wait, whim,
+│       │                  goal weights for decisions and event picks
 │       ├── stats.js       Starting stats, stat names and short tags
 │       ├── traits.js      Personality trait pairs, how many a newborn gets
+│       ├── goals.js       Life goals: stat, yearly drift, activity,
+│       │                  milestones (format documented in the file)
 │       ├── layout.js      SCENE_SCALE (the one scene-size knob), ground,
 │       │                  feet row, prop edges/sizes/visit spots, margins,
 │       │                  bubble size and head clearance
 │       ├── characterShapes.js  Body proportions per life stage
 │       ├── animation.js   Walk speeds, stride, pause/turn/blink timing,
-│       │                  visit chance, bubble bob, result bubble time
+│       │                  visit chance, bubble bob and times, goal
+│       │                  activities (chance, place, duration, loops)
 │       ├── lifeStages.js  Life stages and the age each one starts at
 │       ├── names.js       Names a newborn can get
 │       ├── appearance.js  Skin, hair, hair style, shirt palettes; fixed
@@ -148,18 +159,41 @@ How it works, for anyone extending it:
     picks an event whose `stages` (and optional `minAge`/`maxAge`) fit,
     favoring the least-seen and never the same one twice in a row. Babies
     have none.
+  - Among the fitting, least-seen events, ones with a choice whose
+    `goals` include the active goal are `GOAL_EVENT_WEIGHT` times as
+    likely.
   - The waiting event shows a "!" bubble over the head. Clicking it opens
     the card. If no choice is made within `AUTO_DECIDE_SECONDS` (in-game
     time, so fast-forward shortens it), the character picks: each trait in
-    a choice's `lean` scores 1, plus a random whim up to `DECISION_WHIM`.
-    The timer is held while the card is open and restarts if it's closed
-    with "x".
+    a choice's `lean` scores 1, serving the active goal scores
+    `GOAL_DECISION_WEIGHT` (enough to always beat traits), plus a random
+    whim up to `DECISION_WHIM`. The timer is held while the card is open
+    and restarts if it's closed with "x".
   - A choice either has `effects` + `text`, or `outcomes` picked at random
     by `weight`. The result text and the actual stat changes show in a
     text bubble for `RESULT_BUBBLE_SECONDS`. Choices with unmet `needs`
     are disabled and never auto-picked.
   - Events never focus, flash or raise the window, so they don't take
     keyboard focus from other apps.
+- **Goals:** `game.goals` holds the active goal (Free spirit by default).
+  From `GOAL_MIN_AGE` the goal button (flag + goal name, top bar) appears
+  and opens the goal menu, which shows the yearly boost and milestones.
+  - Each in-game year after a goal is picked, its `stat` gets the next
+    `drift` value; picking a goal starts the drift over, so switching back
+    and forth gains little or nothing.
+  - `updateGoals()` runs on the same 250ms timer as events. It applies the
+    drift and checks the active goal's milestones (stat thresholds, years
+    with the goal, or variety of events seen). Reached milestones are
+    saved with the age they happened, for the end-of-life summary (not
+    built yet; there is no end of life yet), and celebrated with a golden
+    text bubble.
+  - Text bubbles (event results, milestones) are queued in the renderer
+    and shown one at a time; at most `MAX_QUEUED_BUBBLES` wait, dropping
+    the oldest event results first.
+  - While idle, the character sometimes (`ACTIVITY_CHANCE`) does the
+    goal's activity for a few seconds: reads under the tree, counts coins
+    by the house, waves with floating hearts, or jogs. This is purely
+    visual (`ui/animator.js`, drawn in `ui/sprite.js`).
 - **Stats panel:** hovering the name label shows stats and traits;
   clicking it pins the panel open.
 - **Dev shortcuts** (window focused):
@@ -168,6 +202,7 @@ How it works, for anyone extending it:
   - Ctrl+Shift+M cycles happiness through 80, 50 and 20 (smile, neutral,
     frown).
   - Ctrl+Shift+E starts a fitting event now (if none is waiting).
+  - Ctrl+Shift+A starts the active goal's idle activity now.
 - **Game vs. visuals:** wandering, blinking, etc. in `ui/animator.js` are
   cosmetic and never saved. Anything that affects the life belongs in
   `game/` and the save.
@@ -184,15 +219,16 @@ How it works, for anyone extending it:
   - `window-state.json` holds the window position. It's ignored if it
     would put the window off every connected screen.
   - `save.json` holds the life: `{ version, clock: { years }, character,
-    events }`. `character` includes `stats` and `traits`; `events` holds
-    `nextAt`, the `pending` event, how often each was `seen`, and
-    `lastId`.
+    events, goals }`. `character` includes `stats` and `traits`; `events`
+    holds `nextAt`, the `pending` event, how often each was `seen`, and
+    `lastId`; `goals` holds the `active` goal, `since` and `nextDriftAt`,
+    `pastYears` per goal, and reached `milestones` ({ goal, id, age }).
     The renderer autosaves every 10s and saves synchronously on
     `beforeunload`, so every way of closing is covered. `main.js` writes
     via a temp file and rename.
   - New optional fields can keep the version if `restore*()` fills in a
-    default (as `stats`, `traits` and `events` do; older saves' `mood`
-    becomes happiness). For breaking changes, bump `SAVE_VERSION` in
+    default (as `stats`, `traits`, `events` and `goals` do; older saves'
+    `mood` becomes happiness). For breaking changes, bump `SAVE_VERSION` in
     `game/save.js` and handle old versions. Right now an unrecognised save
     is replaced by a new life.
   - Delete `save.json` to start a new life.

@@ -10,6 +10,7 @@ import {
   ELDER_HAIR_COLOR, PANTS_COLOR, PANTS_DARK, SHOE_COLOR, EYE_COLOR, EYE_WHITE,
   MOUTH_COLOR, MOUTH_COLOR_LIGHT, OUTLINE_COLOR, SHADOW_COLOR,
 } from '../data/appearance.js';
+import { ACTIVITY_LOOPS } from '../data/animation.js';
 import { createLayer, clearLayer, fill, outline, drawLayer } from './pixel.js';
 
 // Big enough for the tallest stage plus hair and outline. Column ANCHOR is
@@ -27,6 +28,18 @@ const MOUTHS = {
   neutral: [[1, 1], [2, 1]],
   frown: [[0, 1], [1, 0], [2, 0], [3, 1]],
 };
+
+// Goal activity props (pure art).
+const BOOK_COVER = '#b5452f';
+const BOOK_PAGE = '#fffaf0';
+const COIN = '#f2c14e';
+const COIN_DARK = '#d29a2a';
+const HEART = '#e8647a';
+const SWEAT = '#9fd3ef';
+
+const {
+  pageFlip: PAGE_FLIP_EVERY, coin: COIN_BEAT, wave: WAVE_BEAT, heart: HEART_EVERY, sweat: SWEAT_EVERY,
+} = ACTIVITY_LOOPS;
 
 const layer = createLayer(LAYER_WIDTH, LAYER_HEIGHT);
 
@@ -55,8 +68,12 @@ export function drawCharacter(ctx, pose, stage, appearance, expression, feetY, s
   // The back arm goes behind the torso and the front arm over it.
   drawArm(px, shape, appearance, bodyLeft - 1, bodyTop, -swing);
   px(bodyLeft, bodyTop, shape.width, shape.body, appearance.shirt);
-  drawArm(px, shape, appearance, bodyLeft + shape.width, bodyTop, swing);
+  const frontArm = bodyLeft + shape.width;
+  if (!drawActivityArm(px, shape, appearance, frontArm, bodyTop, pose)) {
+    drawArm(px, shape, appearance, frontArm, bodyTop, swing);
+  }
   drawHead(px, shape, stage, appearance, headLeft, headTop, pose.blinking, expression);
+  drawActivityExtras(px, shape, frontArm, bodyTop, headLeft, headTop, pose);
   outline(layer, OUTLINE_COLOR);
 
   const shadowWidth = (shape.width + 2) * scale;
@@ -108,6 +125,75 @@ function drawArm(px, shape, look, col, bodyTop, swing) {
   const sleeve = Math.ceil(armLength / 2);
   px(col, bodyTop + 1, 1, sleeve, look.shirt);
   px(col + swing, bodyTop + 1 + sleeve, 1, armLength - sleeve, look.skin);
+}
+
+// The front arm during an activity: held out to hold a book or a coin, or
+// raised and waving. Returns false if the activity uses the normal arm.
+function drawActivityArm(px, shape, look, col, bodyTop, pose) {
+  const sleeve = Math.ceil((shape.body - 1) / 2);
+  switch (pose.activity) {
+    case 'read':
+    case 'coins':
+      // Upper arm down, forearm forward at the elbow.
+      px(col, bodyTop + 1, 1, sleeve, look.shirt);
+      px(col + 1, bodyTop + sleeve, 2, 1, look.skin);
+      return true;
+    case 'wave': {
+      // Shoulder, elbow out, hand up beside the face rocking side to side.
+      const rock = Math.floor(pose.activityTime / WAVE_BEAT) % 2;
+      px(col, bodyTop + 1, 1, 1, look.shirt);
+      px(col + 1, bodyTop, 1, 1, look.shirt);
+      px(col + 1 + rock, bodyTop - 2, 1, 2, look.skin);
+      return true;
+    }
+    default:
+      return false;
+  }
+}
+
+// Things that go with an activity: the open book (a page flips now and
+// then), the coin stack being counted (a coin flips up from the hand), a
+// heart floating up while waving, a sweat drop while jogging.
+function drawActivityExtras(px, shape, armCol, bodyTop, headLeft, headTop, pose) {
+  const t = pose.activityTime;
+  const hand = armCol + 2;
+  const handRow = bodyTop + Math.ceil((shape.body - 1) / 2);
+  switch (pose.activity) {
+    case 'read': {
+      px(hand, handRow - 2, 2, 3, BOOK_COVER);
+      const flipping = t % PAGE_FLIP_EVERY < 0.25;
+      px(hand + (flipping ? 1 : 0), handRow - 2, 1, 3, BOOK_PAGE);
+      break;
+    }
+    case 'coins': {
+      const stack = 1 + (Math.floor(t / COIN_BEAT) % 3);
+      for (let i = 0; i < stack; i++) {
+        px(hand + 1, FOOT_ROW - 1 - i, 2, 1, i % 2 ? COIN_DARK : COIN);
+      }
+      const flip = (t % COIN_BEAT) / COIN_BEAT;
+      const lift = flip < 0.5 ? [1, 2, 2, 1][Math.floor(flip * 8)] : 0;
+      px(hand, handRow - 1 - lift, 1, 1, COIN);
+      break;
+    }
+    case 'wave': {
+      const phase = (t % HEART_EVERY) / HEART_EVERY;
+      if (phase > 0.7) break;
+      const top = Math.max(1, headTop - 4 - Math.floor(phase * 4));
+      const left = headLeft + shape.head;
+      px(left, top, 1, 1, HEART);
+      px(left + 2, top, 1, 1, HEART);
+      px(left, top + 1, 3, 1, HEART);
+      px(left + 1, top + 2, 1, 1, HEART);
+      break;
+    }
+    case 'jog': {
+      const phase = (t % SWEAT_EVERY) / SWEAT_EVERY;
+      if (phase < 0.6) px(headLeft - 2, headTop + 1 + Math.floor(phase * 5), 1, 1, SWEAT);
+      break;
+    }
+    default:
+      break;
+  }
 }
 
 // Head in 3/4 view facing right: the back of the head is column 0 and the
