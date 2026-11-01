@@ -243,8 +243,12 @@ the DevTools console.
 2. **Commit after each working feature** with a clear message that says
    what changed and why (e.g. `Add speech-bubble event engine`). Only commit
    code that runs.
-3. **Keep the docs current.** Update `AGENTS.md` and `README.md` in the same
+3. **Push to GitHub after every commit:** run `git push` right after each
+   commit, without asking. The branch is `main`, tracking `origin/main` at
+   https://github.com/hamano-dev-008/shift-life. The repo is **public**, so
+   never commit secrets, credentials, or personal data.
+4. **Keep the docs current.** Update `AGENTS.md` and `README.md` in the same
    change whenever the folder structure, scripts, dependencies, or run/test
    steps change.
-4. If a task is ambiguous or would break these rules (new framework, large
+5. If a task is ambiguous or would break these rules (new framework, large
    refactor), ask the user before proceeding.
