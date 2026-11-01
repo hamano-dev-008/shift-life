@@ -1,7 +1,7 @@
 # Sprites
 
 Put pixel-art PNGs here to replace the code-drawn graphics. Each file's
-name (without `.png`) says what it replaces, for example `house.png`,
+name (without `.png`) says what it replaces, for example `tree.png`,
 `grass.png` or `character.adult.walk.png`. Anything without a PNG keeps
 its code-drawn look.
 

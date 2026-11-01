@@ -1,4 +1,4 @@
-// props.js — Draws the scene's props (a house and a tree) in code, as
+// props.js — Draws the scene's prop (a tree) in code, as
 // outlined low-res pixel art scaled onto the scenery; ui/scene.js uses
 // these when there's no sprite for a prop. Sizes and positions come from
 // the layout (computeLayout() in scene.js, from data/layout.js).
@@ -6,26 +6,12 @@
 import { OUTLINE_COLOR } from '../data/appearance.js';
 import { createLayer, fill, outline, drawLayer } from './pixel.js';
 
-const ROOF = '#c8645c';
-const ROOF_DARK = '#a24f49';
-const CHIMNEY = '#9d8f9e';
-const WALL = '#f6e7c8';
-const WALL_SHADE = '#e3cfa8';
-const DOOR = '#9a6a45';
-const KNOB = '#f2cc8f';
-const GLASS = '#bfe3f0';
-const GLASS_SHINE = '#ffffff';
-
 const TRUNK = '#8b5a3c';
 const TRUNK_DARK = '#6e4630';
 const LEAF = '#5fa55a';
 const LEAF_DARK = '#4b8a4a';
 const LEAF_LIGHT = '#7cc46d';
 const FRUIT = '#e07a5f';
-
-export function drawHouse(ctx, layout) {
-  drawProp(ctx, layout.props.house, paintHouse, layout.scale);
-}
 
 export function drawTree(ctx, layout) {
   drawProp(ctx, layout.props.tree, paintTree, layout.scale);
@@ -39,32 +25,6 @@ function drawProp(ctx, prop, paint, scale) {
   paint(px, prop.width, prop.height);
   outline(layer, OUTLINE_COLOR);
   drawLayer(ctx, layer, prop.x - scale, prop.baseY + scale, scale);
-}
-
-function paintHouse(px, w, h) {
-  const mid = Math.floor(w / 2);
-  const roofHeight = mid - 1;
-
-  // Chimney first, so the roof overlaps its base.
-  px(w - 5, 1, 2, roofHeight - 2, CHIMNEY);
-  for (let row = 0; row < roofHeight; row++) {
-    const left = Math.max(0, mid - 1 - row);
-    const right = Math.min(w - 1, mid + row);
-    px(left, row, right - left + 1, 1, ROOF);
-  }
-  px(0, roofHeight - 1, w, 1, ROOF_DARK);
-
-  px(1, roofHeight, w - 2, h - roofHeight, WALL);
-  px(1, roofHeight, w - 2, 1, WALL_SHADE);
-
-  const doorHeight = Math.round((h - roofHeight) * 0.6);
-  px(mid - 2, h - doorHeight, 4, doorHeight, DOOR);
-  px(mid, h - Math.ceil(doorHeight / 2), 1, 1, KNOB);
-
-  for (const col of [3, w - 6]) {
-    px(col, roofHeight + 2, 3, 3, GLASS);
-    px(col, roofHeight + 2, 1, 1, GLASS_SHINE);
-  }
 }
 
 function paintTree(px, w, h) {

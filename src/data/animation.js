@@ -48,7 +48,7 @@ export const RESULT_BUBBLE_SECONDS = 4;
 export const ACTIVITY_CHANCE = 0.3;
 export const ACTIVITIES = {
   read: { place: 'tree', duration: [5, 9] },
-  coins: { place: 'house', duration: [4, 7] },
+  coins: { place: null, duration: [4, 7] },
   jog: { place: null, duration: [5, 8], speed: 2.5 },
   wave: { place: null, duration: [3, 5] },
 };

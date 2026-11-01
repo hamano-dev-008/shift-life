@@ -17,7 +17,7 @@ Early development. What works so far:
   Drag it by its background; minimize or close it with the buttons in the
   top-right corner. It reopens where you left it.
 - A pixel character is born with a random name and look. They wander the
-  grass between a little house and a tree, sometimes stopping by one for
+  grass around a big tree in the middle, sometimes stopping by it for
   a moment. They stroll with a four-frame walk (feet planted, arms
   swinging, a small bounce each step) and breathe and blink while
   standing. Their face smiles, looks neutral or frowns depending on how
@@ -39,7 +39,7 @@ Early development. What works so far:
   their own, the goal comes before their traits, and events that suit
   the goal come up a bit more often. Each goal has milestones, celebrated
   with a golden bubble, and the character sometimes does a goal activity
-  while idle: reading under the tree, counting coins by the house, waving,
+  while idle: reading under the tree, counting coins, waving,
   or jogging.
 - Jobs: from 18, a character without a job gets job offers in the "!"
   bubble: 2-3 jobs they qualify for (always one that suits their goal,
@@ -65,7 +65,7 @@ Early development. What works so far:
   pass while the app is closed.
 
 **Sizes:** in `src/data/layout.js`, `SCENE_SCALE` sets how big the scene
-(sky, grass, house, tree) is drawn, and `CHARACTER_SCALE` sets the
+(sky, grass, tree) is drawn, and `CHARACTER_SCALE` sets the
 character's size on its own. Both are whole numbers, so pixels stay
 crisp: the scene is 3 by default and the character 2 (try 3 to match the
 scene).
@@ -88,7 +88,7 @@ start a new life by closing the app and deleting
 **Adding sprites:** every graphic is drawn in code for now, but any of
 them can be replaced by your own pixel art, one at a time, without
 code. Save a PNG in `assets/sprites/` named after what it replaces:
-`sky.png`, `grass.png`, `house.png`, `tree.png`, or
+`sky.png`, `grass.png`, `tree.png`, or
 `character.<body>.<animation>.png` (for example
 `character.adult.walk.png`; bodies are baby, toddler, child, teen,
 adult, elder; animations are idle, walk, sit, crawl, read, coins, wave,

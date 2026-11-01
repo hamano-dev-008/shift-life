@@ -1,6 +1,6 @@
 // scene.js — Works out where everything goes for the window's size and the
 // scene scale, and draws the scenery: dithered sky, grassy ground strip,
-// house and tree. Each piece uses its sprite (ui/assets.js) when there is
+// and a tree. Each piece uses its sprite (ui/assets.js) when there is
 // one, or the code-drawn art. Still pieces are drawn once to offscreen
 // canvases copied in every frame; animated sprites are drawn every frame.
 
@@ -8,7 +8,7 @@ import {
   SCENE_SCALE, CHARACTER_SCALE, GROUND_HEIGHT, FEET_FROM_BOTTOM, PROP_BASE_FROM_BOTTOM, PROPS, WANDER_MARGIN,
 } from '../data/layout.js';
 import { createLayer, drawLayer } from './pixel.js';
-import { drawHouse, drawTree } from './props.js';
+import { drawTree } from './props.js';
 import { getSprite, isAnimated, frameAtTime, drawSprite } from './assets.js';
 
 const SKY_TOP = [142, 202, 230];
@@ -34,9 +34,15 @@ export function computeLayout(width, height) {
   const fromBottom = (rows) => height - rows * scale;
   const props = {};
   for (const [id, prop] of Object.entries(PROPS)) {
-    const x = prop.edge === 'left'
-      ? prop.margin * scale
-      : width - (prop.margin + prop.width) * scale;
+    let x;
+    if (prop.edge === 'left') {
+      x = prop.margin * scale;
+    } else if (prop.edge === 'right') {
+      x = width - (prop.margin + prop.width) * scale;
+    } else {
+      // Centered, on the scene pixel grid.
+      x = Math.floor((width / scale - prop.width) / 2) * scale;
+    }
     props[id] = {
       edge: prop.edge,
       x,
@@ -131,15 +137,20 @@ function tileAcross(ctx, layout, sprite, frame, bottomY) {
 }
 
 // A prop sprite goes where the code-drawn prop and its 1px outline go:
-// its outer column against the prop's window edge, its bottom row just
-// below the prop's base. A sprite with its own scale grows away from
-// that edge and upward.
+// its outer column against the prop's window edge (or centered on a
+// centered prop), its bottom row just below the prop's base. A sprite
+// with its own scale grows away from that edge (or both ways) and upward.
 function placeProp(ctx, layout, sprite, frame, prop) {
   const scale = scaleOf(layout, sprite);
   const width = sprite.frameWidth * scale;
-  const left = prop.edge === 'left'
-    ? prop.x - scale
-    : prop.x + prop.width * layout.scale + scale - width;
+  let left;
+  if (prop.edge === 'left') {
+    left = prop.x - scale;
+  } else if (prop.edge === 'right') {
+    left = prop.x + prop.width * layout.scale + scale - width;
+  } else {
+    left = Math.round(prop.x + (prop.width * layout.scale - width) / 2);
+  }
   drawSprite(ctx, sprite, frame, left, prop.baseY + scale, scale);
 }
 
@@ -162,11 +173,6 @@ const SCENERY = [
     name: 'grass',
     drawSprite: (ctx, layout, sprite, frame) => tileAcross(ctx, layout, sprite, frame, layout.height),
     drawCode: (ctx, layout) => paintOnGrid(ctx, layout, drawGround),
-  },
-  {
-    name: 'house',
-    drawSprite: (ctx, layout, sprite, frame) => placeProp(ctx, layout, sprite, frame, layout.props.house),
-    drawCode: drawHouse,
   },
   {
     name: 'tree',

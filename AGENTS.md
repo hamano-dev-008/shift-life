@@ -75,10 +75,10 @@ Shift-Life/
 │   │   ├── assets.js      Sprite loader (PNGs from assets/sprites/ at
 │   │   │                  startup), frame picking, crisp sprite drawing
 │   │   ├── scene.js       computeLayout() (data → canvas pixels) and the
-│   │   │                  scenery: sky, grass, house, tree, each a sprite
+│   │   │                  scenery: sky, grass, tree, each a sprite
 │   │   │                  or code-drawn; still pieces cached, animated
 │   │   │                  sprites drawn every frame
-│   │   ├── props.js       Draws the house and tree in code
+│   │   ├── props.js       Draws the tree in code
 │   │   ├── animator.js    Wandering, prop visits, goal activities,
 │   │   │                  trips off-screen to work and back,
 │   │   │                  turning, the walk cycle, breathing, blinking;
@@ -162,7 +162,7 @@ How it works, for anyone extending it:
     canvas pixels. Code that places things (animator, sprite, props) uses
     that layout, never raw canvas numbers, so changing `SCENE_SCALE`
     resizes the whole scene and props stay at the edges.
-  - The scenery (sky, grass, house, tree, back to front) comes from
+  - The scenery (sky, grass, tree, back to front) comes from
     `createScenery()` in `ui/scene.js`. Still pieces next to each other
     are drawn once onto a cached canvas; an animated sprite is drawn live
     every frame in its place in the order. The canvas is cleared each
@@ -182,7 +182,7 @@ How it works, for anyone extending it:
   - A file's name without `.png` is its sprite name. Drawing code calls
     `getSprite(name)` and falls back to its code-drawn art on null. The
     names it looks for, and where each is placed, are listed at the top
-    of `data/sprites.js`: `sky`, `grass`, `house`, `tree` (scene pixels,
+    of `data/sprites.js`: `sky`, `grass`, `tree` (scene pixels,
     drawn at `SCENE_SCALE`) and `character.<body>.<animation>` with an
     optional `.<expression>` (character pixels, at `CHARACTER_SCALE`).
   - Sheets have their frames side by side in one row. `SPRITES` in
@@ -198,7 +198,7 @@ How it works, for anyone extending it:
     the code-drawn version. The shadow is drawn either way, and bubbles
     still sit at the code-drawn figure's height.
   - **Adding a sprite:** save the PNG as `assets/sprites/<name>.png`
-    (e.g. `house.png`, `character.adult.idle.png`), drawn at 1 pixel per
+    (e.g. `tree.png`, `character.adult.idle.png`), drawn at 1 pixel per
     scene or character pixel, and restart the app. For an animation, put
     the frames side by side and add an entry to `SPRITES`, e.g.
     `grass: { frames: 4, frameDuration: 0.5 }`. **Adding a new kind of
@@ -296,7 +296,7 @@ How it works, for anyone extending it:
     the oldest event results first.
   - While idle, the character sometimes (`ACTIVITY_CHANCE`) does the
     goal's activity for a few seconds: reads under the tree, counts coins
-    by the house, waves with floating hearts, or jogs. This is purely
+    wherever they are, waves with floating hearts, or jogs. This is purely
     visual (`ui/animator.js`, drawn in `ui/sprite.js`).
 - **Jobs:** `game.jobs` holds the job held (`current`: id, 0-based
   `level`, `since`, `hiredAge`, `bonus` from raises), whether they've

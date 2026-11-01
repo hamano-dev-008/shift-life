@@ -24,12 +24,12 @@ export const GROUND_HEIGHT = 16;
 export const FEET_FROM_BOTTOM = 7;
 export const PROP_BASE_FROM_BOTTOM = 12;
 
-// edge / margin: which window edge the prop sits against, and how far
-// from it. width / height: the prop's size. visitOffset: how far from the
-// prop's left side the character stops when visiting (the door, the trunk).
+// edge / margin: which window edge the prop sits against ('left' or
+// 'right'), and how far from it; or 'center' for the middle of the window
+// (margin unused). width / height: the prop's size. visitOffset: how far
+// from the prop's left side the character stops when visiting (the trunk).
 export const PROPS = {
-  house: { edge: 'left', margin: 1, width: 22, height: 26, visitOffset: 11 },
-  tree: { edge: 'right', margin: 1, width: 18, height: 34, visitOffset: 9 },
+  tree: { edge: 'center', margin: 0, width: 18, height: 34, visitOffset: 9 },
 };
 
 // How close to the window edges the character's center may wander.

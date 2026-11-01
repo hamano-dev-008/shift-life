@@ -1,5 +1,5 @@
 // animator.js — Purely visual motion for the character: wandering, visiting
-// the house and tree, goal activities (reading, counting coins, jogging,
+// the tree, goal activities (reading, counting coins, jogging,
 // waving), walking off "to work" and back, turning, the walk cycle,
 // crawling and toddling for the youngest (with sitting, fidgets and
 // plops), breathing, and blinking. Never touches game state; the renderer
@@ -82,8 +82,8 @@ function maxTrip(anim) {
 function chooseTarget(anim) {
   const { props, scale } = anim.layout;
   const minDistance = MIN_WALK_DISTANCE * scale;
-  if (Math.random() < VISIT_CHANCE) {
-    const choices = Object.keys(props).filter((id) => id !== anim.lastVisited);
+  const choices = Object.keys(props).filter((id) => id !== anim.lastVisited);
+  if (choices.length && Math.random() < VISIT_CHANCE) {
     const id = choices[Math.floor(Math.random() * choices.length)];
     const distance = Math.abs(props[id].visitX - anim.x);
     if (distance >= minDistance && distance <= maxTrip(anim)) {

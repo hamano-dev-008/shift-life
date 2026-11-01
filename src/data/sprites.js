@@ -12,12 +12,10 @@
 //             on the grass line.
 //     grass   Tiled across the bottom of the window, bottom-aligned. Make
 //             it at least GROUND_HEIGHT rows tall (taller for tufts).
-//     house   Placed like the code-drawn house: left edge PROPS.house.
-//             margin - 1 from the left of the window, bottom edge one row
-//             below the prop's base line. Same size as the code-drawn
-//             one plus its 1px outline: 24 x 28.
-//     tree    Like the house, but its right edge goes PROPS.tree.margin - 1
-//             from the right of the window. Code-drawn size: 20 x 36.
+//     tree    Centered where the code-drawn tree is (the middle of the
+//             window, PROPS.tree in data/layout.js), bottom edge one row
+//             below the prop's base line. The code-drawn tree plus its
+//             1px outline is 20 x 36.
 //   Character (character pixels, CHARACTER_SCALE in data/layout.js):
 //     character.<body>.<animation>, optionally followed by .<expression>
 //     (smile, neutral or frown) for a version that matches the mood,
@@ -56,7 +54,7 @@
 export const DEFAULT_FRAME_DURATION = 0.2;
 
 export const SPRITES = {
-  // The tree art is about as tall as the house; drawn bigger (5 vs the
-  // scene's 3) so it towers over it like a real tree.
+  // The tree art is small for a tree; drawn bigger (5 vs the scene's 3)
+  // so it stands tall in the middle of the scene.
   tree: { scale: 5 },
 };
