@@ -6,7 +6,7 @@
 // outlined, then scaled up by CHARACTER_SCALE (data/layout.js), which is
 // separate from the scene scale (mirrored when facing left).
 
-import { CHARACTER_SHAPES } from '../data/characterShapes.js';
+import { CHARACTER_SHAPES, CRAWL_POSE, SIT_POSE } from '../data/characterShapes.js';
 import {
   ELDER_HAIR_COLOR, PANTS_COLOR, PANTS_DARK, SHOE_COLOR, EYE_COLOR, EYE_WHITE,
   MOUTH_COLOR, MOUTH_COLOR_LIGHT, OUTLINE_COLOR, SHADOW_COLOR,
@@ -42,48 +42,177 @@ const {
   pageFlip: PAGE_FLIP_EVERY, coin: COIN_BEAT, wave: WAVE_BEAT, heart: HEART_EVERY, sweat: SWEAT_EVERY,
 } = ACTIVITY_LOOPS;
 
+// A toddler's head shift on each frame of the walk cycle: forward on one
+// passing step, back on the other.
+const TODDLE_SWAY = [0, 1, 0, -1];
+
 const layer = createLayer(LAYER_WIDTH, LAYER_HEIGHT);
+
+// The body proportions in use: a toddler has their own; otherwise the
+// life stage's.
+function shapeOf(stage, pose) {
+  return CHARACTER_SHAPES[pose.gait === 'toddle' ? 'toddler' : stage];
+}
+
+function isCrawling(pose) {
+  return pose.gait === 'crawl' && !pose.sit;
+}
+
+// How tall the figure is from the feet to the top of the head (not
+// counting hair), in character pixels, for placing bubbles above it.
+export function figureHeight(stage, pose) {
+  const shape = shapeOf(stage, pose);
+  if (pose.sit) return shape.body + shape.head;
+  if (isCrawling(pose)) return CRAWL_POSE.limbs + shape.body + CRAWL_POSE.headAbove;
+  return shape.legs + shape.body + shape.head;
+}
 
 // Draws the character. `pose` comes from poseOf() in animator.js;
 // `expression` is 'smile', 'neutral', or 'frown'; feetY is the canvas row
 // the feet rest on; scale is screen pixels per character pixel.
 export function drawCharacter(ctx, pose, stage, appearance, expression, feetY, scale) {
-  const shape = CHARACTER_SHAPES[stage];
+  const shape = shapeOf(stage, pose);
   const px = (col, row, w, h, color) => fill(layer, ANCHOR + col, row, w, h, color);
 
-  // Passing frames bob the body up 1px (the legs stretch to match); idle
-  // breathing dips the head 1px.
-  const walk = pose.walk;
-  const bob = walk && walk.frame % 2 === 1 ? 1 : 0;
-  const bodyTop = FOOT_ROW - shape.legs - shape.body - bob;
-  const headTop = bodyTop - shape.head + pose.breath;
-  const bodyLeft = -Math.floor(shape.width / 2);
-  const headLeft = -Math.floor(shape.head / 2) + shape.stoop;
-
-  // Arms swing opposite the legs: when the near leg is forward (frame 0)
-  // the front arm swings back, and vice versa on frame 2.
-  const swing = !walk || walk.frame % 2 === 1 ? 0 : walk.frame === 0 ? -1 : 1;
-
   clearLayer(layer);
-  drawLegs(px, shape, stage, appearance, bodyLeft, bodyTop + shape.body, walk);
-  // The back arm goes behind the torso and the front arm over it.
-  drawArm(px, shape, appearance, bodyLeft - 1, bodyTop, -swing);
-  px(bodyLeft, bodyTop, shape.width, shape.body, appearance.shirt);
-  const frontArm = bodyLeft + shape.width;
-  if (!drawActivityArm(px, shape, appearance, frontArm, bodyTop, pose)) {
-    drawArm(px, shape, appearance, frontArm, bodyTop, swing);
+  if (pose.sit) {
+    drawSitting(px, shape, stage, appearance, expression, pose);
+  } else if (isCrawling(pose)) {
+    drawCrawling(px, shape, stage, appearance, expression, pose);
+  } else {
+    drawStanding(px, shape, stage, appearance, expression, pose);
   }
-  drawHead(px, shape, stage, appearance, headLeft, headTop, pose.blinking, expression);
-  drawActivityExtras(px, shape, frontArm, bodyTop, headLeft, headTop, pose);
   outline(layer, OUTLINE_COLOR);
 
-  const shadowWidth = (shape.width + 2) * scale;
+  const length = isCrawling(pose) ? shape.width + CRAWL_POSE.shin + 2 : shape.width;
+  const shadowWidth = (length + 2) * scale;
   ctx.fillStyle = SHADOW_COLOR;
   ctx.fillRect(pose.x - shadowWidth / 2, feetY, shadowWidth, scale);
   drawLayer(ctx, layer, pose.x, feetY + scale, scale, {
     anchorCol: ANCHOR,
     flip: pose.facing === -1,
   });
+}
+
+// Standing and walking (toddlers too). Passing frames bob the body up 1px
+// (the legs stretch to match); idle breathing dips the head 1px.
+function drawStanding(px, shape, stage, look, expression, pose) {
+  const walk = pose.walk;
+  const toddling = pose.gait === 'toddle' && walk;
+  const bob = walk && walk.frame % 2 === 1 ? 1 : 0;
+  const bodyTop = FOOT_ROW - shape.legs - shape.body - bob;
+  const headTop = bodyTop - shape.head + pose.breath;
+  const bodyLeft = -Math.floor(shape.width / 2);
+  // A toddler's head sways forward and back with each wobbly step.
+  const sway = toddling ? TODDLE_SWAY[walk.frame] : 0;
+  const headLeft = -Math.floor(shape.head / 2) + shape.stoop + sway;
+
+  // Arms swing opposite the legs: when the near leg is forward (frame 0)
+  // the front arm swings back, and vice versa on frame 2.
+  const swing = !walk || walk.frame % 2 === 1 ? 0 : walk.frame === 0 ? -1 : 1;
+
+  drawLegs(px, shape, stage, look, bodyLeft, bodyTop + shape.body, walk);
+  // The back arm goes behind the torso and the front arm over it. A
+  // toddler holds both out for balance instead.
+  const frontArm = bodyLeft + shape.width;
+  if (toddling) {
+    drawBalanceArm(px, look, bodyLeft - 1, bodyTop, -1, walk.frame);
+    px(bodyLeft, bodyTop, shape.width, shape.body, look.shirt);
+    drawBalanceArm(px, look, frontArm, bodyTop, 1, walk.frame);
+  } else {
+    drawArm(px, shape, look, bodyLeft - 1, bodyTop, -swing);
+    px(bodyLeft, bodyTop, shape.width, shape.body, look.shirt);
+    if (!drawActivityArm(px, shape, look, frontArm, bodyTop, pose)) {
+      drawArm(px, shape, look, frontArm, bodyTop, swing);
+    }
+  }
+  drawHead(px, shape, stage, look, headLeft, headTop, pose.blinking, expression);
+  drawActivityExtras(px, shape, frontArm, bodyTop, headLeft, headTop, pose);
+}
+
+// A toddler's arm held out from the shoulder and a little raised, hand
+// bobbing up a pixel on the other step. `out` is -1 (back) or 1 (front).
+function drawBalanceArm(px, look, col, bodyTop, out, frame) {
+  const lift = frame === (out > 0 ? 1 : 3) ? 1 : 0;
+  px(col, bodyTop + 1, 1, 1, look.shirt);
+  px(col + out, bodyTop - lift, 1, 1, look.skin);
+}
+
+// Sitting on the ground (a baby at rest, or a toddler who plopped down):
+// upright torso, legs out in front, hands by the hips. A wobble shifts the
+// upper body sideways; `gaze` turns the eyes back over the shoulder.
+function drawSitting(px, shape, stage, look, expression, pose) {
+  const bodyTop = FOOT_ROW - shape.body;
+  const bodyLeft = -Math.floor(shape.width / 2) + pose.wobble;
+  const headTop = bodyTop - shape.head + pose.breath;
+  const headLeft = -Math.floor(shape.head / 2) + pose.wobble;
+  // The legs start under the front of the torso and stay put on the
+  // ground while the body wobbles.
+  const hip = -Math.floor(shape.width / 2) + shape.width - 1;
+  const ground = FOOT_ROW - 1;
+
+  drawArm(px, shape, look, bodyLeft - 1, bodyTop, 0);
+  px(bodyLeft, bodyTop, shape.width, shape.body, look.shirt);
+  drawArm(px, shape, look, bodyLeft + shape.width, bodyTop, 0);
+  // Legs stretched out in front, past the hand resting on them, toes up.
+  px(hip, ground, SIT_POSE.legs, 1, look.skin);
+  px(hip + SIT_POSE.legs - 1, ground - 1, 1, 1, look.skin);
+  drawHead(px, shape, stage, look, headLeft, headTop, pose.blinking, expression, pose.gaze);
+}
+
+// On hands and knees: the torso lies flat on CRAWL_POSE.limbs-tall arms
+// and legs, the head raised in front. Opposite hand and knee move
+// together and planted ones stay put (see walkPose() in animator.js); far
+// limbs are a shade darker and drawn behind the torso.
+function drawCrawling(px, shape, stage, look, expression, pose) {
+  const walk = pose.walk;
+  const { limbs, headAbove, back } = CRAWL_POSE;
+  // No bob: crawlers keep low, and the limbs stay joined to the torso.
+  const torsoTop = FOOT_ROW - limbs - shape.body;
+  const torsoLeft = -back;
+  const shoulder = torsoLeft + shape.width - 1;
+  const hip = torsoLeft + 1;
+  const headLeft = shoulder - 1;
+  const headTop = torsoTop - headAbove + pose.breath;
+  const farSkin = darken(look.skin, 0.85);
+
+  // Near hand + far knee share one reach, far hand + near knee the other.
+  const nearReach = walk ? walk.nearReach : 0;
+  const farReach = walk ? walk.farReach : 0;
+  const nearLifted = walk ? walk.nearLifted : false;
+  const farLifted = walk ? walk.farLifted : false;
+
+  drawCrawlLimb(px, shoulder, farReach, farLifted, farSkin, false);
+  drawCrawlLimb(px, hip, nearReach, nearLifted, farSkin, true);
+  px(torsoLeft, torsoTop, shape.width, shape.body, look.shirt);
+  drawCrawlLimb(px, hip, farReach, farLifted, look.skin, true);
+  drawCrawlLimb(px, shoulder, nearReach, nearLifted, look.skin, false);
+  drawHead(px, shape, stage, look, headLeft, headTop, pose.blinking, expression);
+}
+
+// One crawling arm or leg from the torso down to the ground, landing
+// `reach` pixels forward. An arm ends in a 2px hand; a leg ends in a 2px
+// knee with the shin trailing back along the ground. A lifted limb stops
+// a pixel short of the ground.
+function drawCrawlLimb(px, col, reach, lifted, color, isLeg) {
+  const { limbs, shin } = CRAWL_POSE;
+  const ground = FOOT_ROW - 1;
+  const low = lifted ? ground - 1 : ground;
+  for (let row = ground - limbs + 1; row < low; row++) {
+    const t = (row - (ground - limbs)) / limbs;
+    px(col + Math.sign(reach) * Math.round(Math.abs(reach) * t), row, isLeg ? 2 : 1, 1, color);
+  }
+  if (isLeg) {
+    px(col + reach - shin, low, shin + 2, 1, color);
+  } else {
+    px(col + reach, low, 2, 1, color);
+  }
+}
+
+// `hex` with each channel scaled by `factor` (below 1 darkens).
+function darken(hex, factor) {
+  const channels = [1, 3, 5].map((i) => Math.round(parseInt(hex.slice(i, i + 2), 16) * factor));
+  return `#${channels.map((v) => v.toString(16).padStart(2, '0')).join('')}`;
 }
 
 // Legs from row `top` down to the ground. Standing, they're side by side
@@ -199,8 +328,9 @@ function drawActivityExtras(px, shape, armCol, bodyTop, headLeft, headTop, pose)
 
 // Head in 3/4 view facing right: the back of the head is column 0 and the
 // face sits toward the high columns. Hair only frames the top and sides,
-// so eyes and mouth always stay visible.
-function drawHead(px, shape, stage, look, headLeft, headTop, blinking, expression) {
+// so eyes and mouth always stay visible. `gaze` -1 moves the pupils to the
+// back of the eyes (looking back over the shoulder).
+function drawHead(px, shape, stage, look, headLeft, headTop, blinking, expression, gaze = 0) {
   const size = shape.head;
   const at = (col, row, w, h, color) => px(headLeft + col, headTop + row, w, h, color);
 
@@ -217,8 +347,9 @@ function drawHead(px, shape, stage, look, headLeft, headTop, blinking, expressio
     if (blinking) {
       at(col, eyeRow + 1, 2, 1, EYE_COLOR);
     } else {
-      at(col, eyeRow, 1, 2, EYE_WHITE);
-      at(col + 1, eyeRow, 1, 2, EYE_COLOR);
+      const pupil = gaze < 0 ? 0 : 1;
+      at(col + 1 - pupil, eyeRow, 1, 2, EYE_WHITE);
+      at(col + pupil, eyeRow, 1, 2, EYE_COLOR);
     }
   }
 

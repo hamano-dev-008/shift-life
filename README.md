@@ -41,6 +41,11 @@ Early development. What works so far:
   with a golden bubble, and the character sometimes does a goal activity
   while idle: reading under the tree, counting coins by the house, waving,
   or jogging.
+- Babies crawl on hands and knees in short trips and sit up in between,
+  looking around and wobbling. At 3 they take their first steps (with a
+  little celebration) and toddle with arms out, sometimes plopping down
+  to sit; from 4 they walk normally. Crawl and toddle speeds and the
+  ages are in `src/data/infant.js`.
 - Life runs in real time: one in-game year every 3 real minutes. The
   character grows from baby to child, teen, adult, and elder (grey hair),
   and the top-left label shows their name and age.

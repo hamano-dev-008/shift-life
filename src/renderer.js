@@ -16,11 +16,12 @@ import {
 } from './game/dev.js';
 import { RESULT_BUBBLE_SECONDS, MILESTONE_BUBBLE_SECONDS } from './data/animation.js';
 import { SPEEDS } from './data/balance.js';
+import { CRAWL_UNTIL_AGE, FIRST_STEPS } from './data/infant.js';
 import { computeLayout, createBackground } from './ui/scene.js';
 import {
-  createAnimator, updateAnimator, poseOf, startActivityNow,
+  createAnimator, updateAnimator, poseOf, startActivityNow, gaitOf,
 } from './ui/animator.js';
-import { drawCharacter } from './ui/sprite.js';
+import { drawCharacter, figureHeight } from './ui/sprite.js';
 import {
   bubbleBottomY, drawEventBubble, placeOver, placeSpeech, formatDeltas,
 } from './ui/bubble.js';
@@ -152,11 +153,29 @@ async function start() {
   }
   eventBubble.addEventListener('click', openEventCard);
 
+  // Celebrates first steps when the character reaches the toddling age
+  // while the app runs (not when a save is loaded or years are skipped
+  // past it).
+  let lastAge = ageOf(game.character, game.clock.years);
+  function checkFirstSteps() {
+    const age = ageOf(game.character, game.clock.years);
+    if (lastAge < CRAWL_UNTIL_AGE && age === CRAWL_UNTIL_AGE) {
+      queueBubble({
+        heading: FIRST_STEPS.heading,
+        text: FIRST_STEPS.text.replaceAll('{name}', game.character.name),
+        seconds: MILESTONE_BUBBLE_SECONDS,
+        celebrate: true,
+      });
+    }
+    lastAge = age;
+  }
+
   setInterval(() => {
     const result = updateEvents(game, { holdAutoDecide: eventCard.isOpen() });
     if (result) showResult(result);
     const reached = updateGoals(game);
     reached.forEach(celebrate);
+    checkFirstSteps();
     if (result || reached.length) saveGame(game);
   }, LIFE_TICK_MS);
 
@@ -225,7 +244,7 @@ async function start() {
     const age = ageOf(game.character, game.clock.years);
     const stage = lifeStageOf(age);
 
-    updateAnimator(animator, dt, stage, activeActivity(game));
+    updateAnimator(animator, dt, stage, gaitOf(age), activeActivity(game));
     const pose = poseOf(animator, stage);
     ctx.drawImage(background, 0, 0);
     drawCharacter(ctx, pose, stage, game.character.appearance,
@@ -236,7 +255,7 @@ async function start() {
     // Bubbles follow the character's head. Text bubbles take the spot
     // first; a new "!" waits until they're done.
     if (now >= speechUntil && bubbles.length) showBubble(bubbles.shift(), now);
-    const bubbleY = bubbleBottomY(layout, stage);
+    const bubbleY = bubbleBottomY(layout, figureHeight(stage, pose));
     const speaking = now < speechUntil;
     speech.hidden = !speaking;
     if (speaking) placeSpeech(speech, layout, pose.x, bubbleY);

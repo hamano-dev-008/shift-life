@@ -3,7 +3,6 @@
 // (drawn on the canvas, with an invisible button over it to catch clicks),
 // and the text bubble saying what happened after an event (a DOM element).
 
-import { CHARACTER_SHAPES } from '../data/characterShapes.js';
 import { EVENT_BUBBLE, HEAD_CLEARANCE } from '../data/layout.js';
 import { BUBBLE_BOB_CYCLE } from '../data/animation.js';
 import { OUTLINE_COLOR } from '../data/appearance.js';
@@ -38,11 +37,11 @@ function paintBubble() {
   return layer;
 }
 
-// Canvas row just above the character's head and hair for a life stage;
-// bubbles sit with their bottom here.
-export function bubbleBottomY(layout, stage) {
-  const { legs, body, head } = CHARACTER_SHAPES[stage];
-  return layout.feetY - (legs + body + head + HEAD_CLEARANCE) * layout.characterScale;
+// Canvas row just above the character's head and hair, given how tall the
+// figure is in character pixels (figureHeight() in sprite.js, which knows
+// about crawling and sitting); bubbles sit with their bottom here.
+export function bubbleBottomY(layout, figureHeight) {
+  return layout.feetY - (figureHeight + HEAD_CLEARANCE) * layout.characterScale;
 }
 
 // Draws the "!" bubble centered over canvas x, bobbing with `time`

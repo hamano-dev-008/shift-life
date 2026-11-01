@@ -71,8 +71,11 @@ Shift-Life/
 │   │   │                  backdrop: dithered sky, grass, props (drawn once)
 │   │   ├── props.js       Draws the house and tree
 │   │   ├── animator.js    Wandering, prop visits, goal activities,
-│   │   │                  turning, the walk cycle, breathing, blinking
-│   │   ├── sprite.js      Draws the character in code, including activity
+│   │   │                  turning, the walk cycle, breathing, blinking;
+│   │   │                  gaits by age (crawl, toddle, walk), baby
+│   │   │                  fidgets, toddler plops
+│   │   ├── sprite.js      Draws the character in code (standing,
+│   │   │                  sitting, crawling, toddling), including activity
 │   │   │                  props (book, coins, hearts, sweat); all
 │   │   │                  character drawing lives here, to swap for
 │   │   │                  sprite sheets
@@ -95,7 +98,11 @@ Shift-Life/
 │       │                  character's own size), ground, feet row, prop
 │       │                  edges/sizes/visit spots, margins, bubble size
 │       │                  and head clearance
-│       ├── characterShapes.js  Body proportions per life stage
+│       ├── characterShapes.js  Body proportions per life stage, the
+│       │                  toddler's body, crawl and sit poses
+│       ├── infant.js      Crawl/toddle ages, speeds, strides and trip
+│       │                  lengths, plop and fidget timing, first-steps
+│       │                  bubble text
 │       ├── animation.js   Walk speeds and stride (character pixels),
 │       │                  pause/turn/blink timing,
 │       │                  visit chance, bubble bob and times, goal
@@ -130,7 +137,8 @@ How it works, for anyone extending it:
     smooth or use non-integer scales.
   - Sizes and positions in `data/` are in scene pixels, measured from the
     window edges, except the character's own measurements
-    (`characterShapes.js`, walk speed and stride, head clearance), which
+    (`characterShapes.js`, walk/crawl/toddle speed and stride, head
+    clearance), which
     are in character pixels. `computeLayout()` in `ui/scene.js` turns them into
     canvas pixels. Code that places things (animator, sprite, props) uses
     that layout, never raw canvas numbers, so changing `SCENE_SCALE`
@@ -154,8 +162,25 @@ How it works, for anyone extending it:
     the hips. The contact poses put the feet on the standing spots.
   - Before walking off the other way, the character turns and waits a
     `TURN_BEAT`.
+- **Infants:** `gaitOf(age)` (animator) picks the gait: crawl until
+  `CRAWL_UNTIL_AGE`, toddle until `WALK_FROM_AGE`, then walk
+  (`data/infant.js`).
+  - Crawling uses the same 4-frame, distance-driven cycle as walking,
+    with hands and knees in place of feet: the near hand moves with the
+    far knee and the far hand with the near knee, and planted ones stay
+    put. Crawlers move slower and only make short trips (`maxTrip`), and
+    sit upright between trips, sometimes looking around or wobbling.
+  - Toddlers use the `toddler` body (longer legs), take short wobbly
+    steps with a hand out for balance, and now and then plop down to sit
+    (`PLOP_CHANCE`) before getting up again.
+  - Reaching `CRAWL_UNTIL_AGE` while the app runs shows a "First steps!"
+    celebration bubble (not when a save loads or years are skipped past
+    it).
+  - `figureHeight()` (sprite) gives the figure's height for the pose, so
+    bubbles sit just above the head whether he's crawling, sitting or
+    standing.
 - **Sizes and positions** belong in `src/data/` (`layout.js`,
-  `characterShapes.js`, `animation.js`), not in `ui/` code. Colors that are
+  `characterShapes.js`, `animation.js`, `infant.js`), not in `ui/` code. Colors that are
   pure art (sky, props) may stay in the drawing file.
 - **Time:** `game/clock.js` stores in-game time as fractional years and
   advances it on a 250ms timer (not animation frames), so time passes while
