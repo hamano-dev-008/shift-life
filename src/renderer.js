@@ -20,7 +20,8 @@ import {
 import { RESULT_BUBBLE_SECONDS, MILESTONE_BUBBLE_SECONDS } from './data/animation.js';
 import { SPEEDS } from './data/balance.js';
 import { CRAWL_UNTIL_AGE, FIRST_STEPS } from './data/infant.js';
-import { computeLayout, createBackground } from './ui/scene.js';
+import { computeLayout, createScenery } from './ui/scene.js';
+import { loadSprites } from './ui/assets.js';
 import {
   createAnimator, updateAnimator, poseOf, startActivityNow, goToWorkNow, gaitOf,
 } from './ui/animator.js';
@@ -198,7 +199,9 @@ async function start() {
   }, LIFE_TICK_MS);
 
   const statsPanel = createStatsPanel(label, document.getElementById('stats'));
-  const background = createBackground(layout);
+  // Sprite PNGs replace code-drawn art where they exist (data/sprites.js).
+  await loadSprites();
+  const scenery = createScenery(layout);
   let animator = createAnimator(layout);
 
   // Developer settings, only when running from source (npm start). The
@@ -273,7 +276,9 @@ async function start() {
       activity: activeActivity(game), employed: isEmployed(game), needed,
     });
     const pose = poseOf(animator, stage);
-    ctx.drawImage(background, 0, 0);
+    // Cleared first: sprites may have see-through pixels.
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    scenery.draw(ctx, now / 1000);
     drawCharacter(ctx, pose, stage, game.character.appearance,
       expressionOf(game.character), layout.feetY, layout.characterScale, jobItem(game));
     const { mark } = SPEEDS[game.clock.speed];

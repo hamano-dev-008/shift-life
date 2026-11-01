@@ -1,7 +1,8 @@
 // main.js — Electron main process: creates the floating, frameless,
 // always-on-top companion window, remembers where the player left it,
-// reads/writes the game save file for the renderer, and tells it whether
-// it's running from source (for developer settings).
+// reads/writes the game save file for the renderer, lists the sprite
+// PNGs in assets/sprites/, and tells it whether it's running from source
+// (for developer settings).
 
 const { app, BrowserWindow, ipcMain, screen } = require('electron');
 const fs = require('fs');
@@ -92,6 +93,17 @@ ipcMain.on('window:close', (event) => {
 // True when running from source (npm start) rather than a packaged build;
 // the renderer only shows developer settings then.
 ipcMain.handle('app:is-dev', () => !app.isPackaged);
+
+// File names of the PNGs in assets/sprites/ (none if the folder is
+// missing), so the renderer only loads sprites that exist.
+ipcMain.handle('sprites:list', () => {
+  try {
+    return fs.readdirSync(path.join(__dirname, 'assets', 'sprites'))
+      .filter((name) => name.toLowerCase().endsWith('.png'));
+  } catch {
+    return [];
+  }
+});
 
 // Returns the parsed save, or null if there is none or it can't be read.
 ipcMain.handle('save:load', () => {

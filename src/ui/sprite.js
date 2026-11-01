@@ -4,7 +4,9 @@
 //
 // The sprite is painted facing right on a small layer in character pixels,
 // outlined, then scaled up by CHARACTER_SCALE (data/layout.js), which is
-// separate from the scene scale (mirrored when facing left).
+// separate from the scene scale (mirrored when facing left). Where a
+// sprite PNG exists for the body and animation (see data/sprites.js), it
+// is drawn instead, the same way.
 
 import { CHARACTER_SHAPES, CRAWL_POSE, SIT_POSE } from '../data/characterShapes.js';
 import {
@@ -13,6 +15,7 @@ import {
 } from '../data/appearance.js';
 import { ACTIVITY_LOOPS } from '../data/animation.js';
 import { createLayer, clearLayer, fill, outline, drawLayer } from './pixel.js';
+import { getSprite, frameAtTime, frameAtProgress, drawSprite } from './assets.js';
 
 // Big enough for the tallest stage plus hair and outline. Column ANCHOR is
 // the character's center; feet end just above the last row, which is left
@@ -93,6 +96,36 @@ export function figureHeight(stage, pose) {
   return shape.legs + shape.body + shape.head;
 }
 
+// Animations whose sprite frames follow the walk cycle (distance walked)
+// rather than time.
+const STEPPED_ANIMATIONS = ['walk', 'crawl', 'jog'];
+
+// The animation the pose shows, as named in data/sprites.js.
+function animationOf(pose) {
+  if (pose.sit) return 'sit';
+  if (isCrawling(pose)) return 'crawl';
+  if (pose.activity) return pose.activity;
+  return pose.walk ? 'walk' : 'idle';
+}
+
+// The sprite for the pose, if there's a PNG for it, with the frame to
+// show: { sprite, frame }, or null to draw in code. A version for the
+// expression (e.g. character.adult.idle.frown) comes first.
+function characterSprite(pose, stage, expression) {
+  const body = pose.gait === 'toddle' ? 'toddler' : stage;
+  const animation = animationOf(pose);
+  const name = `character.${body}.${animation}`;
+  const sprite = getSprite(`${name}.${expression}`) ?? getSprite(name);
+  if (!sprite) return null;
+  let frame;
+  if (STEPPED_ANIMATIONS.includes(animation) && pose.walk) {
+    frame = frameAtProgress(sprite, pose.walk.cycle);
+  } else {
+    frame = frameAtTime(sprite, pose.activity ? pose.activityTime : pose.time);
+  }
+  return { sprite, frame };
+}
+
 // Draws the character. `pose` comes from poseOf() in animator.js;
 // `expression` is 'smile', 'neutral', or 'frown'; feetY is the canvas row
 // the feet rest on; scale is screen pixels per character pixel. `item` is
@@ -100,8 +133,24 @@ export function figureHeight(stage, pose) {
 // standing or walking.
 export function drawCharacter(ctx, pose, stage, appearance, expression, feetY, scale, item = null) {
   const shape = shapeOf(stage, pose);
-  const px = (col, row, w, h, color) => fill(layer, ANCHOR + col, row, w, h, color);
+  const length = isCrawling(pose) ? shape.width + CRAWL_POSE.shin + 2 : shape.width;
+  const shadowWidth = (length + 2) * scale;
+  const drawShadow = () => {
+    ctx.fillStyle = SHADOW_COLOR;
+    ctx.fillRect(pose.x - shadowWidth / 2, feetY, shadowWidth, scale);
+  };
 
+  const fromSprite = characterSprite(pose, stage, expression);
+  if (fromSprite) {
+    drawShadow();
+    drawSprite(ctx, fromSprite.sprite, fromSprite.frame, pose.x, feetY + scale, scale, {
+      anchorCol: fromSprite.sprite.anchorX,
+      flip: pose.facing === -1,
+    });
+    return;
+  }
+
+  const px = (col, row, w, h, color) => fill(layer, ANCHOR + col, row, w, h, color);
   clearLayer(layer);
   if (pose.sit) {
     drawSitting(px, shape, stage, appearance, expression, pose);
@@ -112,10 +161,7 @@ export function drawCharacter(ctx, pose, stage, appearance, expression, feetY, s
   }
   outline(layer, OUTLINE_COLOR);
 
-  const length = isCrawling(pose) ? shape.width + CRAWL_POSE.shin + 2 : shape.width;
-  const shadowWidth = (length + 2) * scale;
-  ctx.fillStyle = SHADOW_COLOR;
-  ctx.fillRect(pose.x - shadowWidth / 2, feetY, shadowWidth, scale);
+  drawShadow();
   drawLayer(ctx, layer, pose.x, feetY + scale, scale, {
     anchorCol: ANCHOR,
     flip: pose.facing === -1,

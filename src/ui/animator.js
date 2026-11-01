@@ -325,6 +325,7 @@ export function updateAnimator(anim, dt, stage, gait, { activity = null, employe
 // swings from behind to in front, off the ground while passing. Crawling
 // uses the same cycle: "near" is the near hand with the far knee, "far" is
 // the far hand with the near knee, so opposite hand and knee move together.
+// `cycle` is how far through the whole cycle, 0 to 1 (for sprite sheets).
 function walkPose(p, stride) {
   const frame = Math.floor(p / stride); // 0 contact, 1 passing, 2 contact (other leg), 3 passing
   const intoStep = p % (2 * stride);
@@ -334,6 +335,7 @@ function walkPose(p, stride) {
   const passing = frame % 2 === 1;
   return {
     frame,
+    cycle: p / (4 * stride),
     nearReach: nearPlanted ? planted : swinging,
     farReach: nearPlanted ? swinging : planted,
     nearLifted: passing && !nearPlanted,
@@ -347,7 +349,8 @@ function walkPose(p, stride) {
 // (a crawler at rest, or a toddler who plopped); `gaze` is -1 while
 // looking back over the shoulder; `wobble` shifts the sitting upper body
 // sideways. `activity` is the activity being done (null when none) and
-// `activityTime` how long it has been going, in seconds.
+// `activityTime` how long it has been going, in seconds. `time` is
+// seconds since the animator started (for sprite animations).
 export function poseOf(anim, stage) {
   const doing = anim.mode === 'activity';
   const walking = anim.mode === 'walking' || (doing && anim.jogging);
@@ -366,5 +369,6 @@ export function poseOf(anim, stage) {
     walk: walking ? walkPose(anim.steps % (4 * stride), stride) : null,
     activity: doing ? anim.activity : null,
     activityTime: doing ? anim.activityTime : 0,
+    time: anim.time,
   };
 }

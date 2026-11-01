@@ -40,10 +40,11 @@ Shift-Life/
 ├── main.js            Electron main process: creates the frameless,
 │                      transparent, always-on-top 320x240 window, saves and
 │                      restores its position, handles window and save IPC,
-│                      reports dev runs (!app.isPackaged)
+│                      lists the PNGs in assets/sprites/, reports dev
+│                      runs (!app.isPackaged)
 ├── preload.js         Exposes window.shiftLife { minimize, close, loadSave,
-│                      save, saveSync, isDev } to the renderer via
-│                      contextBridge
+│                      save, saveSync, isDev, listSprites } to the
+│                      renderer via contextBridge
 ├── src/
 │   ├── index.html     Renderer page: scene canvas, label, stats panel,
 │   │                  event bubble/card, goal menu, dev menu, text
@@ -71,20 +72,24 @@ Shift-Life/
 │   │   └── save.js        Save format (versioned) and load/save calls
 │   ├── ui/            Drawing and visual-only behavior
 │   │   ├── pixel.js       Low-res layer helpers: paint, outline, scaled draw
+│   │   ├── assets.js      Sprite loader (PNGs from assets/sprites/ at
+│   │   │                  startup), frame picking, crisp sprite drawing
 │   │   ├── scene.js       computeLayout() (data → canvas pixels) and the
-│   │   │                  backdrop: dithered sky, grass, props (drawn once)
-│   │   ├── props.js       Draws the house and tree
+│   │   │                  scenery: sky, grass, house, tree, each a sprite
+│   │   │                  or code-drawn; still pieces cached, animated
+│   │   │                  sprites drawn every frame
+│   │   ├── props.js       Draws the house and tree in code
 │   │   ├── animator.js    Wandering, prop visits, goal activities,
 │   │   │                  trips off-screen to work and back,
 │   │   │                  turning, the walk cycle, breathing, blinking;
 │   │   │                  gaits by age (crawl, toddle, walk), baby
 │   │   │                  fidgets, toddler plops
-│   │   ├── sprite.js      Draws the character in code (standing,
-│   │   │                  sitting, crawling, toddling), including activity
-│   │   │                  props (book, coins, hearts, sweat) and job
-│   │   │                  items (hats, tie, apron, lab coat...); all
-│   │   │                  character drawing lives here, to swap for
-│   │   │                  sprite sheets
+│   │   ├── sprite.js      Draws the character (standing, sitting,
+│   │   │                  crawling, toddling) from a sprite sheet where
+│   │   │                  one exists, otherwise in code, including
+│   │   │                  activity props (book, coins, hearts, sweat) and
+│   │   │                  job items (hats, tie, apron, lab coat...); all
+│   │   │                  character drawing lives here
 │   │   ├── bubble.js      The "!" bubble (canvas art + click target) and
 │   │   │                  the text bubble, both following the head
 │   │   ├── eventCard.js   The event card: prompt and choice buttons
@@ -121,11 +126,15 @@ Shift-Life/
 │       │                  mouth, outline, shadow)
 │       ├── events.js      Life and work event definitions (format
 │       │                  documented at the top of the file)
-│       └── jobs.js        Jobs (career paths, pay, needs, goals, item),
-│                          job offer, promotion and retirement numbers,
-│                          job bubble and stats panel text
+│       ├── jobs.js        Jobs (career paths, pay, needs, goals, item),
+│       │                  job offer, promotion and retirement numbers,
+│       │                  job bubble and stats panel text
+│       └── sprites.js     Sprite sheet info (frames, frame size and
+│                          duration, anchor) and the list of sprite names
+│                          drawing code looks for
 ├── assets/
-│   └── sprites/       (planned) Pixel-art images
+│   └── sprites/       Pixel-art PNGs that replace code-drawn art (empty
+│                      for now, apart from a short README)
 └── test/              (planned) Automated tests
 ```
 
@@ -141,9 +150,10 @@ How it works, for anyone extending it:
     its own size, `CHARACTER_SCALE` (default 2): its art is in "character
     pixels", each a `CHARACTER_SCALE` x `CHARACTER_SCALE` block, so it can
     be resized without touching the scene. Art is painted on small
-    offscreen layers (`ui/pixel.js`), then drawn scaled with
-    nearest-neighbour. Props and the character get a 1px outline. Never
-    smooth or use non-integer scales.
+    offscreen layers (`ui/pixel.js`), or comes from sprite PNGs (see
+    **Sprites**), then drawn scaled with nearest-neighbour at whole-pixel
+    positions. Code-drawn props and the character get a 1px outline.
+    Never smooth or use non-integer scales.
   - Sizes and positions in `data/` are in scene pixels, measured from the
     window edges, except the character's own measurements
     (`characterShapes.js`, walk/crawl/toddle speed and stride, head
@@ -152,11 +162,48 @@ How it works, for anyone extending it:
     canvas pixels. Code that places things (animator, sprite, props) uses
     that layout, never raw canvas numbers, so changing `SCENE_SCALE`
     resizes the whole scene and props stay at the edges.
-  - The backdrop with its props is drawn once and copied in every frame.
-    The character is redrawn every frame from `poseOf()` (animator) and
+  - The scenery (sky, grass, house, tree, back to front) comes from
+    `createScenery()` in `ui/scene.js`. Still pieces next to each other
+    are drawn once onto a cached canvas; an animated sprite is drawn live
+    every frame in its place in the order. The canvas is cleared each
+    frame before the scenery is drawn.
+  - The character is redrawn every frame from `poseOf()` (animator) and
     `drawCharacter()` (sprite), painted facing right and mirrored when
     facing left. Its position is snapped to whole character pixels, so it
     moves in crisp 1px steps.
+- **Sprites:** any piece of art can be replaced by a pixel-art PNG in
+  `assets/sprites/`, one thing at a time; whatever has no PNG stays
+  code-drawn.
+  - At startup the renderer asks the main process for the PNGs in that
+    folder (`sprites:list`) and `loadSprites()` (`ui/assets.js`) loads
+    them before anything is drawn, so missing files never cause errors.
+    A file that won't load, or is too small for its frames, is skipped
+    with a console warning.
+  - A file's name without `.png` is its sprite name. Drawing code calls
+    `getSprite(name)` and falls back to its code-drawn art on null. The
+    names it looks for, and where each is placed, are listed at the top
+    of `data/sprites.js`: `sky`, `grass`, `house`, `tree` (scene pixels,
+    drawn at `SCENE_SCALE`) and `character.<body>.<animation>` with an
+    optional `.<expression>` (character pixels, at `CHARACTER_SCALE`).
+  - Sheets have their frames side by side in one row. `SPRITES` in
+    `data/sprites.js` gives `frames`, and optionally `frameWidth`,
+    `frameHeight`, `frameDuration` and (characters) `anchorX`; a still
+    image needs no entry. Scenery and idle-type character animations
+    play by time; walk, crawl and jog frames follow the walk cycle
+    (`pose.walk.cycle`), so feet stay in step with movement.
+  - A character sprite replaces the whole figure for that animation:
+    job items, activity props, blinking and breathing are only drawn in
+    the code-drawn version. The shadow is drawn either way, and bubbles
+    still sit at the code-drawn figure's height.
+  - **Adding a sprite:** save the PNG as `assets/sprites/<name>.png`
+    (e.g. `house.png`, `character.adult.idle.png`), drawn at 1 pixel per
+    scene or character pixel, and restart the app. For an animation, put
+    the frames side by side and add an entry to `SPRITES`, e.g.
+    `grass: { frames: 4, frameDuration: 0.5 }`. **Adding a new kind of
+    sprite** (something drawing code doesn't look for yet) needs code:
+    a new entry in `SCENERY` in `ui/scene.js` for scenery, or a
+    `getSprite()` check with a code fallback where the thing is drawn;
+    then list the name in `data/sprites.js`.
 - **Walking:** a 4-frame cycle (contact, passing, contact with the other
   leg, passing) driven by whole character pixels walked, not time. It
   advances one frame per `STRIDE` pixels. Speed and stride are in

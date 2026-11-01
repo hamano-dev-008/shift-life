@@ -1,6 +1,7 @@
-// props.js — Draws the scene's props (a house and a tree) as outlined
-// low-res pixel art scaled onto the backdrop. Sizes and positions come
-// from the layout (computeLayout() in scene.js, from data/layout.js).
+// props.js — Draws the scene's props (a house and a tree) in code, as
+// outlined low-res pixel art scaled onto the scenery; ui/scene.js uses
+// these when there's no sprite for a prop. Sizes and positions come from
+// the layout (computeLayout() in scene.js, from data/layout.js).
 
 import { OUTLINE_COLOR } from '../data/appearance.js';
 import { createLayer, fill, outline, drawLayer } from './pixel.js';
@@ -22,8 +23,11 @@ const LEAF_DARK = '#4b8a4a';
 const LEAF_LIGHT = '#7cc46d';
 const FRUIT = '#e07a5f';
 
-export function drawProps(ctx, layout) {
+export function drawHouse(ctx, layout) {
   drawProp(ctx, layout.props.house, paintHouse, layout.scale);
+}
+
+export function drawTree(ctx, layout) {
   drawProp(ctx, layout.props.tree, paintTree, layout.scale);
 }
 

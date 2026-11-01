@@ -1,12 +1,15 @@
 // scene.js — Works out where everything goes for the window's size and the
-// scene scale, and draws the static backdrop (dithered sky, grassy ground
-// strip, props) once to an offscreen canvas copied in every frame.
+// scene scale, and draws the scenery: dithered sky, grassy ground strip,
+// house and tree. Each piece uses its sprite (ui/assets.js) when there is
+// one, or the code-drawn art. Still pieces are drawn once to offscreen
+// canvases copied in every frame; animated sprites are drawn every frame.
 
 import {
   SCENE_SCALE, CHARACTER_SCALE, GROUND_HEIGHT, FEET_FROM_BOTTOM, PROP_BASE_FROM_BOTTOM, PROPS, WANDER_MARGIN,
 } from '../data/layout.js';
 import { createLayer, drawLayer } from './pixel.js';
-import { drawProps } from './props.js';
+import { drawHouse, drawTree } from './props.js';
+import { getSprite, isAnimated, frameAtTime, drawSprite } from './assets.js';
 
 const SKY_TOP = [142, 202, 230];
 const SKY_HORIZON = [253, 226, 200];
@@ -35,6 +38,7 @@ export function computeLayout(width, height) {
       ? prop.margin * scale
       : width - (prop.margin + prop.width) * scale;
     props[id] = {
+      edge: prop.edge,
       x,
       baseY: fromBottom(PROP_BASE_FROM_BOTTOM),
       width: prop.width,
@@ -48,6 +52,7 @@ export function computeLayout(width, height) {
     scale,
     characterScale: CHARACTER_SCALE,
     feetY: fromBottom(FEET_FROM_BOTTOM),
+    groundY: fromBottom(GROUND_HEIGHT),
     props,
     wanderMinX: WANDER_MARGIN * scale,
     wanderMaxX: width - WANDER_MARGIN * scale,
@@ -102,21 +107,106 @@ function drawGround(grid, groundTop) {
   }
 }
 
-export function createBackground(layout) {
+// Sky and grass are painted in scene pixels on a grid the size of the
+// window, then scaled up. The grid is bottom-aligned so the grass rows
+// are whole; any partial row or column falls off the top or right edge.
+function paintOnGrid(ctx, layout, paint) {
+  const grid = createLayer(Math.ceil(layout.width / layout.scale), Math.ceil(layout.height / layout.scale));
+  paint(grid, grid.height - GROUND_HEIGHT);
+  drawLayer(ctx, grid, 0, layout.height, layout.scale);
+}
+
+// Repeats a sprite frame side by side across the window, its bottom edge
+// at canvas row bottomY.
+function tileAcross(ctx, layout, sprite, frame, bottomY) {
+  const step = sprite.frameWidth * layout.scale;
+  for (let x = 0; x < layout.width; x += step) drawSprite(ctx, sprite, frame, x, bottomY, layout.scale);
+}
+
+// A prop sprite goes where the code-drawn prop and its 1px outline go:
+// against the prop's window edge, bottom edge one row below its base.
+function placeProp(ctx, layout, sprite, frame, prop) {
+  const { scale } = layout;
+  const left = prop.edge === 'left'
+    ? prop.x - scale
+    : prop.x + (prop.width + 1) * scale - sprite.frameWidth * scale;
+  drawSprite(ctx, sprite, frame, left, prop.baseY + scale, scale);
+}
+
+// The scenery, back to front. Each piece has its sprite name (see
+// data/sprites.js), how to draw that sprite's frame, and the code-drawn
+// fallback.
+const SCENERY = [
+  {
+    name: 'sky',
+    // Tiled across and upward from the grass line.
+    drawSprite: (ctx, layout, sprite, frame) => {
+      const step = sprite.frameHeight * layout.scale;
+      for (let bottom = layout.groundY; bottom > 0; bottom -= step) {
+        tileAcross(ctx, layout, sprite, frame, bottom);
+      }
+    },
+    drawCode: (ctx, layout) => paintOnGrid(ctx, layout, drawSky),
+  },
+  {
+    name: 'grass',
+    drawSprite: (ctx, layout, sprite, frame) => tileAcross(ctx, layout, sprite, frame, layout.height),
+    drawCode: (ctx, layout) => paintOnGrid(ctx, layout, drawGround),
+  },
+  {
+    name: 'house',
+    drawSprite: (ctx, layout, sprite, frame) => placeProp(ctx, layout, sprite, frame, layout.props.house),
+    drawCode: drawHouse,
+  },
+  {
+    name: 'tree',
+    drawSprite: (ctx, layout, sprite, frame) => placeProp(ctx, layout, sprite, frame, layout.props.tree),
+    drawCode: drawTree,
+  },
+];
+
+function createCanvas(layout) {
   const canvas = document.createElement('canvas');
   canvas.width = layout.width;
   canvas.height = layout.height;
-  const ctx = canvas.getContext('2d');
-
-  // Sky and grass are painted in scene pixels, then scaled up. The grid is
-  // bottom-aligned so the grass rows are whole; any partial row or column
-  // falls off the top or right edge.
-  const grid = createLayer(Math.ceil(layout.width / layout.scale), Math.ceil(layout.height / layout.scale));
-  const groundTop = grid.height - GROUND_HEIGHT;
-  drawSky(grid, groundTop);
-  drawGround(grid, groundTop);
-  drawLayer(ctx, grid, 0, layout.height, layout.scale);
-
-  drawProps(ctx, layout);
   return canvas;
+}
+
+// Prepares the scenery for drawing every frame. Still pieces next to each
+// other (code-drawn, or one-frame sprites) are drawn once onto a shared
+// offscreen canvas; an animated sprite is drawn live between them, so
+// the order back to front stays the same. Call after loadSprites().
+export function createScenery(layout) {
+  const parts = [];
+  let still = null;
+  for (const piece of SCENERY) {
+    const sprite = getSprite(piece.name);
+    if (sprite && isAnimated(sprite)) {
+      parts.push({ piece, sprite });
+      still = null;
+      continue;
+    }
+    if (!still) {
+      still = createCanvas(layout);
+      parts.push({ canvas: still });
+    }
+    const ctx = still.getContext('2d');
+    if (sprite) {
+      piece.drawSprite(ctx, layout, sprite, 0);
+    } else {
+      piece.drawCode(ctx, layout);
+    }
+  }
+  return {
+    // Draws the scenery as it looks `seconds` in (for animated sprites).
+    draw(ctx, seconds) {
+      for (const part of parts) {
+        if (part.canvas) {
+          ctx.drawImage(part.canvas, 0, 0);
+        } else {
+          part.piece.drawSprite(ctx, layout, part.sprite, frameAtTime(part.sprite, seconds));
+        }
+      }
+    },
+  };
 }

@@ -1,0 +1,54 @@
+// sprites.js — Sprite sheet info for the pixel-art PNGs in assets/sprites/.
+// Pure data: ui/assets.js loads the PNGs at startup and drawing code uses
+// a sprite instead of its code-drawn art wherever one exists.
+//
+// A PNG's name (without .png) is its sprite name; a sprite with no PNG
+// falls back to the code-drawn art, so things can be swapped one at a
+// time. A single still image needs no entry here: just add the PNG.
+//
+// Sprite names drawing code looks for:
+//   Scenery (scene pixels, SCENE_SCALE in data/layout.js), back to front:
+//     sky     Tiled across the window above the grass, its bottom edge
+//             on the grass line.
+//     grass   Tiled across the bottom of the window, bottom-aligned. Make
+//             it at least GROUND_HEIGHT rows tall (taller for tufts).
+//     house   Placed like the code-drawn house: left edge PROPS.house.
+//             margin - 1 from the left of the window, bottom edge one row
+//             below the prop's base line. Same size as the code-drawn
+//             one plus its 1px outline: 24 x 28.
+//     tree    Like the house, but its right edge goes PROPS.tree.margin - 1
+//             from the right of the window. Code-drawn size: 20 x 36.
+//   Character (character pixels, CHARACTER_SCALE in data/layout.js):
+//     character.<body>.<animation>, optionally followed by .<expression>
+//     (smile, neutral or frown) for a version that matches the mood,
+//     e.g. character.adult.walk or character.adult.idle.frown.
+//       body       baby, toddler, child, teen, adult or elder (a
+//                  toddler is a baby from CRAWL_UNTIL_AGE until
+//                  WALK_FROM_AGE in data/infant.js)
+//       animation  idle, walk, sit (baby, toddler), crawl (baby), or a goal
+//                  activity: read, coins, wave, jog
+//     Drawn facing right (mirrored when facing left), with the frame's
+//     bottom edge one row below the feet (the outline's row) and column
+//     `anchorX` on the character's center. A sprite replaces the whole
+//     figure for that animation, including job items and activity props.
+//     walk, crawl and jog frames follow the distance walked (one loop per
+//     full walk cycle, like the code-drawn legs); the others play by time.
+//
+// Entries are keyed by sprite name. Each field is optional:
+//   frames         Frames side by side in one row, left to right
+//                  (default 1, a still image).
+//   frameWidth     Width of one frame in pixels (default: image width /
+//                  frames).
+//   frameHeight    Height of a frame (default: image height).
+//   frameDuration  Seconds each frame shows, for time-played animations
+//                  (default DEFAULT_FRAME_DURATION).
+//   anchorX        Character sprites only: the column of the character's
+//                  center (default: the middle of the frame).
+//
+// Example, once grass.png has 4 frames of 32 x 18 side by side:
+//   grass: { frames: 4, frameWidth: 32, frameDuration: 0.5 },
+
+export const DEFAULT_FRAME_DURATION = 0.2;
+
+export const SPRITES = {
+};

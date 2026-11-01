@@ -85,6 +85,24 @@ sends the character off to work (if they have a job). You can also
 start a new life by closing the app and deleting
 `%APPDATA%\shift-life\save.json`.
 
+**Adding sprites:** every graphic is drawn in code for now, but any of
+them can be replaced by your own pixel art, one at a time, without
+code. Save a PNG in `assets/sprites/` named after what it replaces:
+`sky.png`, `grass.png`, `house.png`, `tree.png`, or
+`character.<body>.<animation>.png` (for example
+`character.adult.walk.png`; bodies are baby, toddler, child, teen,
+adult, elder; animations are idle, walk, sit, crawl, read, coins, wave,
+jog). Draw at 1 pixel per game pixel: the game scales it up crisply
+(scenery at the scene scale, the character at its own scale). Add
+`.smile`, `.neutral` or `.frown` before `.png` for a version that
+matches the mood. For an animation, put the frames side by side in one
+row and add a line to `src/data/sprites.js` with the frame count and,
+if you like, the frame size and seconds per frame, e.g.
+`grass: { frames: 4, frameDuration: 0.5 }`. Restart the app to pick up
+new PNGs. `src/data/sprites.js` explains where each sprite is placed
+and the sizes that line up with the current art. A character sprite
+replaces the whole figure for that animation, including job items.
+
 **Adding events, goals and jobs:** add an entry to `src/data/events.js`,
 `src/data/goals.js` or `src/data/jobs.js`; each file describes its
 format. A new job item also needs a drawing in `src/ui/sprite.js`. Event
