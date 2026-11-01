@@ -11,8 +11,9 @@ const SPRITE_FOLDER = '../assets/sprites/';
 const sprites = new Map();
 
 // Turns a loaded image and its data entry into a sprite: { image, frames,
-// frameWidth, frameHeight, frameDuration, anchorX }, or null (with a
-// warning) if the image is too small for the frames it's said to have.
+// frameWidth, frameHeight, frameDuration, anchorX, scale (null for the
+// default) }, or null (with a warning) if the image is too small for the
+// frames it's said to have.
 function toSprite(name, image, info) {
   const frames = Number.isInteger(info.frames) && info.frames > 0 ? info.frames : 1;
   const frameWidth = info.frameWidth ?? Math.floor(image.naturalWidth / frames);
@@ -22,6 +23,14 @@ function toSprite(name, image, info) {
     console.warn(`Sprite ${name}: the image is too small for ${frames} frames of ${frameWidth}x${frameHeight}; using the code-drawn art.`);
     return null;
   }
+  let scale = null;
+  if (info.scale !== undefined) {
+    if (Number.isInteger(info.scale) && info.scale > 0) {
+      scale = info.scale;
+    } else {
+      console.warn(`Sprite ${name}: scale must be a whole number above 0; using the default.`);
+    }
+  }
   return {
     image,
     frames,
@@ -29,6 +38,7 @@ function toSprite(name, image, info) {
     frameHeight,
     frameDuration: info.frameDuration > 0 ? info.frameDuration : DEFAULT_FRAME_DURATION,
     anchorX: info.anchorX ?? Math.floor(frameWidth / 2),
+    scale,
   };
 }
 

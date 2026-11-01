@@ -116,20 +116,30 @@ function paintOnGrid(ctx, layout, paint) {
   drawLayer(ctx, grid, 0, layout.height, layout.scale);
 }
 
+// Screen pixels per pixel of a scenery sprite: its own `scale`, or the
+// scene's.
+function scaleOf(layout, sprite) {
+  return sprite.scale ?? layout.scale;
+}
+
 // Repeats a sprite frame side by side across the window, its bottom edge
 // at canvas row bottomY.
 function tileAcross(ctx, layout, sprite, frame, bottomY) {
-  const step = sprite.frameWidth * layout.scale;
-  for (let x = 0; x < layout.width; x += step) drawSprite(ctx, sprite, frame, x, bottomY, layout.scale);
+  const scale = scaleOf(layout, sprite);
+  const step = sprite.frameWidth * scale;
+  for (let x = 0; x < layout.width; x += step) drawSprite(ctx, sprite, frame, x, bottomY, scale);
 }
 
 // A prop sprite goes where the code-drawn prop and its 1px outline go:
-// against the prop's window edge, bottom edge one row below its base.
+// its outer column against the prop's window edge, its bottom row just
+// below the prop's base. A sprite with its own scale grows away from
+// that edge and upward.
 function placeProp(ctx, layout, sprite, frame, prop) {
-  const { scale } = layout;
+  const scale = scaleOf(layout, sprite);
+  const width = sprite.frameWidth * scale;
   const left = prop.edge === 'left'
     ? prop.x - scale
-    : prop.x + (prop.width + 1) * scale - sprite.frameWidth * scale;
+    : prop.x + prop.width * layout.scale + scale - width;
   drawSprite(ctx, sprite, frame, left, prop.baseY + scale, scale);
 }
 
@@ -141,7 +151,7 @@ const SCENERY = [
     name: 'sky',
     // Tiled across and upward from the grass line.
     drawSprite: (ctx, layout, sprite, frame) => {
-      const step = sprite.frameHeight * layout.scale;
+      const step = sprite.frameHeight * scaleOf(layout, sprite);
       for (let bottom = layout.groundY; bottom > 0; bottom -= step) {
         tileAcross(ctx, layout, sprite, frame, bottom);
       }

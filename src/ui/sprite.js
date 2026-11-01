@@ -143,7 +143,8 @@ export function drawCharacter(ctx, pose, stage, appearance, expression, feetY, s
   const fromSprite = characterSprite(pose, stage, expression);
   if (fromSprite) {
     drawShadow();
-    drawSprite(ctx, fromSprite.sprite, fromSprite.frame, pose.x, feetY + scale, scale, {
+    const spriteScale = fromSprite.sprite.scale ?? scale;
+    drawSprite(ctx, fromSprite.sprite, fromSprite.frame, pose.x, feetY + spriteScale, spriteScale, {
       anchorCol: fromSprite.sprite.anchorX,
       flip: pose.facing === -1,
     });

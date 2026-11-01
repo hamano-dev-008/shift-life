@@ -44,6 +44,11 @@
 //                  (default DEFAULT_FRAME_DURATION).
 //   anchorX        Character sprites only: the column of the character's
 //                  center (default: the middle of the frame).
+//   scale          Screen pixels per sprite pixel, a whole number, to draw
+//                  this sprite bigger or smaller than the rest (default:
+//                  SCENE_SCALE for scenery, CHARACTER_SCALE for the
+//                  character). It stays anchored the same way: a prop
+//                  keeps its edge and base, the character its feet.
 //
 // Example, once grass.png has 4 frames of 32 x 18 side by side:
 //   grass: { frames: 4, frameWidth: 32, frameDuration: 0.5 },
@@ -51,4 +56,7 @@
 export const DEFAULT_FRAME_DURATION = 0.2;
 
 export const SPRITES = {
+  // The tree art is about as tall as the house; drawn bigger (5 vs the
+  // scene's 3) so it towers over it like a real tree.
+  tree: { scale: 5 },
 };

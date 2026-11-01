@@ -98,8 +98,10 @@ jog). Draw at 1 pixel per game pixel: the game scales it up crisply
 matches the mood. For an animation, put the frames side by side in one
 row and add a line to `src/data/sprites.js` with the frame count and,
 if you like, the frame size and seconds per frame, e.g.
-`grass: { frames: 4, frameDuration: 0.5 }`. Restart the app to pick up
-new PNGs. `src/data/sprites.js` explains where each sprite is placed
+`grass: { frames: 4, frameDuration: 0.5 }`. To draw one sprite bigger
+than the rest, give it a whole-number `scale` there (screen pixels per
+pixel; the scene uses 3), like the tree's `tree: { scale: 5 }`. Restart
+the app to pick up new PNGs and changes. `src/data/sprites.js` explains where each sprite is placed
 and the sizes that line up with the current art. A character sprite
 replaces the whole figure for that animation, including job items.
 

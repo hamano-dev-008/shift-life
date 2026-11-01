@@ -187,8 +187,10 @@ How it works, for anyone extending it:
     optional `.<expression>` (character pixels, at `CHARACTER_SCALE`).
   - Sheets have their frames side by side in one row. `SPRITES` in
     `data/sprites.js` gives `frames`, and optionally `frameWidth`,
-    `frameHeight`, `frameDuration` and (characters) `anchorX`; a still
-    image needs no entry. Scenery and idle-type character animations
+    `frameHeight`, `frameDuration`, (characters) `anchorX`, and `scale`
+    (whole screen pixels per sprite pixel, to draw one sprite bigger
+    than the scene or character scale; it stays anchored at its edge and
+    base, or the feet); a still image needs no entry. Scenery and idle-type character animations
     play by time; walk, crawl and jog frames follow the walk cycle
     (`pose.walk.cycle`), so feet stay in step with movement.
   - A character sprite replaces the whole figure for that animation:
