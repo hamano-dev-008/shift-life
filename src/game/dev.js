@@ -9,6 +9,7 @@ import { TRAIT_LABELS } from '../data/traits.js';
 import { createCharacter, changeStats, ageOf } from './character.js';
 import { createEventState, startEvent } from './events.js';
 import { createGoalState, goalById } from './goals.js';
+import { createJobState, careerView } from './jobs.js';
 
 // Replaces the life with a newborn, in place, so everything holding `game`
 // sees the new one. The clock starts over at 0 and keeps its speed. Save
@@ -18,6 +19,7 @@ export function newLife(game) {
   game.character = createCharacter(0);
   game.events = createEventState(0);
   game.goals = createGoalState(0);
+  game.jobs = createJobState();
 }
 
 export function setSpeed(game, speed) {
@@ -30,8 +32,9 @@ export function toggleFastForward(game) {
 }
 
 // Moves the clock ahead `years` at once. The character ages, the goal's
-// yearly boosts catch up, and the next event (if due) comes right away;
-// events aren't replayed for every skipped year.
+// yearly boosts and paydays catch up (with promotions and retirement),
+// and the next event (if due) comes right away; events aren't replayed
+// for every skipped year.
 export function skipYears(game, years) {
   game.clock.years += years;
 }
@@ -51,7 +54,7 @@ export function addMoney(game, amount) {
 }
 
 // A compact summary for the menu: "HP 80  JOY 70  IQ 35  $120",
-// "Bold · Shy", "Scholar, 3y (age 12)".
+// "Bold · Shy", "Scholar, 3y (age 12)", "Developer 2/3, $170/yr".
 export function devReadout(game) {
   const { character, goals, clock } = game;
   const stats = Object.entries(character.stats).map(([id, value]) =>
@@ -61,5 +64,13 @@ export function devReadout(game) {
     stats: stats.join('  '),
     traits: character.traits.map((trait) => TRAIT_LABELS[trait]).join(' · '),
     goal: `${goalById(goals.active).label}, ${goalYears}y (age ${ageOf(character, clock.years)})`,
+    job: jobText(careerView(game)),
   };
+}
+
+function jobText(career) {
+  if (!career) return 'Too young to work';
+  if (career.status === 'retired') return `Retired, $${career.pay}/yr`;
+  if (career.status === 'looking') return 'Looking for work';
+  return `${career.title} ${career.level}/${career.levels}, $${career.pay}/yr`;
 }

@@ -5,7 +5,10 @@
 //   id        Unique and saved; don't rename one once it has shipped.
 //   stages    Life stages it can happen in (ids from data/lifeStages.js).
 //   minAge, maxAge   Optional extra limits, in whole years.
-//   prompt    What's happening. {name} becomes the character's name.
+//   employed  Optional: true for work events (only while the character
+//             has a job), false for events only without one.
+//   prompt    What's happening. {name} becomes the character's name and
+//             {job} their job title.
 //   choices   2-3 options. Each has:
 //     label     Button text.
 //     lean      Traits (data/traits.js) that favor this choice when the
@@ -20,6 +23,15 @@
 //     outcomes  Instead of effects + text, possible outcomes picked at
 //               random: [{ weight, effects, text }]. weight defaults to 1,
 //               so two outcomes are a coin flip.
+//     job       Optional change to the job, next to effects (work events
+//               only): { raise: n } changes yearly pay by n dollars
+//               (negative for a pay cut), { leave: true } loses the job,
+//               { switch: true } moves to another job the character
+//               qualifies for, at its first level. In the text, {job} is
+//               the old title and {newJob} the new one.
+//
+// Job offers aren't listed here: game/jobs.js builds them from
+// data/jobs.js.
 //
 // Fit the 320x240 window: prompts up to ~100 characters, labels up to ~28,
 // texts up to ~30. Avoid pronouns for the character; use {name} instead.
@@ -170,13 +182,14 @@ export const EVENTS = [
   {
     id: 'promotion',
     stages: ['adult'],
+    employed: true,
     prompt: 'The boss offers {name} a promotion. More pay, more meetings.',
     choices: [
       { label: 'Take it!', lean: ['bold'], goals: ['fortune'],
-        effects: { money: 120, happiness: -4, health: -2 }, text: 'Promoted! So many meetings.' },
+        job: { raise: 25 }, effects: { happiness: -4, health: -2 }, text: 'More pay. So many meetings.' },
       { label: 'Ask for just a raise', lean: ['careful', 'shy'], goals: ['fortune'],
         outcomes: [
-          { effects: { money: 60, happiness: 4 }, text: 'Got the raise!' },
+          { job: { raise: 10 }, effects: { happiness: 4 }, text: 'Got the raise!' },
           { effects: { happiness: -3 }, text: 'Raise denied. Still cozy.' },
         ] },
       { label: 'Keep the cozy desk', lean: ['lazy', 'social'], goals: ['heart'],
@@ -239,6 +252,138 @@ export const EVENTS = [
         effects: { health: 8, happiness: 6 }, text: 'Hiked a hill. Met a goat.' },
       { label: 'Staycation', lean: ['lazy', 'careful', 'shy'],
         effects: { happiness: 8 }, text: 'Built a pillow fort.' },
+    ],
+  },
+
+  // ---- Work (adults with a job) ----
+  {
+    id: 'work-raise',
+    stages: ['adult'],
+    employed: true,
+    prompt: '{name} has been doing great work as {job}. Time to ask for a raise?',
+    choices: [
+      { label: 'Ask for a big raise', lean: ['bold'], goals: ['fortune'],
+        outcomes: [
+          { job: { raise: 30 }, effects: { happiness: 8 }, text: 'Got the big raise!' },
+          { effects: { happiness: -6 }, text: 'Boss said "not this year."' },
+        ] },
+      { label: 'Ask for a small one', lean: ['careful', 'shy'], goals: ['fortune'],
+        job: { raise: 10 }, effects: { happiness: 3 }, text: 'Small raise. Still counts!' },
+      { label: 'Not worth the fuss', lean: ['lazy'], goals: ['heart'],
+        effects: { happiness: 2 }, text: 'Kept things comfy.' },
+    ],
+  },
+  {
+    id: 'tough-boss',
+    stages: ['adult'],
+    employed: true,
+    prompt: 'The new boss at work is a lot. Today: a 40-minute talk about staplers.',
+    choices: [
+      { label: 'Stand up to the boss', lean: ['bold'],
+        outcomes: [
+          { effects: { happiness: 8 }, text: 'The boss backed off. Respect!' },
+          { job: { raise: -10 }, effects: { happiness: -6 }, text: 'Pay docked. Ugh.' },
+        ] },
+      { label: 'Keep head down', lean: ['careful', 'shy'],
+        effects: { happiness: -4, health: -2 }, text: 'Survived the stapler talk.' },
+      { label: 'Vent to coworkers', lean: ['social'], goals: ['heart'],
+        effects: { happiness: 5 }, text: 'Coworkers agree. Bonding!' },
+    ],
+  },
+  {
+    id: 'overtime',
+    stages: ['adult'],
+    employed: true,
+    prompt: 'Overtime is up for grabs this month. Double pay, half the sleep.',
+    choices: [
+      { label: 'Take every shift', lean: ['bold'], goals: ['fortune'],
+        effects: { money: 60, health: -8, happiness: -3 }, text: 'Rich-ish and very sleepy.' },
+      { label: 'Take a few shifts', lean: ['careful'], goals: ['fortune'],
+        effects: { money: 25, health: -2 }, text: 'A little extra. Not bad.' },
+      { label: 'Guard the free time', lean: ['lazy', 'social'], goals: ['heart', 'healthy'],
+        effects: { happiness: 5, health: 2 }, text: 'Evenings stay free. Bliss.' },
+    ],
+  },
+  {
+    id: 'layoff',
+    stages: ['adult'],
+    employed: true,
+    prompt: "Budget cuts! {name}'s job as {job} might be on the chopping block.",
+    choices: [
+      { label: 'Fight to stay', lean: ['bold'],
+        outcomes: [
+          { effects: { happiness: 4 }, text: 'Made the case. Job saved!' },
+          { job: { leave: true }, effects: { happiness: -10 }, text: 'Laid off anyway. Oof.' },
+        ] },
+      { label: 'Take the severance', lean: ['curious', 'lazy'],
+        job: { leave: true }, effects: { money: 80, happiness: -2 }, text: 'Took the money and ran.' },
+      { label: 'Offer to take a pay cut', lean: ['careful', 'shy'], goals: ['fortune'],
+        job: { raise: -15 }, effects: { happiness: -3 }, text: 'Kept the job, for less.' },
+    ],
+  },
+  {
+    id: 'career-change',
+    stages: ['adult'],
+    employed: true,
+    prompt: 'An old friend says {name} would be great at something totally new.',
+    choices: [
+      { label: 'Take the leap!', lean: ['bold', 'curious'],
+        job: { switch: true }, effects: { happiness: 8 }, text: 'New career: {newJob}!' },
+      { label: 'Stay put', lean: ['careful', 'lazy'],
+        effects: { happiness: 2 }, text: 'Stayed put. Steady wins.' },
+      { label: 'Ask for a counteroffer', lean: ['social'], goals: ['fortune'],
+        outcomes: [
+          { job: { raise: 15 }, text: 'Counteroffer! Pay went up.' },
+          { effects: { happiness: -3 }, text: 'No counteroffer. Awkward.' },
+        ] },
+    ],
+  },
+  {
+    id: 'big-project',
+    stages: ['adult'],
+    employed: true,
+    prompt: 'The big project at work is due Friday. It is not done. It is barely started.',
+    choices: [
+      { label: 'Pull all-nighters', lean: ['careful'], goals: ['scholar', 'fortune'],
+        outcomes: [
+          { job: { raise: 20 }, effects: { smarts: 4, health: -6 }, text: 'Nailed it! Bonus raise.' },
+          { effects: { smarts: 4, health: -6 }, text: 'Done on time. Barely.' },
+        ] },
+      { label: 'Rally the team', lean: ['social', 'bold'], goals: ['heart'],
+        effects: { happiness: 6, smarts: 2 }, text: 'Team effort. Pizza helped.' },
+      { label: 'Ask for an extension', lean: ['lazy', 'shy'],
+        outcomes: [
+          { effects: { happiness: 4 }, text: 'Extension granted. Phew.' },
+          { effects: { happiness: -6 }, text: 'Extension denied. Panic!' },
+        ] },
+    ],
+  },
+  {
+    id: 'team-potluck',
+    stages: ['adult'],
+    employed: true,
+    prompt: 'Team potluck at work! {name} signed up to bring "something good."',
+    choices: [
+      { label: 'Bake a fancy pie', lean: ['bold', 'curious'], goals: ['heart'],
+        effects: { happiness: 8, money: -5 }, text: 'The pie was a sensation.' },
+      { label: 'Store-bought cookies', lean: ['lazy', 'careful'],
+        effects: { happiness: 3 }, text: 'Nobody noticed. Perfect.' },
+      { label: 'Eat lunch at the desk', lean: ['shy'], goals: ['scholar'],
+        effects: { happiness: -2, smarts: 3 }, text: 'Desk lunch. Got work done.' },
+    ],
+  },
+  {
+    id: 'work-training',
+    stages: ['adult'],
+    employed: true,
+    prompt: 'Work will pay for a training course. Evenings only, for a whole year.',
+    choices: [
+      { label: 'Sign up', lean: ['curious', 'careful'], goals: ['scholar'],
+        effects: { smarts: 10, health: -2 }, text: 'Certified! Brain: bigger.' },
+      { label: 'Sign up, skip some', lean: ['lazy', 'social'],
+        effects: { smarts: 3, happiness: 3 }, text: 'Learned some. Napped more.' },
+      { label: 'Keep evenings free', lean: ['shy', 'bold'], goals: ['healthy', 'heart'],
+        effects: { happiness: 4, health: 2 }, text: 'Evenings off. Lovely.' },
     ],
   },
 

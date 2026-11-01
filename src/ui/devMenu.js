@@ -30,7 +30,7 @@ function row(label, ...children) {
 // `menu` is the #dev-menu element and `gear` the #dev-btn that opens it.
 // `actions` is { newLife, setSpeed(id), skipYears(n), triggerEvent()
 // (returns whether an event started), addMoney(n), readout() (returns
-// { stats, traits, goal }), speed() (current speed id), onOpen() }.
+// { stats, traits, goal, job }), speed() (current speed id), onOpen() }.
 export function createDevMenu(menu, gear, actions) {
   const body = menu.querySelector('.dev-body');
   const readout = menu.querySelector('.dev-readout');
@@ -96,11 +96,12 @@ export function createDevMenu(menu, gear, actions) {
     // Call every frame; refreshes the read-out while the menu is open.
     update() {
       if (menu.hidden) return;
-      const { stats, traits, goal } = actions.readout();
-      const key = `${stats}|${traits}|${goal}`;
+      const { stats, traits, goal, job } = actions.readout();
+      const lines = [stats, traits, goal, job];
+      const key = lines.join('|');
       if (key === shown) return;
       shown = key;
-      readout.replaceChildren(...[stats, traits, goal].map((text) => {
+      readout.replaceChildren(...lines.map((text) => {
         const line = document.createElement('span');
         line.textContent = text;
         return line;

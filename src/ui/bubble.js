@@ -71,6 +71,12 @@ export function placeOver(element, rect) {
   element.style.height = `${rect.height}px`;
 }
 
+// "+$20/yr" (or "-$10/yr") for a change to yearly pay; "" for none.
+export function formatRaise(raise) {
+  if (!raise) return '';
+  return `${raise > 0 ? '+' : '-'}${STAT_TAGS.money}${Math.abs(raise)}/yr`;
+}
+
 // "HP+5 JOY-3 +$20" for an event's stat changes.
 export function formatDeltas(deltas) {
   return Object.entries(deltas).map(([id, amount]) => {

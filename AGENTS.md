@@ -23,7 +23,8 @@ with **Electron and plain JavaScript**.
 
 > **Status:** a pixel character is born with stats and personality
 > traits, wanders the window, ages in real time, meets life events as
-> speech bubbles, and pursues a life goal the player picks; the life is
+> speech bubbles, pursues a life goal the player picks, works jobs from
+> 18 (pay, promotions, work events) and retires at 65; the life is
 > saved between launches. Items marked
 > *(planned)* don't exist yet; follow the planned layout when adding them,
 > and update this section whenever files are added, moved, or removed.
@@ -51,9 +52,9 @@ Shift-Life/
 │   │                  stats panel, panels (event card, goal menu, dev
 │   │                  menu), top-right buttons, text bubble
 │   ├── renderer.js    Renderer entry point (ES module): loads or starts a
-│   │                  life, runs clock, events, goals, autosave, frame
-│   │                  loop, text bubble queue, dev menu wiring, dev
-│   │                  shortcuts
+│   │                  life, runs clock, events, goals, jobs, autosave,
+│   │                  frame loop, text bubble queue, dev menu wiring,
+│   │                  dev shortcuts
 │   ├── game/          Game logic only (no hard-coded content)
 │   │   ├── clock.js       Real-time clock: in-game years, speed
 │   │   ├── character.js   Birth (random name/look/traits), stats,
@@ -62,8 +63,11 @@ Shift-Life/
 │   │   │                  outcomes, goal- and trait-based auto-decide
 │   │   ├── goals.js       Active goal, yearly stat drift, milestones,
 │   │   │                  the goal menu's view
+│   │   ├── jobs.js        Job offers, the job held and its level, yearly
+│   │   │                  pay, promotions, job changes, retirement and
+│   │   │                  pension, the stats panel's job view
 │   │   ├── dev.js         Dev actions: new life, speed, skip years,
-│   │   │                  trigger event, add money, read-out
+│   │   │                  trigger event, add money, read-out (with job)
 │   │   └── save.js        Save format (versioned) and load/save calls
 │   ├── ui/            Drawing and visual-only behavior
 │   │   ├── pixel.js       Low-res layer helpers: paint, outline, scaled draw
@@ -71,12 +75,14 @@ Shift-Life/
 │   │   │                  backdrop: dithered sky, grass, props (drawn once)
 │   │   ├── props.js       Draws the house and tree
 │   │   ├── animator.js    Wandering, prop visits, goal activities,
+│   │   │                  trips off-screen to work and back,
 │   │   │                  turning, the walk cycle, breathing, blinking;
 │   │   │                  gaits by age (crawl, toddle, walk), baby
 │   │   │                  fidgets, toddler plops
 │   │   ├── sprite.js      Draws the character in code (standing,
 │   │   │                  sitting, crawling, toddling), including activity
-│   │   │                  props (book, coins, hearts, sweat); all
+│   │   │                  props (book, coins, hearts, sweat) and job
+│   │   │                  items (hats, tie, apron, lab coat...); all
 │   │   │                  character drawing lives here, to swap for
 │   │   │                  sprite sheets
 │   │   ├── bubble.js      The "!" bubble (canvas art + click target) and
@@ -84,7 +90,7 @@ Shift-Life/
 │   │   ├── eventCard.js   The event card: prompt and choice buttons
 │   │   ├── goalMenu.js    The goal menu: pick a goal, boost, milestones
 │   │   ├── devMenu.js     The dev settings menu (gear; dev runs only)
-│   │   └── statsPanel.js  Stats and traits panel under the name label
+│   │   └── statsPanel.js  Stats, job and traits panel under the name label
 │   └── data/          Pure game data, no logic
 │       ├── balance.js     Pacing (minutes per year, clock speeds), mood
 │       │                  thresholds, event gap, auto-decide wait, whim,
@@ -106,15 +112,18 @@ Shift-Life/
 │       ├── animation.js   Walk speeds and stride (character pixels),
 │       │                  pause/turn/blink timing,
 │       │                  visit chance, bubble bob and times, goal
-│       │                  activities (chance, place, duration, loops)
+│       │                  activities (chance, place, duration, loops),
+│       │                  work trips (chance, time away, exit distance)
 │       ├── lifeStages.js  Life stages and the age each one starts at
 │       ├── names.js       Names a newborn can get
 │       ├── appearance.js  Skin, hair, hair style, shirt palettes; fixed
 │       │                  character colors (elder hair, clothes, eyes,
 │       │                  mouth, outline, shadow)
-│       ├── events.js      Life event definitions (format documented at
-│       │                  the top of the file)
-│       └── jobs.js        (planned) Jobs/shifts and their effects
+│       ├── events.js      Life and work event definitions (format
+│       │                  documented at the top of the file)
+│       └── jobs.js        Jobs (career paths, pay, needs, goals, item),
+│                          job offer, promotion and retirement numbers,
+│                          job bubble and stats panel text
 ├── assets/
 │   └── sprites/       (planned) Pixel-art images
 └── test/              (planned) Automated tests
@@ -216,6 +225,11 @@ How it works, for anyone extending it:
     are disabled and never auto-picked.
   - Events never focus, flash or raise the window, so they don't take
     keyboard focus from other apps.
+  - Events with `employed: true` (work events) only fire while the
+    character has a job. A choice can carry a `job` change next to its
+    `effects`: `raise` (yearly pay, negative for a cut), `leave`
+    (layoff) or `switch` (a new job they qualify for). `{job}` in text is
+    the job title; `{newJob}` the new one after a switch.
 - **Goals:** `game.goals` holds the active goal (Free spirit by default).
   From `GOAL_MIN_AGE` the goal button (flag + goal name, top bar) appears
   and opens the goal menu, which shows the yearly boost and milestones.
@@ -235,21 +249,52 @@ How it works, for anyone extending it:
     goal's activity for a few seconds: reads under the tree, counts coins
     by the house, waves with floating hearts, or jogs. This is purely
     visual (`ui/animator.js`, drawn in `ui/sprite.js`).
-- **Stats panel:** hovering the name label shows stats and traits;
-  clicking it pins the panel open.
+- **Jobs:** `game.jobs` holds the job held (`current`: id, 0-based
+  `level`, `since`, `hiredAge`, `bonus` from raises), whether they've
+  `retired`, the `pension`, `nextPayAt`, and the `history` of jobs left
+  (ages and last pay, kept for the end-of-life summary).
+  - From `JOB_MIN_AGE` (18), an adult without a job gets job offers
+    instead of regular events. `game/jobs.js` builds each as an event
+    (one choice per job, with the job's `lean` and `goals`), so the event
+    engine shows, auto-decides and resolves it like any other. An offer
+    lists `OFFER_SIZE` jobs whose first level's `needs` are met, always
+    including one that suits the active goal when one qualifies. The
+    pending offer saves its job ids (`pending.offer`).
+  - `updateJobs()` runs on the 250ms life timer. Every in-game year after
+    hiring it pays the level's pay plus `bonus` (never below
+    `MIN_PAY_SHARE` of the level's pay), then promotes if they've spent
+    `PROMOTION_YEARS` at the level and meet the next level's `needs`.
+    Skipped years catch up, with one combined payday bubble.
+  - At `RETIRE_AGE` (65) the job ends and a yearly pension starts:
+    `PENSION_SHARE` of the last pay, at least `PENSION_MIN`.
+  - Paydays, promotions and retirement show as text bubbles (promotions
+    and retirement golden).
+  - While employed, the character wears or carries the job's `item`
+    (drawn in `ui/sprite.js`, standing and walking only). Now and then
+    (`WORK_TRIP_CHANCE`) they walk out the nearest side "to work" and
+    come back `WORK_AWAY` seconds later. They don't leave while
+    something needs them on screen (an event, a bubble, the card open),
+    and come back early if it does. Purely visual.
+  - There's no end of life yet; when the summary is built, it should
+    read the job, level and money from `careerView()` and `history`.
+- **Stats panel:** hovering the name label shows stats, the job (title,
+  level, pay; "Looking" or "Retired" with the pension) from age 18, and
+  traits; clicking it pins the panel open.
 - **Dev settings menu:** a gear button (left of minimize) opens it, but
   only when running from source: `main.js` answers `app:is-dev` with
   `!app.isPackaged`, so a packaged build never shows it.
   - It offers: New life (confirmed in the menu with Yes/No, then replaces
     the life in place and saves over the old one), clock speed (normal,
     fast, very fast; `SPEEDS` in `data/balance.js`), skip ahead +1/+10
-    years, trigger a fitting event now (opens its card), add $1,000, and
-    a read-out of stats, traits and goal.
+    years, trigger a fitting event now (opens its card; a job offer for
+    an adult without a job), add $1,000, and a read-out of stats,
+    traits, goal and job.
   - `ui/devMenu.js` only calls the actions it's given; the work lives in
     `game/dev.js`, and the renderer wraps it to keep the screen in step.
     Amounts are in `data/dev.js`.
   - Skipping years doesn't replay events: the character ages, goal
-    boosts catch up, and at most one due event comes up.
+    boosts and paydays (with promotions and retirement) catch up, and at
+    most one due event comes up.
   - The event card, goal menu and dev menu share the same spot, so
     opening one closes the others.
 - **Dev shortcuts** (window focused; these work in any build):
@@ -259,6 +304,7 @@ How it works, for anyone extending it:
     frown).
   - Ctrl+Shift+E starts a fitting event now (if none is waiting).
   - Ctrl+Shift+A starts the active goal's idle activity now.
+  - Ctrl+Shift+W sends the character off to work now (with a job).
 - **Game vs. visuals:** wandering, blinking, etc. in `ui/animator.js` are
   cosmetic and never saved. Anything that affects the life belongs in
   `game/` and the save.
@@ -275,15 +321,16 @@ How it works, for anyone extending it:
   - `window-state.json` holds the window position. It's ignored if it
     would put the window off every connected screen.
   - `save.json` holds the life: `{ version, clock: { years }, character,
-    events, goals }`. `character` includes `stats` and `traits`; `events`
+    events, goals, jobs }`. `character` includes `stats` and `traits`; `events`
     holds `nextAt`, the `pending` event, how often each was `seen`, and
     `lastId`; `goals` holds the `active` goal, `since` and `nextDriftAt`,
-    `pastYears` per goal, and reached `milestones` ({ goal, id, age }).
+    `pastYears` per goal, and reached `milestones` ({ goal, id, age });
+    `jobs` is described under **Jobs** above.
     The renderer autosaves every 10s and saves synchronously on
     `beforeunload`, so every way of closing is covered. `main.js` writes
     via a temp file and rename.
   - New optional fields can keep the version if `restore*()` fills in a
-    default (as `stats`, `traits`, `events` and `goals` do; older saves'
+    default (as `stats`, `traits`, `events`, `goals` and `jobs` do; older saves'
     `mood` becomes happiness). For breaking changes, bump `SAVE_VERSION` in
     `game/save.js` and handle old versions. Right now an unrecognised save
     is replaced by a new life.

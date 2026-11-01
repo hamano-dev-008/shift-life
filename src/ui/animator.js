@@ -1,9 +1,10 @@
 // animator.js — Purely visual motion for the character: wandering, visiting
 // the house and tree, goal activities (reading, counting coins, jogging,
-// waving), turning, the walk cycle, crawling and toddling for the
-// youngest (with sitting, fidgets and plops), breathing, and blinking.
-// Never touches game state; the renderer passes in the gait for the age
-// and which activity the goal calls for.
+// waving), walking off "to work" and back, turning, the walk cycle,
+// crawling and toddling for the youngest (with sitting, fidgets and
+// plops), breathing, and blinking. Never touches game state; the renderer
+// passes in the gait for the age, which activity the goal calls for, and
+// whether the character has a job.
 // Speeds and timings live in data/animation.js and data/infant.js
 // (walking and crawling in character pixels, other distances in scene
 // pixels); positions here are canvas pixels from computeLayout().
@@ -11,7 +12,7 @@
 import {
   WALK_SPEED, STRIDE, IDLE_PAUSE, VISIT_PAUSE, TURN_BEAT, VISIT_CHANCE,
   MIN_WALK_DISTANCE, BLINK_INTERVAL, BLINK_DURATION, BREATH_CYCLE,
-  ACTIVITY_CHANCE, ACTIVITIES,
+  ACTIVITY_CHANCE, ACTIVITIES, WORK_TRIP_CHANCE, WORK_AWAY, WORK_EXIT,
 } from '../data/animation.js';
 import {
   CRAWL_UNTIL_AGE, WALK_FROM_AGE, CRAWL, TODDLE, PLOP_CHANCE, PLOP_DURATION,
@@ -48,15 +49,15 @@ export function createAnimator(layout) {
     gait: 'walk', // set every update from the age
     // 'idle' (standing, or sitting for a crawler), 'turning' (beat after
     // turning), 'walking' (or crawling/toddling), 'plopped' (a toddler
-    // sat down mid-walk), or 'activity' (doing `activity`; jogging also
-    // walks during it)
+    // sat down mid-walk), 'activity' (doing `activity`; jogging also
+    // walks during it), or 'away' (at work, off past the window's edge)
     mode: 'idle',
     activity: null, // activity id being done, or being walked to
     activityLeft: 0,
     activityTime: 0, // seconds into the current activity
     jogging: false, // running to a spot while jogging
     targetX: 0,
-    destination: null, // prop id being walked to, or null
+    destination: null, // prop id or 'work' being walked to, or null
     lastVisited: null,
     pauseLeft: randomIn([1, 3]),
     gridX: Math.round(x / layout.characterScale), // position in whole character pixels
@@ -154,10 +155,13 @@ function walk(anim, dt, stage, speed = 1) {
   return arrived;
 }
 
-// End of a walk: start the activity walked to, or pause.
+// End of a walk: off at work, start the activity walked to, or pause.
 function arrive(anim) {
   anim.lastVisited = anim.destination;
-  if (anim.activity) {
+  if (anim.destination === 'work') {
+    anim.mode = 'away';
+    anim.pauseLeft = randomIn(WORK_AWAY);
+  } else if (anim.activity) {
     startActivity(anim);
   } else {
     anim.mode = 'idle';
@@ -231,6 +235,32 @@ function updateFidgets(anim, dt) {
   anim.fidgetIn = randomIn(BABY_FIDGET_INTERVAL);
 }
 
+// Walks out the nearest side of the window, WORK_EXIT past the edge.
+function goToWork(anim) {
+  const { width, scale } = anim.layout;
+  const x = anim.x < width / 2 ? -WORK_EXIT * scale : width + WORK_EXIT * scale;
+  anim.activity = null;
+  setOff(anim, { x, destination: 'work' });
+}
+
+// Back from work (or called back early): walks in from the side they left
+// by, already facing in, to a random spot.
+function comeBack(anim) {
+  anim.mode = 'idle';
+  anim.gridX = Math.round(anim.x / anim.layout.characterScale);
+  const target = { x: randomSpot(anim), destination: null };
+  anim.facing = Math.sign(target.x - anim.x) || anim.facing;
+  setOff(anim, target);
+}
+
+// Sends the character to work right away, unless already there. For the
+// Ctrl+Shift+W dev shortcut.
+export function goToWorkNow(anim) {
+  if (anim.mode === 'away' || anim.destination === 'work') return;
+  anim.jogging = false;
+  goToWork(anim);
+}
+
 // Starts activity `id` right away, replacing whatever is going on. For the
 // Ctrl+Shift+A dev shortcut.
 export function startActivityNow(anim, id) {
@@ -241,12 +271,21 @@ export function startActivityNow(anim, id) {
 
 // `gait` is gaitOf(age). `activity` is the goal's activity id (ACTIVITIES
 // in data/animation.js), or null; it's only used when deciding what to do
-// next.
-export function updateAnimator(anim, dt, stage, gait, activity = null) {
+// next. `employed`: the character has a job, so they sometimes go to work.
+// `needed`: something wants them on screen (an event, a bubble), so they
+// don't leave, and come back if they're out.
+export function updateAnimator(anim, dt, stage, gait, { activity = null, employed = false, needed = false } = {}) {
   anim.time += dt;
   anim.gait = gait;
+  const headingToWork = anim.mode === 'walking' && anim.destination === 'work';
+  if (headingToWork && (needed || !employed)) {
+    // Turn back: work can wait.
+    setOff(anim, { x: randomSpot(anim), destination: null });
+  }
 
-  if (anim.mode === 'walking') {
+  if (anim.mode === 'away') {
+    if ((anim.pauseLeft -= dt) <= 0 || needed) comeBack(anim);
+  } else if (anim.mode === 'walking') {
     if (walk(anim, dt, stage)) {
       arrive(anim);
     } else if (gait === 'toddle' && Math.random() < PLOP_CHANCE * dt) {
@@ -259,6 +298,8 @@ export function updateAnimator(anim, dt, stage, gait, activity = null) {
   } else if ((anim.pauseLeft -= dt) <= 0) {
     if (anim.mode === 'turning' || anim.mode === 'plopped') {
       startWalking(anim);
+    } else if (employed && !needed && Math.random() < WORK_TRIP_CHANCE) {
+      goToWork(anim);
     } else if (ACTIVITIES[activity] && Math.random() < ACTIVITY_CHANCE) {
       beginActivity(anim, activity);
     } else {

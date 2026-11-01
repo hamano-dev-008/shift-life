@@ -5,6 +5,7 @@ import { createClock } from './clock.js';
 import { restoreCharacter } from './character.js';
 import { restoreEventState } from './events.js';
 import { restoreGoalState } from './goals.js';
+import { restoreJobState } from './jobs.js';
 
 const SAVE_VERSION = 1;
 
@@ -15,12 +16,13 @@ function toSaveData(game) {
     character: game.character,
     events: game.events,
     goals: game.goals,
+    jobs: game.jobs,
   };
 }
 
-// Returns the saved { clock, character, events, goals }, or null if
-// there's no usable save. Saves from before events or goals existed get
-// fresh state for them.
+// Returns the saved { clock, character, events, goals, jobs }, or null if
+// there's no usable save. Saves from before events, goals or jobs existed
+// get fresh state for them.
 export async function loadGame() {
   const data = await window.shiftLife.loadSave();
   if (data?.version !== SAVE_VERSION || !Number.isFinite(data.clock?.years)) return null;
@@ -31,6 +33,7 @@ export async function loadGame() {
     character,
     events: restoreEventState(data.events, data.clock.years),
     goals: restoreGoalState(data.goals, data.clock.years),
+    jobs: restoreJobState(data.jobs, data.clock.years),
   };
 }
 

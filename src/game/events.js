@@ -1,8 +1,9 @@
 // events.js — Life event engine. Schedules events that fit the
 // character's age and life stage, tracks the one waiting for an answer,
 // applies the chosen outcome's stat effects, and has the character decide
-// from their traits and goal when the player doesn't answer in time. All
-// event content lives in data/events.js.
+// from their traits and goal when the player doesn't answer in time. Job
+// offers (game/jobs.js) come through here too, ahead of other events, for
+// an adult without a job. All event content lives in data/events.js.
 
 import { EVENTS } from '../data/events.js';
 import {
@@ -10,6 +11,10 @@ import {
   GOAL_DECISION_WEIGHT, GOAL_EVENT_WEIGHT,
 } from '../data/balance.js';
 import { ageOf, lifeStageOf, changeStats } from './character.js';
+import {
+  JOB_OFFER_ID, jobById, isEmployed, jobTitle, wantsJobOffer, makeJobOffer, jobOfferEvent,
+  applyJobChange,
+} from './jobs.js';
 
 // The auto-decide wait in in-game years, so fast-forward shortens it too.
 const AUTO_DECIDE_YEARS = AUTO_DECIDE_SECONDS / (REAL_MINUTES_PER_YEAR * 60);
@@ -33,8 +38,15 @@ function eventById(id) {
   return EVENTS.find((event) => event.id === id) ?? null;
 }
 
+// The event a pending entry stands for: a job offer built from its saved
+// `offer` (job ids), or one from data/events.js.
+function eventOf(pending) {
+  if (!pending) return null;
+  return pending.offer ? jobOfferEvent(pending.offer) : eventById(pending.id);
+}
+
 // nextAt: clock time the next event is due. pending: the event waiting for
-// an answer, { id, shownAt }. seen: times each event has happened.
+// an answer, { id, shownAt }, plus `offer` (job ids) for a job offer. seen: times each event has happened.
 // lastId: the most recent event, so it isn't repeated back to back.
 export function createEventState(years) {
   return { nextAt: years + randomGap(), pending: null, seen: {}, lastId: null };
@@ -46,8 +58,11 @@ export function restoreEventState(data, years) {
   const state = createEventState(years);
   if (Number.isFinite(data?.nextAt)) state.nextAt = data.nextAt;
   const pending = data?.pending;
-  if (eventById(pending?.id) && Number.isFinite(pending.shownAt)) {
+  const isOffer = pending?.id === JOB_OFFER_ID && Array.isArray(pending.offer)
+    && pending.offer.length > 0 && pending.offer.every(jobById);
+  if ((isOffer || eventById(pending?.id)) && Number.isFinite(pending.shownAt)) {
     state.pending = { id: pending.id, shownAt: pending.shownAt };
+    if (isOffer) state.pending.offer = [...pending.offer];
   }
   for (const [id, count] of Object.entries(data?.seen ?? {})) {
     if (Number.isInteger(count) && count > 0) state.seen[id] = count;
@@ -56,10 +71,11 @@ export function restoreEventState(data, years) {
   return state;
 }
 
-function fits(event, age, stage) {
+function fits(event, age, stage, employed) {
   return event.stages.includes(stage)
     && age >= (event.minAge ?? 0)
-    && age <= (event.maxAge ?? Infinity);
+    && age <= (event.maxAge ?? Infinity)
+    && (event.employed === undefined || event.employed === employed);
 }
 
 // True if one of the event's choices serves goal `goalId`.
@@ -75,7 +91,8 @@ function pickEvent(game) {
   const age = ageOf(game.character, game.clock.years);
   const stage = lifeStageOf(age);
   const { seen, lastId } = game.events;
-  const fitting = EVENTS.filter((event) => fits(event, age, stage));
+  const employed = isEmployed(game);
+  const fitting = EVENTS.filter((event) => fits(event, age, stage, employed));
   const fresh = fitting.filter((event) => event.id !== lastId);
   const pool = fresh.length ? fresh : fitting;
   if (!pool.length) return null;
@@ -86,10 +103,16 @@ function pickEvent(game) {
     (event) => (servesGoal(event, goal) ? GOAL_EVENT_WEIGHT : 1));
 }
 
-// Starts a fitting event now, unless one is already waiting. Returns
-// whether one started.
+// Starts a fitting event now, unless one is already waiting: a job offer
+// if the character is looking for work, otherwise from data/events.js.
+// Returns whether one started.
 export function startEvent(game) {
   if (game.events.pending) return false;
+  const offer = wantsJobOffer(game) ? makeJobOffer(game) : null;
+  if (offer) {
+    game.events.pending = { id: JOB_OFFER_ID, shownAt: game.clock.years, offer };
+    return true;
+  }
   const event = pickEvent(game);
   if (!event) return false;
   game.events.pending = { id: event.id, shownAt: game.clock.years };
@@ -124,20 +147,23 @@ function canPick(character, choice) {
     .every(([stat, min]) => character.stats[stat] >= min);
 }
 
-function fillName(text, character) {
-  return text.replaceAll('{name}', character.name);
+// Fills in {name}, {job} (the job held) and `extra` ({ newJob }).
+function fillText(text, game, extra = {}) {
+  const values = { name: game.character.name, job: jobTitle(game), ...extra };
+  return Object.entries(values)
+    .reduce((out, [key, value]) => (value === undefined ? out : out.replaceAll(`{${key}}`, value)), text);
 }
 
 // What to show for the waiting event: { prompt, choices: [{ label,
 // available, needs }] }, or null if there is none.
 export function pendingEventView(game) {
-  const event = eventById(game.events.pending?.id);
+  const event = eventOf(game.events.pending);
   if (!event) return null;
   const { character } = game;
   return {
-    prompt: fillName(event.prompt, character),
+    prompt: fillText(event.prompt, game),
     choices: event.choices.map((choice) => ({
-      label: fillName(choice.label, character),
+      label: fillText(choice.label, game),
       available: canPick(character, choice),
       needs: choice.needs ?? null,
     })),
@@ -147,7 +173,7 @@ export function pendingEventView(game) {
 // The player picked choice `index` of the waiting event. Returns the result
 // (see resolve()), or null if that choice can't be picked.
 export function chooseEvent(game, index) {
-  const event = eventById(game.events.pending?.id);
+  const event = eventOf(game.events.pending);
   const choice = event?.choices[index];
   if (!choice || !canPick(game.character, choice)) return null;
   return resolve(game, event, choice, false);
@@ -157,7 +183,7 @@ export function chooseEvent(game, index) {
 // choice serving the active goal scores GOAL_DECISION_WEIGHT, plus a random
 // whim (see DECISION_WHIM); the highest score wins.
 function autoDecide(game) {
-  const event = eventById(game.events.pending.id);
+  const event = eventOf(game.events.pending);
   const { traits } = game.character;
   const goal = game.goals.active;
   const pickable = event.choices.filter((choice) => canPick(game.character, choice));
@@ -170,16 +196,21 @@ function autoDecide(game) {
   return resolve(game, event, best.choice, true);
 }
 
-// Applies one of the choice's outcomes, clears the event, and schedules the
-// next. Returns { text, deltas, auto }: what happened, how much each stat
-// actually changed, and whether the character decided alone.
+// Applies one of the choice's outcomes (stats, then any job change),
+// clears the event, and schedules the next. Returns { text, deltas, raise,
+// auto }: what happened, how much each stat actually changed, the change
+// to yearly pay (0 if none), and whether the character decided alone.
 function resolve(game, event, choice, auto) {
   const outcome = pickWeighted(choice.outcomes ?? [choice], (o) => o.weight ?? 1);
   const deltas = changeStats(game.character, outcome.effects ?? {});
+  // {job} names the job as it was; {newJob} the one after a change.
+  const job = jobTitle(game);
+  const change = outcome.job ? applyJobChange(game, outcome.job) : null;
   const { events } = game;
   events.seen[event.id] = (events.seen[event.id] ?? 0) + 1;
   events.lastId = event.id;
   events.pending = null;
   events.nextAt = game.clock.years + randomGap();
-  return { text: fillName(outcome.text, game.character), deltas, auto };
+  const text = fillText(outcome.text, game, { job, newJob: change?.newJob });
+  return { text, deltas, raise: change?.raise ?? 0, auto };
 }

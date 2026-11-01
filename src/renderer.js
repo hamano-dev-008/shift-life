@@ -1,6 +1,6 @@
 // renderer.js — Renderer entry point: loads the saved life or starts a new
-// one, runs the clock, life events and goals, draws each frame, and wires
-// up controls, the dev settings menu (dev runs only) and saving.
+// one, runs the clock, life events, goals and jobs, draws each frame, and
+// wires up controls, the dev settings menu (dev runs only) and saving.
 
 import { createClock, startClock } from './game/clock.js';
 import { createCharacter, ageOf, lifeStageOf, expressionOf, setStat } from './game/character.js';
@@ -10,6 +10,9 @@ import {
 import {
   createGoalState, updateGoals, setGoal, goalView, activeActivity,
 } from './game/goals.js';
+import {
+  createJobState, updateJobs, isEmployed, jobItem, careerView,
+} from './game/jobs.js';
 import { loadGame, saveGame, saveGameNow } from './game/save.js';
 import {
   newLife, setSpeed, toggleFastForward, skipYears, triggerEvent, addMoney, devReadout,
@@ -19,11 +22,11 @@ import { SPEEDS } from './data/balance.js';
 import { CRAWL_UNTIL_AGE, FIRST_STEPS } from './data/infant.js';
 import { computeLayout, createBackground } from './ui/scene.js';
 import {
-  createAnimator, updateAnimator, poseOf, startActivityNow, gaitOf,
+  createAnimator, updateAnimator, poseOf, startActivityNow, goToWorkNow, gaitOf,
 } from './ui/animator.js';
 import { drawCharacter, figureHeight } from './ui/sprite.js';
 import {
-  bubbleBottomY, drawEventBubble, placeOver, placeSpeech, formatDeltas,
+  bubbleBottomY, drawEventBubble, placeOver, placeSpeech, formatDeltas, formatRaise,
 } from './ui/bubble.js';
 import { createEventCard } from './ui/eventCard.js';
 import { createGoalMenu } from './ui/goalMenu.js';
@@ -31,8 +34,9 @@ import { createDevMenu } from './ui/devMenu.js';
 import { createStatsPanel } from './ui/statsPanel.js';
 
 const AUTOSAVE_MS = 10000;
-// Events and goals run on their own timer, like the clock, so they keep
-// going (and auto-decide) while the window is minimized.
+// Events, goals and jobs run on their own timer, like the clock, so they
+// keep going (and auto-decide, and get paid) while the window is
+// minimized.
 const LIFE_TICK_MS = 250;
 // Caps one frame's animation step so a stalled window doesn't teleport the
 // character when it resumes.
@@ -62,6 +66,7 @@ function newGame() {
     character: createCharacter(clock.years),
     events: createEventState(clock.years),
     goals: createGoalState(clock.years),
+    jobs: createJobState(),
   };
 }
 
@@ -77,8 +82,8 @@ async function start() {
   // Fires however the window closes (button, Alt+F4, taskbar).
   window.addEventListener('beforeunload', () => saveGameNow(game));
 
-  // Text bubbles over the head (event results, milestone celebrations) are
-  // queued and shown one at a time by the frame loop. Nothing here focuses
+  // Text bubbles over the head (event results, milestone celebrations,
+  // paydays, promotions, retirement) are queued and shown one at a time by the frame loop. Nothing here focuses
   // or flashes the window: they never pull the player away from other apps.
   const bubbles = [];
   let speechUntil = 0;
@@ -108,7 +113,18 @@ async function start() {
     speechUntil = now + bubble.seconds * 1000;
   }
   const showResult = (result) => queueBubble({
-    text: result.text, detail: formatDeltas(result.deltas), seconds: RESULT_BUBBLE_SECONDS, celebrate: false,
+    text: result.text,
+    detail: [formatDeltas(result.deltas), formatRaise(result.raise)].filter(Boolean).join(' '),
+    seconds: RESULT_BUBBLE_SECONDS,
+    celebrate: false,
+  });
+  // A bubble from updateJobs(): a payday, promotion or retirement.
+  const showJobNews = (news) => queueBubble({
+    heading: news.heading,
+    text: news.text,
+    detail: news.detail ?? formatDeltas(news.deltas),
+    seconds: news.celebrate ? MILESTONE_BUBBLE_SECONDS : RESULT_BUBBLE_SECONDS,
+    celebrate: news.celebrate,
   });
   const celebrate = (milestone) => queueBubble({
     heading: 'Milestone!', text: milestone.label, detail: milestone.goalLabel,
@@ -175,8 +191,10 @@ async function start() {
     if (result) showResult(result);
     const reached = updateGoals(game);
     reached.forEach(celebrate);
+    const jobNews = updateJobs(game);
+    jobNews.forEach(showJobNews);
     checkFirstSteps();
-    if (result || reached.length) saveGame(game);
+    if (result || reached.length || jobNews.length) saveGame(game);
   }, LIFE_TICK_MS);
 
   const statsPanel = createStatsPanel(label, document.getElementById('stats'));
@@ -221,7 +239,8 @@ async function start() {
 
   // Hidden developer shortcuts: Ctrl+Shift+F toggles fast-forward,
   // Ctrl+Shift+M cycles happiness, Ctrl+Shift+E starts an event now,
-  // Ctrl+Shift+A starts the goal's idle activity now.
+  // Ctrl+Shift+A starts the goal's idle activity now, Ctrl+Shift+W sends
+  // the character to work (if they have a job).
   window.addEventListener('keydown', (event) => {
     if (!event.ctrlKey || !event.shiftKey) return;
     if (event.code === 'KeyF') {
@@ -233,6 +252,8 @@ async function start() {
       startEvent(game);
     } else if (event.code === 'KeyA') {
       startActivityNow(animator, activeActivity(game));
+    } else if (event.code === 'KeyW' && isEmployed(game)) {
+      goToWorkNow(animator);
     }
   });
 
@@ -244,11 +265,17 @@ async function start() {
     const age = ageOf(game.character, game.clock.years);
     const stage = lifeStageOf(age);
 
-    updateAnimator(animator, dt, stage, gaitOf(age), activeActivity(game));
+    // Anything waiting to be seen keeps the character home from work, or
+    // calls them back.
+    const needed = Boolean(game.events.pending) || bubbles.length > 0 || now < speechUntil
+      || eventCard.isOpen();
+    updateAnimator(animator, dt, stage, gaitOf(age), {
+      activity: activeActivity(game), employed: isEmployed(game), needed,
+    });
     const pose = poseOf(animator, stage);
     ctx.drawImage(background, 0, 0);
     drawCharacter(ctx, pose, stage, game.character.appearance,
-      expressionOf(game.character), layout.feetY, layout.characterScale);
+      expressionOf(game.character), layout.feetY, layout.characterScale, jobItem(game));
     const { mark } = SPEEDS[game.clock.speed];
     setLabel(`${game.character.name} · ${age}y${mark ? ` ${mark}` : ''}`);
 
@@ -264,7 +291,7 @@ async function start() {
     if (showAlert) {
       placeOver(eventBubble, drawEventBubble(ctx, layout, pose.x, bubbleY, animator.time));
     }
-    statsPanel.update(game.character);
+    statsPanel.update(game.character, careerView(game));
     goalMenu.update(goalView(game));
     devMenu?.update();
 

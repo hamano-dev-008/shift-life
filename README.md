@@ -30,8 +30,8 @@ Early development. What works so far:
   Some choices are a gamble. If you don't answer within about a minute,
   they decide for themselves based on their traits, and a little speech
   bubble tells you what they did. Events never steal focus from your other
-  windows. There are 18 starter events across childhood, teen years,
-  adulthood and old age.
+  windows. There are 26 events across childhood, teen years, adulthood
+  (including 9 at work) and old age.
 - Life goals: from age 6, the flag button in the top bar opens the goal
   menu. Pick Scholar, Fortune, Heart, Healthy or Free spirit. The goal's
   stat gets a small boost every year, growing the longer you stick with
@@ -41,6 +41,18 @@ Early development. What works so far:
   with a golden bubble, and the character sometimes does a goal activity
   while idle: reading under the tree, counting coins by the house, waving,
   or jogging.
+- Jobs: from 18, a character without a job gets job offers in the "!"
+  bubble: 2-3 jobs they qualify for (always one that suits their goal,
+  if any does). If you don't pick, they choose by goal and traits. There
+  are 12 jobs, from barista and farmhand (anyone can start) to developer
+  and surgeon (lots of smarts), each with a 3-step career path. Pay comes
+  in every in-game year, promotions come with time once they meet the
+  next step's smarts or health, and work events bring raises, overtime,
+  tough bosses, layoffs and career changes. They wear their job's item
+  (hard hat, tie, apron, chef hat...) and now and then walk out the side
+  of the window to work, coming back a bit later. At 65 they retire with
+  a small yearly pension. Hover the name label to see job, level, pay and
+  money. Job data is in `src/data/jobs.js`.
 - Babies crawl on hands and knees in short trips and sit up in between,
   looking around and wobbling. At 3 they take their first steps (with a
   little celebration) and toddle with arms out, sometimes plopping down
@@ -62,18 +74,20 @@ scene).
 button next to minimize opens the dev settings: start a new life, set
 the speed (normal, fast at about one year every 5 seconds, or very fast
 at one year a second), skip ahead 1 or 10 years, trigger an event, add
-$1,000, and see the character's stats, traits and goal. It's hidden in
-packaged builds.
+$1,000, and see the character's stats, traits, goal and job. It's hidden
+in packaged builds.
 
 Keyboard shortcuts (window focused): Ctrl+Shift+F toggles fast speed (the
 label shows `>>`), Ctrl+Shift+M cycles happiness (smile, neutral,
 frown), Ctrl+Shift+E starts an event right away (children and older
-only), and Ctrl+Shift+A starts the goal's idle activity. You can also
+only), Ctrl+Shift+A starts the goal's idle activity, and Ctrl+Shift+W
+sends the character off to work (if they have a job). You can also
 start a new life by closing the app and deleting
 `%APPDATA%\shift-life\save.json`.
 
-**Adding events and goals:** add an entry to `src/data/events.js` or
-`src/data/goals.js`; each file describes its format at the top. Event
+**Adding events, goals and jobs:** add an entry to `src/data/events.js`,
+`src/data/goals.js` or `src/data/jobs.js`; each file describes its
+format. A new job item also needs a drawing in `src/ui/sprite.js`. Event
 pacing, the auto-decide wait and goal weights are in
 `src/data/balance.js`.
 

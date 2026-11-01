@@ -1,5 +1,5 @@
-// sprite.js — Draws the character as a small pixel sprite, in code. All
-// character drawing lives here so it can be swapped for hand-drawn sprite
+// sprite.js — Draws the character as a small pixel sprite, in code,
+// with goal activity props and job items. All character drawing lives here so it can be swapped for hand-drawn sprite
 // sheets later without touching the rest of the game.
 //
 // The sprite is painted facing right on a small layer in character pixels,
@@ -38,6 +38,32 @@ const COIN_DARK = '#d29a2a';
 const HEART = '#e8647a';
 const SWEAT = '#9fd3ef';
 
+// Job items (`item` in data/jobs.js; pure art).
+const HARD_HAT = '#f2c14e';
+const HARD_HAT_BRIM = '#d29a2a';
+const CHEF_WHITE = '#ffffff';
+const CHEF_BAND = '#e3e3ea';
+const CAP = '#d9534f';
+const CAP_BRIM = '#a83c39';
+const STRAW = '#e8c96a';
+const STRAW_BRIM = '#c9a64a';
+const HAT_BAND = '#b5452f';
+const BERET = '#c8414b';
+const FRAMES = '#3b6fd6';
+const HEADPHONE_BAND = '#4a4e69';
+const HEADPHONE_CUP = '#4a6fd1';
+const TIE = '#3a5bc7';
+const TIE_KNOT = '#2c4699';
+const COLLAR = '#ffffff';
+const APRON = '#a86b4a';
+const APRON_DARK = '#7f4f35';
+const LAB_COAT = '#f4f6f8';
+const TUBE = '#4a4e69';
+const STETHOSCOPE_BELL = '#c9ccd6';
+const STRAP = '#7a4a2a';
+const BAG = '#9c6236';
+const BAG_FLAP = '#7a4a2a';
+
 const {
   pageFlip: PAGE_FLIP_EVERY, coin: COIN_BEAT, wave: WAVE_BEAT, heart: HEART_EVERY, sweat: SWEAT_EVERY,
 } = ACTIVITY_LOOPS;
@@ -69,8 +95,10 @@ export function figureHeight(stage, pose) {
 
 // Draws the character. `pose` comes from poseOf() in animator.js;
 // `expression` is 'smile', 'neutral', or 'frown'; feetY is the canvas row
-// the feet rest on; scale is screen pixels per character pixel.
-export function drawCharacter(ctx, pose, stage, appearance, expression, feetY, scale) {
+// the feet rest on; scale is screen pixels per character pixel. `item` is
+// the job item they wear or carry (data/jobs.js), or null; it shows while
+// standing or walking.
+export function drawCharacter(ctx, pose, stage, appearance, expression, feetY, scale, item = null) {
   const shape = shapeOf(stage, pose);
   const px = (col, row, w, h, color) => fill(layer, ANCHOR + col, row, w, h, color);
 
@@ -80,7 +108,7 @@ export function drawCharacter(ctx, pose, stage, appearance, expression, feetY, s
   } else if (isCrawling(pose)) {
     drawCrawling(px, shape, stage, appearance, expression, pose);
   } else {
-    drawStanding(px, shape, stage, appearance, expression, pose);
+    drawStanding(px, shape, stage, appearance, expression, pose, item);
   }
   outline(layer, OUTLINE_COLOR);
 
@@ -95,8 +123,10 @@ export function drawCharacter(ctx, pose, stage, appearance, expression, feetY, s
 }
 
 // Standing and walking (toddlers too). Passing frames bob the body up 1px
-// (the legs stretch to match); idle breathing dips the head 1px.
-function drawStanding(px, shape, stage, look, expression, pose) {
+// (the legs stretch to match); idle breathing dips the head 1px. `item`
+// is the job item, or null; a lab coat replaces the shirt.
+function drawStanding(px, shape, stage, appearance, expression, pose, item) {
+  const look = item === 'labCoat' ? { ...appearance, shirt: LAB_COAT } : appearance;
   const walk = pose.walk;
   const toddling = pose.gait === 'toddle' && walk;
   const bob = walk && walk.frame % 2 === 1 ? 1 : 0;
@@ -126,8 +156,109 @@ function drawStanding(px, shape, stage, look, expression, pose) {
       drawArm(px, shape, look, frontArm, bodyTop, swing);
     }
   }
+  drawJobItemOnBody(px, shape, appearance, item, bodyLeft, bodyTop);
   drawHead(px, shape, stage, look, headLeft, headTop, pose.blinking, expression);
+  drawJobItemOnHead(px, shape, item, headLeft, headTop);
   drawActivityExtras(px, shape, frontArm, bodyTop, headLeft, headTop, pose);
+}
+
+// Job items worn on the torso, drawn over the shirt: a tie, an apron, the
+// open front of a lab coat (the shirt showing through), a stethoscope, or
+// a satchel's strap with the bag at the back hip. Columns and rows are
+// from the torso's top-left.
+function drawJobItemOnBody(px, shape, look, item, bodyLeft, bodyTop) {
+  const on = (col, row, w, h, color) => px(bodyLeft + col, bodyTop + row, w, h, color);
+  const { width: w, body: b } = shape;
+  const middle = Math.floor(w / 2);
+  switch (item) {
+    case 'tie':
+      on(middle - 1, 0, 1, 1, COLLAR);
+      on(middle + 1, 0, 1, 1, COLLAR);
+      on(middle, 0, 1, 1, TIE_KNOT);
+      on(middle, 1, 1, b - 2, TIE);
+      break;
+    case 'apron':
+      // Straps over the shoulders, then the bib down past the waist.
+      on(1, 0, 1, 2, APRON);
+      on(w - 2, 0, 1, 2, APRON);
+      on(1, 2, w - 2, b - 1, APRON);
+      on(middle - 1, b - 2, 2, 1, APRON_DARK);
+      break;
+    case 'labCoat':
+      on(middle - 1, 0, 2, b, look.shirt);
+      on(0, b, 1, 1, LAB_COAT);
+      on(w - 1, b, 1, 1, LAB_COAT);
+      break;
+    case 'stethoscope':
+      on(1, 0, 1, 2, TUBE);
+      on(w - 2, 0, 1, 3, TUBE);
+      on(w - 3, 3, 2, 1, STETHOSCOPE_BELL);
+      break;
+    case 'satchel':
+      // The strap runs from the front shoulder down to the back hip.
+      for (let row = 0; row < b; row++) {
+        on(w - 2 - Math.round((row * (w - 2)) / (b - 1)), row, 2, 1, STRAP);
+      }
+      on(-2, b - 2, 3, 3, BAG);
+      on(-2, b - 2, 3, 1, BAG_FLAP);
+      break;
+    default:
+      break;
+  }
+}
+
+// Job items worn on the head, drawn over the hair. Columns and rows are
+// from the head's top-left (the face is toward the high columns; negative
+// rows are above the head).
+function drawJobItemOnHead(px, shape, item, headLeft, headTop) {
+  const at = (col, row, w, h, color) => px(headLeft + col, headTop + row, w, h, color);
+  const size = shape.head;
+  const eyeRow = Math.floor(size / 2) - 2;
+  switch (item) {
+    case 'hardHat':
+      at(1, -2, size - 2, 1, HARD_HAT);
+      at(0, -1, size, 1, HARD_HAT);
+      at(0, 0, size + 1, 1, HARD_HAT_BRIM);
+      break;
+    case 'chefHat':
+      at(0, -4, size, 2, CHEF_WHITE);
+      at(1, -2, size - 2, 2, CHEF_WHITE);
+      at(0, 0, size, 1, CHEF_BAND);
+      break;
+    case 'cap':
+      at(1, -2, size - 2, 1, CAP);
+      at(0, -1, size, 2, CAP);
+      at(size - 1, 0, 3, 1, CAP_BRIM);
+      break;
+    case 'strawHat':
+      at(1, -2, size - 2, 1, STRAW);
+      at(1, -1, size - 2, 1, HAT_BAND);
+      at(-2, 0, size + 4, 1, STRAW_BRIM);
+      break;
+    case 'beret':
+      // Tilted toward the back of the head.
+      at(2, -3, 1, 1, BERET);
+      at(0, -2, size - 2, 1, BERET);
+      at(-1, -1, size, 2, BERET);
+      break;
+    case 'glasses':
+      // Colored rims beside and under both eyes (a rim above would read
+      // as hair), the bridge between them, and the arm back to the ear.
+      at(size - 7, eyeRow, 1, 2, FRAMES);
+      at(size - 4, eyeRow, 1, 1, FRAMES);
+      at(size - 1, eyeRow, 1, 2, FRAMES);
+      at(size - 6, eyeRow + 2, 2, 1, FRAMES);
+      at(size - 3, eyeRow + 2, 2, 1, FRAMES);
+      at(0, eyeRow, 1, 1, FRAMES);
+      break;
+    case 'headphones':
+      at(1, -2, size - 3, 1, HEADPHONE_BAND);
+      at(0, -1, 1, 3, HEADPHONE_BAND);
+      at(-1, eyeRow, 2, 3, HEADPHONE_CUP);
+      break;
+    default:
+      break;
+  }
 }
 
 // A toddler's arm held out from the shoulder and a little raised, hand

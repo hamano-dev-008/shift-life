@@ -125,7 +125,7 @@ body {
   text-align: right;
 }
 
-#stats .stat-money {
+#stats .stat-wide {
   grid-column: 2 / -1;
 }
 

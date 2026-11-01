@@ -60,3 +60,13 @@ export const ACTIVITY_LOOPS = { pageFlip: 1.6, coin: 0.9, wave: 0.3, heart: 1.4,
 
 // How long a milestone celebration bubble stays up.
 export const MILESTONE_BUBBLE_SECONDS = 5;
+
+// Going to work: while the character has a job, when an idle pause ends
+// this is the chance they walk out the nearest side of the window "to
+// work", checked before the goal activity. They stay away WORK_AWAY
+// seconds, then walk back in from the same side; they come back early if
+// something needs them (an event, a bubble). WORK_EXIT is how far past
+// the window edge they walk before they count as gone, in scene pixels.
+export const WORK_TRIP_CHANCE = 0.15;
+export const WORK_AWAY = [20, 45];
+export const WORK_EXIT = 10;
