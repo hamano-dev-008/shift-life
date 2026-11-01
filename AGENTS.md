@@ -24,8 +24,9 @@ with **Electron and plain JavaScript**.
 > **Status:** a pixel character is born with stats and personality
 > traits, wanders the window, ages in real time, meets life events as
 > speech bubbles, pursues a life goal the player picks, works jobs from
-> 18 (pay, promotions, work events) and retires at 65; the life is
-> saved between launches. Items marked
+> 18 (pay, promotions, work events) and retires at 65, and can busk
+> under the Fortune Tree (the first place) and try for its golden apple;
+> the life is saved between launches. Items marked
 > *(planned)* don't exist yet; follow the planned layout when adding them,
 > and update this section whenever files are added, moved, or removed.
 
@@ -46,54 +47,71 @@ Shift-Life/
 │                      save, saveSync, isDev, listSprites } to the
 │                      renderer via contextBridge
 ├── src/
-│   ├── index.html     Renderer page: scene canvas, label, stats panel,
-│   │                  event bubble/card, goal menu, dev menu, text
-│   │                  bubble, top-right buttons (goal, gear, -, x)
+│   ├── index.html     Renderer page: scene canvas, tree click area,
+│   │                  label, place name, stats panel, event bubble/card,
+│   │                  goal menu, tree menu, dev menu, text bubble,
+│   │                  top-right buttons (goal, gear, -, x)
 │   ├── styles.css     Rounded frame, drag region, pixelated canvas, label,
-│   │                  stats panel, panels (event card, goal menu, dev
-│   │                  menu), top-right buttons, text bubble
+│   │                  place name, stats panel, tree click area, panels
+│   │                  (event card, goal, tree and dev menus), top-right
+│   │                  buttons, text bubble
 │   ├── renderer.js    Renderer entry point (ES module): loads or starts a
-│   │                  life, runs clock, events, goals, jobs, autosave,
-│   │                  frame loop, text bubble queue, dev menu wiring,
-│   │                  dev shortcuts
+│   │                  life, lays out its place, runs clock, events,
+│   │                  goals, jobs, the Fortune Tree (real-time tick),
+│   │                  autosave, frame loop, text bubble queue, tree and
+│   │                  dev menu wiring, dev shortcuts
 │   ├── game/          Game logic only (no hard-coded content)
 │   │   ├── clock.js       Real-time clock: in-game years, speed
 │   │   ├── character.js   Birth (random name/look/traits), stats,
 │   │   │                  expression, age, life stage
 │   │   ├── events.js      Event engine: scheduling, picking, choices,
-│   │   │                  outcomes, goal- and trait-based auto-decide
+│   │   │                  outcomes, goal- and trait-based auto-decide,
+│   │   │                  freezing while busking
 │   │   ├── goals.js       Active goal, yearly stat drift, milestones,
 │   │   │                  the goal menu's view
 │   │   ├── jobs.js        Job offers, the job held and its level, yearly
 │   │   │                  pay, promotions, job changes, retirement and
 │   │   │                  pension, the stats panel's job view
+│   │   ├── places.js      The current place (game.place): look-up and
+│   │   │                  restoring
+│   │   ├── fortuneTree.js The Fortune Tree: busking sessions and pay,
+│   │   │                  the golden apple (growth, pick chance, pick),
+│   │   │                  real-time timers, the tree menu's view
 │   │   ├── dev.js         Dev actions: new life, speed, skip years,
-│   │   │                  trigger event, add money, read-out (with job)
+│   │   │                  trigger event, add money, finish a busking
+│   │   │                  session, apple now, read-out (job, tree)
 │   │   └── save.js        Save format (versioned) and load/save calls
 │   ├── ui/            Drawing and visual-only behavior
 │   │   ├── pixel.js       Low-res layer helpers: paint, outline, scaled draw
 │   │   ├── assets.js      Sprite loader (PNGs from assets/sprites/ at
 │   │   │                  startup), frame picking, crisp sprite drawing
-│   │   ├── scene.js       computeLayout() (data → canvas pixels) and the
+│   │   ├── scene.js       computeLayout() (data → canvas pixels, for a
+│   │   │                  place), where props are drawn and clicked
+│   │   │                  (propRect, propClickRect), and the place's
 │   │   │                  scenery: sky, grass, tree, each a sprite
 │   │   │                  or code-drawn; still pieces cached, animated
 │   │   │                  sprites drawn every frame
 │   │   ├── props.js       Draws the tree in code
 │   │   ├── animator.js    Wandering, prop visits, goal activities,
-│   │   │                  trips off-screen to work and back,
+│   │   │                  trips off-screen to work and back, busking
+│   │   │                  (walk to the tree, sit and play),
 │   │   │                  turning, the walk cycle, breathing, blinking;
 │   │   │                  gaits by age (crawl, toddle, walk), baby
 │   │   │                  fidgets, toddler plops
 │   │   ├── sprite.js      Draws the character (standing, sitting,
 │   │   │                  crawling, toddling) from a sprite sheet where
 │   │   │                  one exists, otherwise in code, including
-│   │   │                  activity props (book, coins, hearts, sweat) and
-│   │   │                  job items (hats, tie, apron, lab coat...); all
-│   │   │                  character drawing lives here
+│   │   │                  activity props (book, coins, hearts, sweat),
+│   │   │                  job items (hats, tie, apron, lab coat...) and
+│   │   │                  busking (guitar, notes); all character
+│   │   │                  drawing lives here
 │   │   ├── bubble.js      The "!" bubble (canvas art + click target) and
 │   │   │                  the text bubble, both following the head
 │   │   ├── eventCard.js   The event card: prompt and choice buttons
 │   │   ├── goalMenu.js    The goal menu: pick a goal, boost, milestones
+│   │   ├── goldenApple.js The golden apple on the tree (sprite or code)
+│   │   ├── treeMenu.js    The Fortune Tree menu: play/stop, pick the
+│   │   │                  apple, progress and pick chance
 │   │   ├── devMenu.js     The dev settings menu (gear; dev runs only)
 │   │   └── statsPanel.js  Stats, job and traits panel under the name label
 │   └── data/          Pure game data, no logic
@@ -102,6 +120,11 @@ Shift-Life/
 │       │                  goal weights for decisions and event picks
 │       ├── stats.js       Starting stats, stat names and short tags
 │       ├── dev.js         Dev menu amounts (skip-ahead years, money)
+│       ├── places.js      Places (id, name, scenery pieces) and the
+│       │                  default place
+│       ├── fortuneTree.js Fortune Tree numbers and text: min age,
+│       │                  session length and pay, apple timing, pick
+│       │                  chance and reward, apple spot, busking loops
 │       ├── traits.js      Personality trait pairs, how many a newborn gets
 │       ├── goals.js       Life goals: stat, yearly drift, activity,
 │       │                  milestones (format documented in the file)
@@ -130,11 +153,11 @@ Shift-Life/
 │       │                  job offer, promotion and retirement numbers,
 │       │                  job bubble and stats panel text
 │       └── sprites.js     Sprite sheet info (frames, frame size and
-│                          duration, anchor) and the list of sprite names
-│                          drawing code looks for
+│                          duration, anchor, scale) and the list of sprite
+│                          names drawing code looks for
 ├── assets/
-│   └── sprites/       Pixel-art PNGs that replace code-drawn art (empty
-│                      for now, apart from a short README)
+│   └── sprites/       Pixel-art PNGs that replace code-drawn art (tree.png,
+│                      goldenApple.png so far) and a short README
 └── test/              (planned) Automated tests
 ```
 
@@ -162,8 +185,9 @@ How it works, for anyone extending it:
     canvas pixels. Code that places things (animator, sprite, props) uses
     that layout, never raw canvas numbers, so changing `SCENE_SCALE`
     resizes the whole scene and props stay at the edges.
-  - The scenery (sky, grass, tree, back to front) comes from
-    `createScenery()` in `ui/scene.js`. Still pieces next to each other
+  - The scenery comes from `createScenery(layout, place)` in
+    `ui/scene.js`: the place's `scenery` pieces (data/places.js), back
+    to front. Still pieces next to each other
     are drawn once onto a cached canvas; an animated sprite is drawn live
     every frame in its place in the order. The canvas is cleared each
     frame before the scenery is drawn.
@@ -183,8 +207,9 @@ How it works, for anyone extending it:
     `getSprite(name)` and falls back to its code-drawn art on null. The
     names it looks for, and where each is placed, are listed at the top
     of `data/sprites.js`: `sky`, `grass`, `tree` (scene pixels,
-    drawn at `SCENE_SCALE`) and `character.<body>.<animation>` with an
-    optional `.<expression>` (character pixels, at `CHARACTER_SCALE`).
+    drawn at `SCENE_SCALE`), `goldenApple` (at the tree's scale) and
+    `character.<body>.<animation>` with an optional `.<expression>`
+    (character pixels, at `CHARACTER_SCALE`).
   - Sheets have their frames side by side in one row. `SPRITES` in
     `data/sprites.js` gives `frames`, and optionally `frameWidth`,
     `frameHeight`, `frameDuration`, (characters) `anchorX`, and `scale`
@@ -326,6 +351,50 @@ How it works, for anyone extending it:
     and come back early if it does. Purely visual.
   - There's no end of life yet; when the summary is built, it should
     read the job, level and money from `careerView()` and `history`.
+- **Places:** the scene is a place (`data/places.js`: id, name, and the
+  `scenery` pieces it shows, back to front). `game.place` holds the
+  current place's id (saved; an unknown id falls back to
+  `DEFAULT_PLACE`). The renderer lays out the scene for it
+  (`computeLayout(width, height, place)` only builds that place's
+  props), draws its scenery, and shows its name under the name label.
+  There's one place so far, the Fortune Tree; there's no way to move
+  between places yet, so the scene is built once at startup. A new place
+  needs an entry in `PLACES`, any new scenery pieces in `SCENERY`
+  (`ui/scene.js`) and props in `PROPS` (`data/layout.js`). Place-specific
+  features check the place id (`FORTUNE_TREE_PLACE`).
+- **Fortune Tree:** `game.fortuneTree` holds `playing`, `sessionMs`
+  (real time into the current session), `sessions` (full sessions since
+  the last successful pick), `appleReady` and `appleInMs`. Numbers and
+  text are in `data/fortuneTree.js`; logic in `game/fortuneTree.js`.
+  - An invisible no-drag button (`#tree-target`) sits over the tree's
+    visible pixels (`propClickRect()`) and opens the tree menu
+    (`ui/treeMenu.js`), which shares the panels' spot. Under
+    `TREE_MIN_AGE` (6) it only says to come back later.
+  - Busking: "Play an instrument" sets `playing`. The renderer's life
+    tick passes `updateFortuneTree()` the real milliseconds since the
+    last tick (capped at 2s, so a sleeping PC doesn't count); game speed
+    doesn't change it, and nothing runs while the app is closed. Every
+    `SESSION_MINUTES` pays `SESSION_PAY` (a text bubble) and counts a
+    session. Stopping drops the unfinished session's time.
+  - While playing, the animator (`buskX` option) walks the character to
+    the tree's visit spot (coming back from work if away) and sits them
+    there playing (`activity: 'busk'` in the pose): no wandering,
+    activities or work trips, even when something needs them on screen.
+  - Event freeze: while playing, `updateEvents(game, { freeze: true })`
+    starts nothing and records `events.frozenAt`. On the first update
+    after, `nextAt` and a waiting event's `shownAt` move forward by the
+    frozen time, so the wait picks up where it was and events don't pile
+    up. A waiting event can still be opened and answered meanwhile (its
+    next event is scheduled from `frozenAt`). Goals, pay and jobs carry
+    on as normal.
+  - The golden apple grows over `APPLE_EVERY_HOURS` real hours, one at a
+    time (the timer waits while one is ready), and is drawn on the tree
+    (`ui/goldenApple.js`) at `APPLE_SPOT`: the `goldenApple` sprite if
+    there is one, else a code-drawn apple with a glint, at the tree's
+    scale. Picking succeeds with `PICK_CHANCE` (base + perSession x
+    sessions, capped): `APPLE_REWARD` dollars, a golden bubble, and
+    `sessions` back to 0. A miss shows "The apple slipped away...".
+    Either way the apple is gone and the next one starts growing.
 - **Stats panel:** hovering the name label shows stats, the job (title,
   level, pay; "Looking" or "Retired" with the pension) from age 18, and
   traits; clicking it pins the panel open.
@@ -336,16 +405,19 @@ How it works, for anyone extending it:
     the life in place and saves over the old one), clock speed (normal,
     fast, very fast; `SPEEDS` in `data/balance.js`), skip ahead +1/+10
     years, trigger a fitting event now (opens its card; a job offer for
-    an adult without a job), add $1,000, and a read-out of stats,
-    traits, goal and job.
+    an adult without a job, even while busking), add $1,000, finish the
+    busking session now (paid; "Not playing." otherwise), make a golden
+    apple ready now, and a read-out of stats, traits, goal, job and the
+    tree. The menu scrolls (no scrollbar) if it's taller than the
+    window.
   - `ui/devMenu.js` only calls the actions it's given; the work lives in
     `game/dev.js`, and the renderer wraps it to keep the screen in step.
     Amounts are in `data/dev.js`.
   - Skipping years doesn't replay events: the character ages, goal
     boosts and paydays (with promotions and retirement) catch up, and at
     most one due event comes up.
-  - The event card, goal menu and dev menu share the same spot, so
-    opening one closes the others.
+  - The event card, goal menu, tree menu and dev menu share the same
+    spot, so opening one closes the others.
 - **Dev shortcuts** (window focused; these work in any build):
   - Ctrl+Shift+F toggles between normal and fast speed. The label shows
     `>>` for fast and `>>>` for very fast. Speed isn't saved.
@@ -370,16 +442,19 @@ How it works, for anyone extending it:
   - `window-state.json` holds the window position. It's ignored if it
     would put the window off every connected screen.
   - `save.json` holds the life: `{ version, clock: { years }, character,
-    events, goals, jobs }`. `character` includes `stats` and `traits`; `events`
-    holds `nextAt`, the `pending` event, how often each was `seen`, and
-    `lastId`; `goals` holds the `active` goal, `since` and `nextDriftAt`,
+    events, goals, jobs, place, fortuneTree }`. `character` includes
+    `stats` and `traits`; `events`
+    holds `nextAt`, the `pending` event, how often each was `seen`,
+    `lastId`, and `frozenAt` (while busking); `goals` holds the `active` goal, `since` and `nextDriftAt`,
     `pastYears` per goal, and reached `milestones` ({ goal, id, age });
-    `jobs` is described under **Jobs** above.
+    `jobs` is described under **Jobs** above; `place` and `fortuneTree`
+    under **Places** and **Fortune Tree**.
     The renderer autosaves every 10s and saves synchronously on
     `beforeunload`, so every way of closing is covered. `main.js` writes
     via a temp file and rename.
   - New optional fields can keep the version if `restore*()` fills in a
-    default (as `stats`, `traits`, `events`, `goals` and `jobs` do; older saves'
+    default (as `stats`, `traits`, `events`, `goals`, `jobs`, `place` and
+    `fortuneTree` do; older saves'
     `mood` becomes happiness). For breaking changes, bump `SAVE_VERSION` in
     `game/save.js` and handle old versions. Right now an unrecognised save
     is replaced by a new life.

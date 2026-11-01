@@ -1,8 +1,9 @@
-// scene.js — Works out where everything goes for the window's size and the
-// scene scale, and draws the scenery: dithered sky, grassy ground strip,
-// and a tree. Each piece uses its sprite (ui/assets.js) when there is
-// one, or the code-drawn art. Still pieces are drawn once to offscreen
-// canvases copied in every frame; animated sprites are drawn every frame.
+// scene.js — Works out where everything goes for the window's size, the
+// scene scale and the current place (data/places.js), and draws that
+// place's scenery: dithered sky, grassy ground strip, a tree. Each piece
+// uses its sprite (ui/assets.js) when there is one, or the code-drawn art.
+// Still pieces are drawn once to offscreen canvases copied in every frame;
+// animated sprites are drawn every frame.
 
 import {
   SCENE_SCALE, CHARACTER_SCALE, GROUND_HEIGHT, FEET_FROM_BOTTOM, PROP_BASE_FROM_BOTTOM, PROPS, WANDER_MARGIN,
@@ -27,13 +28,15 @@ const BAYER = [
 ];
 
 // Converts data/layout.js (scene pixels from the window edges) into canvas
-// pixels for a canvas of the given size. Everything that places things in
-// the scene reads this instead of the raw data.
-export function computeLayout(width, height) {
+// pixels for a canvas of the given size, with the props in `place`'s
+// scenery. Everything that places things in the scene reads this instead
+// of the raw data.
+export function computeLayout(width, height, place) {
   const scale = SCENE_SCALE;
   const fromBottom = (rows) => height - rows * scale;
   const props = {};
   for (const [id, prop] of Object.entries(PROPS)) {
+    if (!place.scenery.includes(id)) continue;
     let x;
     if (prop.edge === 'left') {
       x = prop.margin * scale;
@@ -136,13 +139,21 @@ function tileAcross(ctx, layout, sprite, frame, bottomY) {
   for (let x = 0; x < layout.width; x += step) drawSprite(ctx, sprite, frame, x, bottomY, scale);
 }
 
-// A prop sprite goes where the code-drawn prop and its 1px outline go:
-// its outer column against the prop's window edge (or centered on a
-// centered prop), its bottom row just below the prop's base. A sprite
-// with its own scale grows away from that edge (or both ways) and upward.
-function placeProp(ctx, layout, sprite, frame, prop) {
-  const scale = scaleOf(layout, sprite);
-  const width = sprite.frameWidth * scale;
+// Where prop `id` is drawn, in canvas pixels: { left, top, width, height,
+// scale (screen pixels per pixel of its art), sprite (whether it's drawn
+// from a sprite) }, or null if the place has no such prop. A prop sprite
+// goes where the code-drawn prop and its 1px outline go: its outer column
+// against the prop's window edge (or centered on a centered prop), its
+// bottom row just below the prop's base. A sprite with its own scale
+// grows away from that edge (or both ways) and upward.
+export function propRect(layout, id) {
+  const prop = layout.props[id];
+  if (!prop) return null;
+  const sprite = getSprite(id);
+  const scale = sprite ? scaleOf(layout, sprite) : layout.scale;
+  const width = (sprite ? sprite.frameWidth : prop.width + 2) * scale;
+  const height = (sprite ? sprite.frameHeight : prop.height + 2) * scale;
+  // (For code-drawn props every branch comes to prop.x - scale.)
   let left;
   if (prop.edge === 'left') {
     left = prop.x - scale;
@@ -151,7 +162,44 @@ function placeProp(ctx, layout, sprite, frame, prop) {
   } else {
     left = Math.round(prop.x + (prop.width * layout.scale - width) / 2);
   }
-  drawSprite(ctx, sprite, frame, left, prop.baseY + scale, scale);
+  const bottom = prop.baseY + scale;
+  return { left, top: bottom - height, width, height, scale, sprite: Boolean(sprite) };
+}
+
+// The part of prop `id` worth clicking, in canvas pixels ({ left, top,
+// width, height }), or null if the place has no such prop: for a sprite,
+// the box around its first frame's visible pixels (leaving out clear
+// margins); otherwise the whole prop.
+export function propClickRect(layout, id) {
+  const rect = propRect(layout, id);
+  if (!rect || !rect.sprite) return rect;
+  const sprite = getSprite(id);
+  const probe = createLayer(sprite.frameWidth, sprite.frameHeight);
+  probe.ctx.drawImage(sprite.image, 0, 0, sprite.frameWidth, sprite.frameHeight,
+    0, 0, sprite.frameWidth, sprite.frameHeight);
+  const { data } = probe.ctx.getImageData(0, 0, sprite.frameWidth, sprite.frameHeight);
+  let [minX, minY, maxX, maxY] = [Infinity, Infinity, -1, -1];
+  for (let y = 0; y < sprite.frameHeight; y++) {
+    for (let x = 0; x < sprite.frameWidth; x++) {
+      if (data[(y * sprite.frameWidth + x) * 4 + 3] === 0) continue;
+      minX = Math.min(minX, x);
+      minY = Math.min(minY, y);
+      maxX = Math.max(maxX, x);
+      maxY = Math.max(maxY, y);
+    }
+  }
+  if (maxX < 0) return rect;
+  return {
+    left: rect.left + minX * rect.scale,
+    top: rect.top + minY * rect.scale,
+    width: (maxX - minX + 1) * rect.scale,
+    height: (maxY - minY + 1) * rect.scale,
+  };
+}
+
+function placeProp(ctx, layout, sprite, frame, id) {
+  const rect = propRect(layout, id);
+  drawSprite(ctx, sprite, frame, rect.left, rect.top + rect.height, rect.scale);
 }
 
 // The scenery, back to front. Each piece has its sprite name (see
@@ -176,7 +224,7 @@ const SCENERY = [
   },
   {
     name: 'tree',
-    drawSprite: (ctx, layout, sprite, frame) => placeProp(ctx, layout, sprite, frame, layout.props.tree),
+    drawSprite: (ctx, layout, sprite, frame) => placeProp(ctx, layout, sprite, frame, 'tree'),
     drawCode: drawTree,
   },
 ];
@@ -188,14 +236,16 @@ function createCanvas(layout) {
   return canvas;
 }
 
-// Prepares the scenery for drawing every frame. Still pieces next to each
-// other (code-drawn, or one-frame sprites) are drawn once onto a shared
-// offscreen canvas; an animated sprite is drawn live between them, so
-// the order back to front stays the same. Call after loadSprites().
-export function createScenery(layout) {
+// Prepares `place`'s scenery for drawing every frame. Still pieces next
+// to each other (code-drawn, or one-frame sprites) are drawn once onto a
+// shared offscreen canvas; an animated sprite is drawn live between them,
+// so the order back to front stays the same. Call after loadSprites().
+export function createScenery(layout, place) {
   const parts = [];
   let still = null;
-  for (const piece of SCENERY) {
+  for (const name of place.scenery) {
+    const piece = SCENERY.find((candidate) => candidate.name === name);
+    if (!piece) continue;
     const sprite = getSprite(piece.name);
     if (sprite && isAnimated(sprite)) {
       parts.push({ piece, sprite });

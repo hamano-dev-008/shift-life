@@ -1,5 +1,6 @@
 // sprite.js — Draws the character as a small pixel sprite, in code,
-// with goal activity props and job items. All character drawing lives here so it can be swapped for hand-drawn sprite
+// with goal activity props, job items, and the guitar and notes while
+// busking. All character drawing lives here so it can be swapped for hand-drawn sprite
 // sheets later without touching the rest of the game.
 //
 // The sprite is painted facing right on a small layer in character pixels,
@@ -14,6 +15,7 @@ import {
   MOUTH_COLOR, MOUTH_COLOR_LIGHT, OUTLINE_COLOR, SHADOW_COLOR,
 } from '../data/appearance.js';
 import { ACTIVITY_LOOPS } from '../data/animation.js';
+import { BUSK_LOOPS } from '../data/fortuneTree.js';
 import { createLayer, clearLayer, fill, outline, drawLayer } from './pixel.js';
 import { getSprite, frameAtTime, frameAtProgress, drawSprite } from './assets.js';
 
@@ -67,6 +69,16 @@ const STRAP = '#7a4a2a';
 const BAG = '#9c6236';
 const BAG_FLAP = '#7a4a2a';
 
+// Busking: a wooden guitar and musical notes.
+const GUITAR = '#c98a4b';
+const GUITAR_DARK = '#7a4a2a';
+const GUITAR_NECK = '#8b5a3c';
+const NOTE_COLORS = ['#ffffff', '#f2c14e'];
+// A note glyph, 3 wide and 4 tall: flag, stem, and the head at the bottom.
+const NOTE_PIXELS = [[1, 0], [2, 0], [1, 1], [1, 2], [0, 3], [1, 3]];
+// How many rows a note rises before it fades.
+const NOTE_RISE_ROWS = 12;
+
 const {
   pageFlip: PAGE_FLIP_EVERY, coin: COIN_BEAT, wave: WAVE_BEAT, heart: HEART_EVERY, sweat: SWEAT_EVERY,
 } = ACTIVITY_LOOPS;
@@ -100,11 +112,12 @@ export function figureHeight(stage, pose) {
 // rather than time.
 const STEPPED_ANIMATIONS = ['walk', 'crawl', 'jog'];
 
-// The animation the pose shows, as named in data/sprites.js.
+// The animation the pose shows, as named in data/sprites.js. An activity
+// comes first, so busking (sitting) is 'busk' rather than 'sit'.
 function animationOf(pose) {
+  if (pose.activity) return pose.activity;
   if (pose.sit) return 'sit';
   if (isCrawling(pose)) return 'crawl';
-  if (pose.activity) return pose.activity;
   return pose.walk ? 'walk' : 'idle';
 }
 
@@ -316,9 +329,11 @@ function drawBalanceArm(px, look, col, bodyTop, out, frame) {
   px(col + out, bodyTop - lift, 1, 1, look.skin);
 }
 
-// Sitting on the ground (a baby at rest, or a toddler who plopped down):
-// upright torso, legs out in front, hands by the hips. A wobble shifts the
-// upper body sideways; `gaze` turns the eyes back over the shoulder.
+// Sitting on the ground (a baby at rest, a toddler who plopped down, or
+// anyone busking): upright torso, legs out in front, hands by the hips. A
+// wobble shifts the upper body sideways; `gaze` turns the eyes back over
+// the shoulder. Babies' legs are bare; older legs wear trousers and shoes
+// and are as long as standing legs. Busking adds a guitar on the lap.
 function drawSitting(px, shape, stage, look, expression, pose) {
   const bodyTop = FOOT_ROW - shape.body;
   const bodyLeft = -Math.floor(shape.width / 2) + pose.wobble;
@@ -329,13 +344,54 @@ function drawSitting(px, shape, stage, look, expression, pose) {
   const hip = -Math.floor(shape.width / 2) + shape.width - 1;
   const ground = FOOT_ROW - 1;
 
-  drawArm(px, shape, look, bodyLeft - 1, bodyTop, 0);
+  const bare = stage === 'baby';
+  const legs = bare ? SIT_POSE.legs : Math.max(SIT_POSE.legs, shape.legs);
+  const busking = pose.activity === 'busk';
+
+  if (!busking) drawArm(px, shape, look, bodyLeft - 1, bodyTop, 0);
   px(bodyLeft, bodyTop, shape.width, shape.body, look.shirt);
-  drawArm(px, shape, look, bodyLeft + shape.width, bodyTop, 0);
   // Legs stretched out in front, past the hand resting on them, toes up.
-  px(hip, ground, SIT_POSE.legs, 1, look.skin);
-  px(hip + SIT_POSE.legs - 1, ground - 1, 1, 1, look.skin);
+  px(hip, ground, legs, 1, bare ? look.skin : PANTS_COLOR);
+  px(hip + legs - 1, ground - 1, 1, 1, bare ? look.skin : SHOE_COLOR);
+  if (busking) {
+    drawGuitar(px, shape, look, hip, ground, bodyLeft + shape.width, bodyTop, pose.activityTime);
+  } else {
+    drawArm(px, shape, look, bodyLeft + shape.width, bodyTop, 0);
+  }
   drawHead(px, shape, stage, look, headLeft, headTop, pose.blinking, expression, pose.gaze);
+  if (busking) drawNotes(px, headLeft + shape.head + 1, headTop + 2, pose.activityTime);
+}
+
+// A guitar resting on the lap: a wooden body with a sound hole, the neck
+// rising forward with a hand on it, and the front hand strumming (bobbing
+// a row every BUSK_LOOPS.strum seconds).
+function drawGuitar(px, shape, look, hip, ground, armCol, bodyTop, t) {
+  const top = ground - 3;
+  const left = hip + 1;
+  px(left, top, 3, 3, GUITAR);
+  px(left + 1, top + 1, 1, 1, GUITAR_DARK);
+  for (let i = 0; i < 3; i++) px(left + 3 + i, top - i, 1, 1, GUITAR_NECK);
+  px(left + 6, top - 3, 1, 1, GUITAR_DARK);
+  px(left + 4, top - 1, 1, 1, look.skin);
+  const sleeve = Math.ceil((shape.body - 1) / 2);
+  const strum = Math.floor(t / BUSK_LOOPS.strum) % 2;
+  px(armCol, bodyTop + 1, 1, sleeve, look.shirt);
+  px(left + 1, top + strum, 1, 1, look.skin);
+}
+
+// Musical notes floating up in front of the face: one starts every
+// BUSK_LOOPS.note seconds with its bottom row at `bottom`, drifts up
+// NOTE_RISE_ROWS over BUSK_LOOPS.noteRise, and alternates colors and
+// columns.
+function drawNotes(px, col, bottom, t) {
+  const { note: every, noteRise: rise } = BUSK_LOOPS;
+  const newest = Math.floor(t / every);
+  for (let i = newest; i >= 0 && t - i * every < rise; i--) {
+    const phase = (t - i * every) / rise;
+    const top = Math.max(1, bottom - 3 - Math.floor(phase * NOTE_RISE_ROWS));
+    const left = col + (i % 2) * 2 + (phase > 0.5 ? 1 : 0);
+    for (const [x, y] of NOTE_PIXELS) px(left + x, top + y, 1, 1, NOTE_COLORS[i % 2]);
+  }
 }
 
 // On hands and knees: the torso lies flat on CRAWL_POSE.limbs-tall arms

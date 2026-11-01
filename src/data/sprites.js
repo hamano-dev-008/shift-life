@@ -16,6 +16,9 @@
 //             window, PROPS.tree in data/layout.js), bottom edge one row
 //             below the prop's base line. The code-drawn tree plus its
 //             1px outline is 20 x 36.
+//     goldenApple  The Fortune Tree's golden apple, shown while one is
+//             ready. Drawn at the tree's scale (or its own `scale`), its
+//             middle pixel on APPLE_SPOT in data/fortuneTree.js.
 //   Character (character pixels, CHARACTER_SCALE in data/layout.js):
 //     character.<body>.<animation>, optionally followed by .<expression>
 //     (smile, neutral or frown) for a version that matches the mood,
@@ -23,8 +26,9 @@
 //       body       baby, toddler, child, teen, adult or elder (a
 //                  toddler is a baby from CRAWL_UNTIL_AGE until
 //                  WALK_FROM_AGE in data/infant.js)
-//       animation  idle, walk, sit (baby, toddler), crawl (baby), or a goal
-//                  activity: read, coins, wave, jog
+//       animation  idle, walk, sit (baby, toddler), crawl (baby), a goal
+//                  activity (read, coins, wave, jog), or busk (sitting
+//                  under the Fortune Tree playing an instrument)
 //     Drawn facing right (mirrored when facing left), with the frame's
 //     bottom edge one row below the feet (the outline's row) and column
 //     `anchorX` on the character's center. A sprite replaces the whole
@@ -57,4 +61,7 @@ export const SPRITES = {
   // The tree art is small for a tree; drawn bigger (5 vs the scene's 3)
   // so it stands tall in the middle of the scene.
   tree: { scale: 5 },
+  // The apple art is 40 x 40, finely drawn: at the tree's scale it would
+  // be bigger than the tree, so it's drawn 1:1.
+  goldenApple: { scale: 1 },
 };

@@ -1,10 +1,11 @@
 // animator.js — Purely visual motion for the character: wandering, visiting
 // the tree, goal activities (reading, counting coins, jogging,
-// waving), walking off "to work" and back, turning, the walk cycle,
-// crawling and toddling for the youngest (with sitting, fidgets and
-// plops), breathing, and blinking. Never touches game state; the renderer
-// passes in the gait for the age, which activity the goal calls for, and
-// whether the character has a job.
+// waving), walking off "to work" and back, busking under the Fortune
+// Tree, turning, the walk cycle, crawling and toddling for the youngest
+// (with sitting, fidgets and plops), breathing, and blinking. Never
+// touches game state; the renderer passes in the gait for the age, which
+// activity the goal calls for, whether the character has a job, and where
+// to busk while playing.
 // Speeds and timings live in data/animation.js and data/infant.js
 // (walking and crawling in character pixels, other distances in scene
 // pixels); positions here are canvas pixels from computeLayout().
@@ -50,14 +51,15 @@ export function createAnimator(layout) {
     // 'idle' (standing, or sitting for a crawler), 'turning' (beat after
     // turning), 'walking' (or crawling/toddling), 'plopped' (a toddler
     // sat down mid-walk), 'activity' (doing `activity`; jogging also
-    // walks during it), or 'away' (at work, off past the window's edge)
+    // walks during it), 'away' (at work, off past the window's edge), or
+    // 'busking' (sitting under the tree playing)
     mode: 'idle',
     activity: null, // activity id being done, or being walked to
     activityLeft: 0,
     activityTime: 0, // seconds into the current activity
     jogging: false, // running to a spot while jogging
     targetX: 0,
-    destination: null, // prop id or 'work' being walked to, or null
+    destination: null, // prop id, 'work' or 'busk' being walked to, or null
     lastVisited: null,
     pauseLeft: randomIn([1, 3]),
     gridX: Math.round(x / layout.characterScale), // position in whole character pixels
@@ -155,10 +157,13 @@ function walk(anim, dt, stage, speed = 1) {
   return arrived;
 }
 
-// End of a walk: off at work, start the activity walked to, or pause.
+// End of a walk: off at work, sit down to busk, start the activity walked
+// to, or pause.
 function arrive(anim) {
   anim.lastVisited = anim.destination;
-  if (anim.destination === 'work') {
+  if (anim.destination === 'busk') {
+    startBusking(anim);
+  } else if (anim.destination === 'work') {
     anim.mode = 'away';
     anim.pauseLeft = randomIn(WORK_AWAY);
   } else if (anim.activity) {
@@ -173,7 +178,8 @@ function arrive(anim) {
 function beginActivity(anim, id) {
   anim.activity = id;
   const { place } = ACTIVITIES[id];
-  const spot = place ? anim.layout.props[place].visitX : anim.x;
+  // A place without that prop: do it right here.
+  const spot = anim.layout.props[place]?.visitX ?? anim.x;
   if (Math.abs(spot - anim.x) >= anim.layout.scale) {
     setOff(anim, { x: spot, destination: place });
   } else {
@@ -257,14 +263,59 @@ function comeBack(anim) {
 // Ctrl+Shift+W dev shortcut.
 export function goToWorkNow(anim) {
   if (anim.mode === 'away' || anim.destination === 'work') return;
+  if (anim.mode === 'busking' || anim.destination === 'busk') return;
   anim.jogging = false;
   goToWork(anim);
+}
+
+function startBusking(anim) {
+  anim.mode = 'busking';
+  anim.activity = null;
+  anim.jogging = false;
+  anim.activityTime = 0;
+}
+
+// While playing, gets to the busking spot `buskX` and stays there: back
+// from work, done with any activity, and no wandering until it stops.
+function updateBusking(anim, dt, stage, buskX) {
+  if (anim.mode === 'busking') {
+    anim.activityTime += dt;
+    return;
+  }
+  if (anim.mode === 'away') {
+    anim.mode = 'idle';
+    anim.gridX = Math.round(anim.x / anim.layout.characterScale);
+  }
+  const heading = anim.destination === 'busk' && ['walking', 'turning', 'plopped'].includes(anim.mode);
+  if (!heading) {
+    anim.activity = null;
+    anim.jogging = false;
+    if (Math.abs(buskX - anim.x) < anim.layout.scale) {
+      startBusking(anim);
+      return;
+    }
+    setOff(anim, { x: buskX, destination: 'busk' });
+  }
+  if (anim.mode === 'walking') {
+    if (walk(anim, dt, stage)) arrive(anim);
+  } else if ((anim.pauseLeft -= dt) <= 0) {
+    startWalking(anim);
+  }
+}
+
+// Stops busking (or heading off to busk): stands up and carries on.
+function stopBusking(anim) {
+  if (anim.mode === 'busking') {
+    anim.mode = 'idle';
+    anim.pauseLeft = randomIn(IDLE_PAUSE);
+  }
+  if (anim.destination === 'busk') anim.destination = null;
 }
 
 // Starts activity `id` right away, replacing whatever is going on. For the
 // Ctrl+Shift+A dev shortcut.
 export function startActivityNow(anim, id) {
-  if (!ACTIVITIES[id]) return;
+  if (!ACTIVITIES[id] || anim.mode === 'busking' || anim.destination === 'busk') return;
   anim.jogging = false;
   beginActivity(anim, id);
 }
@@ -273,10 +324,20 @@ export function startActivityNow(anim, id) {
 // in data/animation.js), or null; it's only used when deciding what to do
 // next. `employed`: the character has a job, so they sometimes go to work.
 // `needed`: something wants them on screen (an event, a bubble), so they
-// don't leave, and come back if they're out.
-export function updateAnimator(anim, dt, stage, gait, { activity = null, employed = false, needed = false } = {}) {
+// don't leave, and come back if they're out. `buskX`: while busking at the
+// Fortune Tree, the canvas x to sit and play at (null otherwise); they go
+// there and stay, with no wandering, activities or work trips.
+export function updateAnimator(anim, dt, stage, gait, {
+  activity = null, employed = false, needed = false, buskX = null,
+} = {}) {
   anim.time += dt;
   anim.gait = gait;
+  if (buskX !== null) {
+    updateBusking(anim, dt, stage, buskX);
+    updateTimers(anim, dt);
+    return;
+  }
+  stopBusking(anim);
   const headingToWork = anim.mode === 'walking' && anim.destination === 'work';
   if (headingToWork && (needed || !employed)) {
     // Turn back: work can wait.
@@ -306,7 +367,11 @@ export function updateAnimator(anim, dt, stage, gait, { activity = null, employe
       setOff(anim, chooseTarget(anim));
     }
   }
+  updateTimers(anim, dt);
+}
 
+// Fidgets and blinking, whatever else is going on.
+function updateTimers(anim, dt) {
   updateFidgets(anim, dt);
   if (anim.blinkLeft > 0) {
     anim.blinkLeft -= dt;
@@ -348,13 +413,15 @@ function walkPose(p, stride) {
 // `gait` is 'crawl', 'toddle' or 'walk'; `sit` means sitting on the ground
 // (a crawler at rest, or a toddler who plopped); `gaze` is -1 while
 // looking back over the shoulder; `wobble` shifts the sitting upper body
-// sideways. `activity` is the activity being done (null when none) and
-// `activityTime` how long it has been going, in seconds. `time` is
-// seconds since the animator started (for sprite animations).
+// sideways. `activity` is the activity being done (null when none;
+// 'busk' while busking, sitting) and `activityTime` how long it has been
+// going, in seconds. `time` is seconds since the animator started (for
+// sprite animations).
 export function poseOf(anim, stage) {
+  const busking = anim.mode === 'busking';
   const doing = anim.mode === 'activity';
   const walking = anim.mode === 'walking' || (doing && anim.jogging);
-  const sit = anim.mode === 'plopped' || (anim.gait === 'crawl' && !walking && !doing);
+  const sit = busking || anim.mode === 'plopped' || (anim.gait === 'crawl' && !walking && !doing);
   const stride = gaitStride(anim, stage);
   const wobbleStep = Math.floor((BABY_WOBBLE_DURATION - anim.wobbleLeft) * 8) % WOBBLE_STEPS.length;
   return {
@@ -367,8 +434,8 @@ export function poseOf(anim, stage) {
     blinking: anim.blinkLeft > 0,
     breath: !walking && anim.time % BREATH_CYCLE > BREATH_CYCLE * 0.6 ? 1 : 0,
     walk: walking ? walkPose(anim.steps % (4 * stride), stride) : null,
-    activity: doing ? anim.activity : null,
-    activityTime: doing ? anim.activityTime : 0,
+    activity: busking ? 'busk' : doing ? anim.activity : null,
+    activityTime: doing || busking ? anim.activityTime : 0,
     time: anim.time,
   };
 }

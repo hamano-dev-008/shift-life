@@ -46,10 +46,19 @@ function eventOf(pending) {
 }
 
 // nextAt: clock time the next event is due. pending: the event waiting for
-// an answer, { id, shownAt }, plus `offer` (job ids) for a job offer. seen: times each event has happened.
-// lastId: the most recent event, so it isn't repeated back to back.
+// an answer, { id, shownAt }, plus `offer` (job ids) for a job offer.
+// seen: times each event has happened. lastId: the most recent event, so
+// it isn't repeated back to back. frozenAt: clock time events were frozen
+// (see updateEvents()), or null.
 export function createEventState(years) {
-  return { nextAt: years + randomGap(), pending: null, seen: {}, lastId: null };
+  return { nextAt: years + randomGap(), pending: null, seen: {}, lastId: null, frozenAt: null };
+}
+
+// The time as events see it: the clock, or while frozen, the moment they
+// froze. Scheduling uses this, so what's set up during a freeze lines up
+// once the freeze ends.
+function eventTime(game) {
+  return game.events.frozenAt ?? game.clock.years;
 }
 
 // Rebuilds event state from save data, dropping anything unusable (such as
@@ -68,6 +77,7 @@ export function restoreEventState(data, years) {
     if (Number.isInteger(count) && count > 0) state.seen[id] = count;
   }
   if (typeof data?.lastId === 'string') state.lastId = data.lastId;
+  if (Number.isFinite(data?.frozenAt) && data.frozenAt <= years) state.frozenAt = data.frozenAt;
   return state;
 }
 
@@ -110,12 +120,12 @@ export function startEvent(game) {
   if (game.events.pending) return false;
   const offer = wantsJobOffer(game) ? makeJobOffer(game) : null;
   if (offer) {
-    game.events.pending = { id: JOB_OFFER_ID, shownAt: game.clock.years, offer };
+    game.events.pending = { id: JOB_OFFER_ID, shownAt: eventTime(game), offer };
     return true;
   }
   const event = pickEvent(game);
   if (!event) return false;
-  game.events.pending = { id: event.id, shownAt: game.clock.years };
+  game.events.pending = { id: event.id, shownAt: eventTime(game) };
   return true;
 }
 
@@ -123,8 +133,24 @@ export function startEvent(game) {
 // an event when one is due, and has the character decide one left
 // unanswered too long, unless holdAutoDecide is set (the player is reading
 // it). Returns the result of an auto-decision, or null.
-export function updateEvents(game, { holdAutoDecide = false } = {}) {
+//
+// `freeze` (while busking at the Fortune Tree) stops time for events: no
+// new event starts, and both the wait for the next one and a waiting
+// event's auto-decide wait stand still. Once it's no longer set, they pick
+// up where they were, so events don't pile up. A waiting event can still
+// be answered meanwhile.
+export function updateEvents(game, { holdAutoDecide = false, freeze = false } = {}) {
   const { clock, events } = game;
+  if (freeze) {
+    if (events.frozenAt === null) events.frozenAt = clock.years;
+    return null;
+  }
+  if (events.frozenAt !== null) {
+    const frozenFor = clock.years - events.frozenAt;
+    events.nextAt += frozenFor;
+    if (events.pending) events.pending.shownAt += frozenFor;
+    events.frozenAt = null;
+  }
   if (events.pending) {
     const waited = clock.years - events.pending.shownAt;
     return !holdAutoDecide && waited >= AUTO_DECIDE_YEARS ? autoDecide(game) : null;
@@ -139,7 +165,7 @@ export function updateEvents(game, { holdAutoDecide = false } = {}) {
 // Restarts the auto-decide wait, e.g. when the player closes the card
 // without choosing.
 export function postponeAutoDecide(game) {
-  if (game.events.pending) game.events.pending.shownAt = game.clock.years;
+  if (game.events.pending) game.events.pending.shownAt = eventTime(game);
 }
 
 function canPick(character, choice) {
@@ -210,7 +236,7 @@ function resolve(game, event, choice, auto) {
   events.seen[event.id] = (events.seen[event.id] ?? 0) + 1;
   events.lastId = event.id;
   events.pending = null;
-  events.nextAt = game.clock.years + randomGap();
+  events.nextAt = eventTime(game) + randomGap();
   const text = fillText(outcome.text, game, { job, newJob: change?.newJob });
   return { text, deltas, raise: change?.raise ?? 0, auto };
 }

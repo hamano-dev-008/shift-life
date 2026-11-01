@@ -1,6 +1,7 @@
 // renderer.js — Renderer entry point: loads the saved life or starts a new
-// one, runs the clock, life events, goals and jobs, draws each frame, and
-// wires up controls, the dev settings menu (dev runs only) and saving.
+// one, runs the clock, life events, goals, jobs and the Fortune Tree,
+// draws the current place each frame, and wires up controls, the tree
+// menu, the dev settings menu (dev runs only) and saving.
 
 import { createClock, startClock } from './game/clock.js';
 import { createCharacter, ageOf, lifeStageOf, expressionOf, setStat } from './game/character.js';
@@ -13,14 +14,23 @@ import {
 import {
   createJobState, updateJobs, isEmployed, jobItem, careerView,
 } from './game/jobs.js';
+import { currentPlace } from './game/places.js';
+import {
+  createTreeState, updateFortuneTree, isPlaying, startPlaying, stopPlaying, pickApple, treeView,
+} from './game/fortuneTree.js';
 import { loadGame, saveGame, saveGameNow } from './game/save.js';
 import {
-  newLife, setSpeed, toggleFastForward, skipYears, triggerEvent, addMoney, devReadout,
+  newLife, setSpeed, toggleFastForward, skipYears, triggerEvent, addMoney, finishBuskingSession,
+  appleNow, devReadout,
 } from './game/dev.js';
 import { RESULT_BUBBLE_SECONDS, MILESTONE_BUBBLE_SECONDS } from './data/animation.js';
 import { SPEEDS } from './data/balance.js';
 import { CRAWL_UNTIL_AGE, FIRST_STEPS } from './data/infant.js';
-import { computeLayout, createScenery } from './ui/scene.js';
+import { DEFAULT_PLACE } from './data/places.js';
+import { FORTUNE_TREE_PLACE, TREE_PROP } from './data/fortuneTree.js';
+import { computeLayout, createScenery, propClickRect } from './ui/scene.js';
+import { drawGoldenApple } from './ui/goldenApple.js';
+import { createTreeMenu } from './ui/treeMenu.js';
 import { loadSprites } from './ui/assets.js';
 import {
   createAnimator, updateAnimator, poseOf, startActivityNow, goToWorkNow, gaitOf,
@@ -39,6 +49,9 @@ const AUTOSAVE_MS = 10000;
 // keep going (and auto-decide, and get paid) while the window is
 // minimized.
 const LIFE_TICK_MS = 250;
+// Most real time one life tick counts for the Fortune Tree's timers, so a
+// sleeping PC doesn't count as busking or apple-growing time.
+const MAX_TICK_MS = 2000;
 // Caps one frame's animation step so a stalled window doesn't teleport the
 // character when it resumes.
 const MAX_FRAME_SECONDS = 0.1;
@@ -55,10 +68,11 @@ const canvas = document.getElementById('scene');
 canvas.width = canvas.clientWidth;
 canvas.height = canvas.clientHeight;
 const ctx = canvas.getContext('2d');
-const layout = computeLayout(canvas.width, canvas.height);
 const label = document.getElementById('label');
 const eventBubble = document.getElementById('event-bubble');
 const speech = document.getElementById('speech');
+const placeLabel = document.getElementById('place');
+const treeTarget = document.getElementById('tree-target');
 
 function newGame() {
   const clock = createClock();
@@ -68,6 +82,8 @@ function newGame() {
     events: createEventState(clock.years),
     goals: createGoalState(clock.years),
     jobs: createJobState(),
+    place: DEFAULT_PLACE,
+    fortuneTree: createTreeState(),
   };
 }
 
@@ -77,6 +93,9 @@ function setLabel(text) {
 
 async function start() {
   const game = (await loadGame()) ?? newGame();
+  // The scene is laid out for the current place (data/places.js).
+  const place = currentPlace(game);
+  const layout = computeLayout(canvas.width, canvas.height, place);
   saveGame(game);
   startClock(game.clock);
   setInterval(() => saveGame(game), AUTOSAVE_MS);
@@ -119,8 +138,9 @@ async function start() {
     seconds: RESULT_BUBBLE_SECONDS,
     celebrate: false,
   });
-  // A bubble from updateJobs(): a payday, promotion or retirement.
-  const showJobNews = (news) => queueBubble({
+  // A bubble from updateJobs() (a payday, promotion or retirement) or the
+  // Fortune Tree (busking tips, the golden apple).
+  const showNews = (news) => queueBubble({
     heading: news.heading,
     text: news.text,
     detail: news.detail ?? formatDeltas(news.deltas),
@@ -132,8 +152,8 @@ async function start() {
     seconds: MILESTONE_BUBBLE_SECONDS, celebrate: true,
   });
 
-  // The event card, goal menu and dev menu share the space below the top
-  // bar, so opening one closes the others.
+  // The event card, goal menu, tree menu and dev menu share the space
+  // below the top bar, so opening one closes the others.
   let devMenu = null;
   function closeEventCard() {
     if (!eventCard.isOpen()) return;
@@ -158,13 +178,35 @@ async function start() {
       },
       onOpen: () => {
         closeEventCard();
+        treeMenu.close();
         devMenu?.close();
       },
     });
+  // Clicking the Fortune Tree opens its menu: busking and the golden apple.
+  const treeMenu = createTreeMenu(document.getElementById('tree-menu'), treeTarget, {
+    play: () => {
+      if (startPlaying(game)) saveGame(game);
+    },
+    stop: () => {
+      if (stopPlaying(game)) saveGame(game);
+    },
+    pick: () => {
+      const news = pickApple(game);
+      if (!news) return;
+      showNews(news);
+      saveGame(game);
+    },
+    onOpen: () => {
+      closeEventCard();
+      goalMenu.close();
+      devMenu?.close();
+    },
+  });
   function openEventCard() {
     const view = pendingEventView(game);
     if (!view) return;
     goalMenu.close();
+    treeMenu.close();
     devMenu?.close();
     eventCard.open(view);
   }
@@ -187,22 +229,35 @@ async function start() {
     lastAge = age;
   }
 
+  // While busking, events are frozen: none start, and the wait for the
+  // next one (and a waiting one's auto-decide) stands still. The Fortune
+  // Tree's timers get real time, so game speed doesn't change them.
+  let lastTick = performance.now();
   setInterval(() => {
-    const result = updateEvents(game, { holdAutoDecide: eventCard.isOpen() });
+    const tickNow = performance.now();
+    const realMs = Math.min(tickNow - lastTick, MAX_TICK_MS);
+    lastTick = tickNow;
+    const result = updateEvents(game, { holdAutoDecide: eventCard.isOpen(), freeze: isPlaying(game) });
     if (result) showResult(result);
     const reached = updateGoals(game);
     reached.forEach(celebrate);
     const jobNews = updateJobs(game);
-    jobNews.forEach(showJobNews);
+    jobNews.forEach(showNews);
+    const treeNews = updateFortuneTree(game, realMs);
+    treeNews.forEach(showNews);
     checkFirstSteps();
-    if (result || reached.length || jobNews.length) saveGame(game);
+    if (result || reached.length || jobNews.length || treeNews.length) saveGame(game);
   }, LIFE_TICK_MS);
 
   const statsPanel = createStatsPanel(label, document.getElementById('stats'));
   // Sprite PNGs replace code-drawn art where they exist (data/sprites.js).
   await loadSprites();
-  const scenery = createScenery(layout);
+  const scenery = createScenery(layout, place);
   let animator = createAnimator(layout);
+  placeLabel.textContent = place.name;
+  // The tree's click area (its visible pixels, with a sprite).
+  const atTree = place.id === FORTUNE_TREE_PLACE && Boolean(layout.props[TREE_PROP]);
+  if (atTree) placeOver(treeTarget, propClickRect(layout, TREE_PROP));
 
   // Developer settings, only when running from source (npm start). The
   // menu calls the game/dev.js actions through these wrappers, which also
@@ -218,6 +273,7 @@ async function start() {
         speechUntil = 0;
         eventCard.close();
         goalMenu.close();
+        treeMenu.close();
         animator = createAnimator(layout);
       },
       setSpeed: (speed) => setSpeed(game, speed),
@@ -232,10 +288,22 @@ async function start() {
         addMoney(game, amount);
         saveGame(game);
       },
+      finishSession: () => {
+        const news = finishBuskingSession(game);
+        if (!news) return false;
+        showNews(news);
+        saveGame(game);
+        return true;
+      },
+      appleNow: () => {
+        appleNow(game);
+        saveGame(game);
+      },
       readout: () => devReadout(game),
       onOpen: () => {
         closeEventCard();
         goalMenu.close();
+        treeMenu.close();
       },
     });
   }
@@ -272,13 +340,16 @@ async function start() {
     // calls them back.
     const needed = Boolean(game.events.pending) || bubbles.length > 0 || now < speechUntil
       || eventCard.isOpen();
+    // Busking, they sit and play at the tree's visit spot.
+    const buskX = atTree && isPlaying(game) ? layout.props[TREE_PROP].visitX : null;
     updateAnimator(animator, dt, stage, gaitOf(age), {
-      activity: activeActivity(game), employed: isEmployed(game), needed,
+      activity: activeActivity(game), employed: isEmployed(game), needed, buskX,
     });
     const pose = poseOf(animator, stage);
     // Cleared first: sprites may have see-through pixels.
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     scenery.draw(ctx, now / 1000);
+    if (atTree && game.fortuneTree.appleReady) drawGoldenApple(ctx, layout, now / 1000);
     drawCharacter(ctx, pose, stage, game.character.appearance,
       expressionOf(game.character), layout.feetY, layout.characterScale, jobItem(game));
     const { mark } = SPEEDS[game.clock.speed];
@@ -298,6 +369,7 @@ async function start() {
     }
     statsPanel.update(game.character, careerView(game));
     goalMenu.update(goalView(game));
+    treeMenu.update(place.name, atTree ? treeView(game) : null);
     devMenu?.update();
 
     requestAnimationFrame(frame);

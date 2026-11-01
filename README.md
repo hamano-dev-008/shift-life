@@ -53,6 +53,23 @@ Early development. What works so far:
   of the window to work, coming back a bit later. At 65 they retire with
   a small yearly pension. Hover the name label to see job, level, pay and
   money. Job data is in `src/data/jobs.js`.
+- The Fortune Tree: the scene is the first named place (its name shows
+  under the name label; more places, like Home, will come later). From
+  age 6, click the tree to open its menu:
+  - "Play an instrument": the character sits under the tree with a
+    guitar, notes floating up. Every 8 real minutes of playing pays $10
+    and counts as a full session, until you stop. Stopping early pays
+    nothing for the unfinished session. While playing they don't wander
+    or go to work, and no new events (or job offers) come up: the event
+    timer waits until they stop. An event already waiting stays waiting.
+    Yearly pay and goal boosts carry on.
+  - "Pick the golden apple": a golden apple grows on the tree every 2
+    real hours (one at a time). Picking it works 10% of the time, plus 1%
+    per full busking session since the last golden apple, up to 50%.
+    The menu shows the current chance. A golden apple pays $888; a miss
+    loses the apple. Either way the next one is 2 hours away.
+  These timers use real time (game speed doesn't change them) and pause
+  while the app is closed. The numbers are in `src/data/fortuneTree.js`.
 - Babies crawl on hands and knees in short trips and sit up in between,
   looking around and wobbling. At 3 they take their first steps (with a
   little celebration) and toddle with arms out, sometimes plopping down
@@ -74,8 +91,9 @@ scene).
 button next to minimize opens the dev settings: start a new life, set
 the speed (normal, fast at about one year every 5 seconds, or very fast
 at one year a second), skip ahead 1 or 10 years, trigger an event, add
-$1,000, and see the character's stats, traits, goal and job. It's hidden
-in packaged builds.
+$1,000, finish a busking session instantly, grow a golden apple now,
+and see the character's stats, traits, goal, job and tree progress.
+It's hidden in packaged builds.
 
 Keyboard shortcuts (window focused): Ctrl+Shift+F toggles fast speed (the
 label shows `>>`), Ctrl+Shift+M cycles happiness (smile, neutral,
@@ -88,11 +106,14 @@ start a new life by closing the app and deleting
 **Adding sprites:** every graphic is drawn in code for now, but any of
 them can be replaced by your own pixel art, one at a time, without
 code. Save a PNG in `assets/sprites/` named after what it replaces:
-`sky.png`, `grass.png`, `tree.png`, or
+`sky.png`, `grass.png`, `tree.png`, `goldenApple.png` (drawn at the
+tree's scale unless it has its own `scale`, as the current 40 x 40 apple
+does, its middle on the spot set by `APPLE_SPOT` in
+`src/data/fortuneTree.js`), or
 `character.<body>.<animation>.png` (for example
 `character.adult.walk.png`; bodies are baby, toddler, child, teen,
 adult, elder; animations are idle, walk, sit, crawl, read, coins, wave,
-jog). Draw at 1 pixel per game pixel: the game scales it up crisply
+jog, busk). Draw at 1 pixel per game pixel: the game scales it up crisply
 (scenery at the scene scale, the character at its own scale). Add
 `.smile`, `.neutral` or `.frown` before `.png` for a version that
 matches the mood. For an animation, put the frames side by side in one

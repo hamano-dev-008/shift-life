@@ -1,7 +1,7 @@
 // dev.js — Developer actions behind the dev settings menu and shortcuts:
 // start a new life, change the clock speed, skip ahead, force an event,
-// add money, and a read-out of the character. The menu (ui/devMenu.js)
-// only calls these.
+// add money, finish a busking session or grow a golden apple now, and a
+// read-out of the character. The menu (ui/devMenu.js) only calls these.
 
 import { SPEEDS } from '../data/balance.js';
 import { STAT_TAGS } from '../data/stats.js';
@@ -10,6 +10,8 @@ import { createCharacter, changeStats, ageOf } from './character.js';
 import { createEventState, startEvent } from './events.js';
 import { createGoalState, goalById } from './goals.js';
 import { createJobState, careerView } from './jobs.js';
+import { DEFAULT_PLACE } from '../data/places.js';
+import { createTreeState, finishSession, makeAppleReady, treeView } from './fortuneTree.js';
 
 // Replaces the life with a newborn, in place, so everything holding `game`
 // sees the new one. The clock starts over at 0 and keeps its speed. Save
@@ -20,6 +22,8 @@ export function newLife(game) {
   game.events = createEventState(0);
   game.goals = createGoalState(0);
   game.jobs = createJobState();
+  game.place = DEFAULT_PLACE;
+  game.fortuneTree = createTreeState();
 }
 
 export function setSpeed(game, speed) {
@@ -53,8 +57,20 @@ export function addMoney(game, amount) {
   changeStats(game.character, { money: amount });
 }
 
+// Finishes the busking session being played right now, paying for it.
+// Returns the payday bubble, or null if not playing.
+export function finishBuskingSession(game) {
+  return finishSession(game);
+}
+
+// Grows a golden apple on the Fortune Tree right away.
+export function appleNow(game) {
+  makeAppleReady(game);
+}
+
 // A compact summary for the menu: "HP 80  JOY 70  IQ 35  $120",
-// "Bold · Shy", "Scholar, 3y (age 12)", "Developer 2/3, $170/yr".
+// "Bold · Shy", "Scholar, 3y (age 12)", "Developer 2/3, $170/yr",
+// "Tree: busking 2:10, 3 sess, apple 85m".
 export function devReadout(game) {
   const { character, goals, clock } = game;
   const stats = Object.entries(character.stats).map(([id, value]) =>
@@ -65,7 +81,15 @@ export function devReadout(game) {
     traits: character.traits.map((trait) => TRAIT_LABELS[trait]).join(' · '),
     goal: `${goalById(goals.active).label}, ${goalYears}y (age ${ageOf(character, clock.years)})`,
     job: jobText(careerView(game)),
+    tree: treeText(treeView(game)),
   };
+}
+
+function treeText(view) {
+  const seconds = Math.floor(view.sessionMs / 1000);
+  const playing = view.playing ? `busking ${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}` : 'idle';
+  const apple = view.appleReady ? 'apple!' : `apple ${Math.ceil(view.appleInMs / 60000)}m`;
+  return `Tree: ${playing}, ${view.sessions} sess, ${apple}`;
 }
 
 function jobText(career) {
