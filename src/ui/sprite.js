@@ -152,13 +152,13 @@ function characterSprite(pose, stage, expression) {
 // the job item they wear or carry (data/jobs.js), or null; it shows while
 // standing or walking. A lying pose is drawn `pose.lift` canvas pixels
 // higher (on the sofa), with no shadow.
-export function drawCharacter(ctx, pose, stage, appearance, expression, groundY, scale, item = null) {
+export function drawCharacter(ctx, pose, stage, appearance, expression, groundY, scale, item = null, hitOnly = false) {
   const feetY = groundY - (pose.lift ?? 0);
   const shape = shapeOf(stage, pose);
   const length = isCrawling(pose) ? shape.width + CRAWL_POSE.shin + 2 : shape.width;
   const shadowWidth = (length + 2) * scale;
   const drawShadow = () => {
-    if (pose.lift) return;
+    if (pose.lift || hitOnly) return;
     ctx.fillStyle = SHADOW_COLOR;
     ctx.fillRect(pose.x - shadowWidth / 2, feetY, shadowWidth, scale);
   };
@@ -174,6 +174,7 @@ export function drawCharacter(ctx, pose, stage, appearance, expression, groundY,
     return;
   }
 
+  pose = { ...pose, hitOnly };
   const px = (col, row, w, h, color) => fill(layer, ANCHOR + col, row, w, h, color);
   clearLayer(layer);
   if (pose.lying) {
@@ -231,7 +232,7 @@ function drawStanding(px, shape, stage, appearance, expression, pose, item) {
   drawJobItemOnBody(px, shape, appearance, item, bodyLeft, bodyTop);
   drawHead(px, shape, stage, look, headLeft, headTop, pose.blinking, expression);
   drawJobItemOnHead(px, shape, item, headLeft, headTop);
-  drawActivityExtras(px, shape, frontArm, bodyTop, headLeft, headTop, pose);
+  if (!pose.hitOnly) drawActivityExtras(px, shape, frontArm, bodyTop, headLeft, headTop, pose);
 }
 
 // Job items worn on the torso, drawn over the shirt: a tie, an apron, the
@@ -371,7 +372,7 @@ function drawSitting(px, shape, stage, look, expression, pose) {
     drawArm(px, shape, look, bodyLeft + shape.width, bodyTop, 0);
   }
   drawHead(px, shape, stage, look, headLeft, headTop, pose.blinking, expression, pose.gaze);
-  if (busking) drawNotes(px, headLeft + shape.head + 1, headTop + 2, pose.activityTime);
+  if (busking && !pose.hitOnly) drawNotes(px, headLeft + shape.head + 1, headTop + 2, pose.activityTime);
 }
 
 // Lying on the back, resting: the head propped up at the back end with
@@ -392,7 +393,7 @@ function drawLying(px, shape, stage, look, expression, pose) {
   px(legsLeft + shape.legs - 1, FOOT_ROW - 2, 1, 1, bare ? look.skin : SHOE_COLOR);
   const headTop = FOOT_ROW - shape.head;
   drawHead(px, shape, stage, look, left, headTop, true, expression);
-  drawZs(px, left + shape.head - 1, headTop - 1, pose.activityTime);
+  if (!pose.hitOnly) drawZs(px, left + shape.head - 1, headTop - 1, pose.activityTime);
 }
 
 // Sleepy z's: one starts every REST_LOOPS.z seconds with its bottom row at

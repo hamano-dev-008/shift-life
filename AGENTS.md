@@ -65,6 +65,7 @@ Shift-Life/
 │   │                  buying housing, autosave, frame loop, text
 │   │                  bubble queue, menu wiring, dev shortcuts
 │   ├── game/          Game logic only (no hard-coded content)
+│   │   ├── interaction.js Unsaved real-time poke rules and happiness changes
 │   │   ├── clock.js       Real-time clock: in-game years, speed
 │   │   ├── character.js   Birth (random name/look/traits), stats,
 │   │   │                  expression, age, life stage
@@ -97,6 +98,7 @@ Shift-Life/
 │   │   │                  to 18, read-out (job, tree, place, housing)
 │   │   └── save.js        Save format (versioned) and load/save calls
 │   ├── ui/            Drawing and visual-only behavior
+│   │   ├── interaction.js Pixel-shaped click targets and reaction poses
 │   │   ├── pixel.js       Low-res layer helpers: paint, outline, scaled draw
 │   │   ├── assets.js      Sprite loader (PNGs from assets/sprites/ at
 │   │   │                  startup), frame picking, crisp sprite drawing
@@ -144,6 +146,7 @@ Shift-Life/
 │   │   ├── devMenu.js     The dev settings menu (gear; dev runs only)
 │   │   └── statsPanel.js  Stats, job and traits panel under the name label
 │   └── data/          Pure game data, no logic
+│       ├── interaction.js Poke dialogue, timing, thresholds and rewards
 │       ├── balance.js     Pacing (minutes per year, clock speeds), mood
 │       │                  thresholds, event gap, auto-decide wait, whim,
 │       │                  goal weights for decisions and event picks
@@ -196,7 +199,7 @@ Shift-Life/
 ├── assets/
 │   └── sprites/       Pixel-art PNGs that replace code-drawn art (tree.png,
 │                      goldenApple.png so far) and a short README
-└── test/              (planned) Automated tests
+└── test/              interaction.test.mjs (rules/poses), smoke.cjs (Electron clicks)
 ```
 
 How it works, for anyone extending it:
@@ -586,9 +589,22 @@ How it works, for anyone extending it:
 - **Font:** "Press Start 2P" comes from the `@fontsource/press-start-2p`
   npm package and is linked from `node_modules`, so no network is needed.
   Use it at multiples of 8px.
+- **Character pokes:** `data/interaction.js` holds dialogue and all pacing.
+  `game/interaction.js` keeps unsaved state outside the game save, uses
+  real monotonic milliseconds and `changeStats()`: +1 happiness at most
+  every 30 seconds, -1 once on four pokes within three seconds, calm after
+  five seconds without a poke. Continued spam gives no more penalties or
+  messages. `ui/interaction.js` applies a temporary expression and whole
+  character-pixel wiggle without changing the animator. The renderer paints
+  a shadow/effect-free hit mask with `drawCharacter(..., hitOnly)` and
+  places no-drag DOM runs only over opaque pixels, following each pose and
+  sprite frame. Short presses with little pointer movement count as pokes.
+  Poke bubbles never queue, yield immediately to news/events, and do not
+  hold the character home from work. Event buttons and menus remain above
+  the character target.
 - **Dragging:** `#app` has `-webkit-app-region: drag`, so the whole window
   background drags the window. Any element that needs clicks (buttons,
-  the character later) must set `-webkit-app-region: no-drag`.
+  the character) must set `-webkit-app-region: no-drag`.
 - **Renderer ↔ main:** the renderer has no Node access. Add new
   capabilities as named IPC channels in `main.js` and expose them through
   `window.shiftLife` in `preload.js`.
@@ -627,14 +643,15 @@ The same goes for `npx` → `npx.cmd`. In Git Bash, plain `npm` works.
 ```powershell
 npm.cmd install      # install dependencies
 npm.cmd start        # launch the game (runs `electron .`)
-npm.cmd test         # run the test suite (not set up yet)
+npm.cmd test         # run interaction rule and pose tests (Node 22.7+)
+npm.cmd run test:smoke # isolated Electron renderer/click checks
 ```
 
 The first `npm.cmd start` after a fresh install downloads the Electron
 binary, so it takes longer than later starts.
 
-There are no tests yet. When you add the first ones, wire them up to
-`npm.cmd test` and update this section. Before committing, at least launch
+The Electron smoke check uses in-memory saves and never changes the player save.
+Before committing, at least launch
 the app with `npm.cmd start` and confirm the window opens without errors in
 the DevTools console.
 

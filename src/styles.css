@@ -524,3 +524,12 @@ body {
 .panel .dev-readout span {
   display: block;
 }
+
+/* Painted character runs sit above props and below events and menus. */
+#character-target { position: absolute; inset: 0; pointer-events: none; }
+#character-target span {
+  position: absolute;
+  pointer-events: auto;
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+}

@@ -5,6 +5,9 @@
 // up controls, the click areas over props, the tree, rest and Go to menus,
 // the dev settings menu (dev runs only) and saving.
 
+import { POKE } from './data/interaction.js';
+import { createInteraction, calmInteraction, pokeCharacter } from './game/interaction.js';
+import { createCharacterTarget, reactionPose } from './ui/interaction.js';
 import { createClock, startClock } from './game/clock.js';
 import { createCharacter, ageOf, lifeStageOf, expressionOf, setStat } from './game/character.js';
 import {
@@ -118,8 +121,11 @@ async function start() {
   // paydays, promotions, retirement) are queued and shown one at a time by the frame loop. Nothing here focuses
   // or flashes the window: they never pull the player away from other apps.
   const bubbles = [];
+  let interaction = createInteraction();
+  let pokeSpeech = false;
   let speechUntil = 0;
   function queueBubble(bubble) {
+    if (pokeSpeech) { speechUntil = 0; pokeSpeech = false; }
     bubbles.push(bubble);
     if (bubbles.length > MAX_QUEUED_BUBBLES) {
       const oldest = bubbles.findIndex((queued) => !queued.celebrate);
@@ -127,6 +133,7 @@ async function start() {
     }
   }
   function showBubble(bubble, now) {
+    pokeSpeech = false;
     speech.replaceChildren();
     speech.classList.toggle('celebrate', bubble.celebrate);
     if (bubble.heading) {
@@ -349,6 +356,17 @@ async function start() {
     restMenu.close();
   }
   showPlace();
+  const characterTarget = createCharacterTarget(document.getElementById('character-target'),
+    canvas.width, canvas.height, (now) => {
+      const result = pokeCharacter(game.character, interaction, now);
+      if (Object.keys(result.deltas).length) saveGame(game);
+      // Optional chatter never queues or covers an event or important news.
+      if (result.text && !bubbles.length && !game.events.pending && !eventCard.isOpen()
+        && (now >= speechUntil || (pokeSpeech && result.annoyed))) {
+        showBubble({ text: result.text, seconds: POKE.bubbleSeconds }, now);
+        pokeSpeech = true;
+      }
+    });
 
   // When the map changes under the character (moving out, a new housing
   // tier, the house taken away by the dev menu), shows the place as it is
@@ -460,6 +478,8 @@ async function start() {
     devMenu = createDevMenu(document.getElementById('dev-menu'), gear, {
       newLife: () => {
         newLife(game);
+        interaction = createInteraction();
+        pokeSpeech = false;
         saveGameNow(game);
         bubbles.length = 0;
         speechUntil = 0;
@@ -545,7 +565,7 @@ async function start() {
 
     // Anything waiting to be seen keeps the character home from work, or
     // calls them back.
-    const needed = Boolean(game.events.pending) || bubbles.length > 0 || now < speechUntil
+    const needed = Boolean(game.events.pending) || bubbles.length > 0 || (now < speechUntil && !pokeSpeech)
       || eventCard.isOpen();
     followMapChanges();
     updateAnimator(animator, dt, stage, gaitOf(age), {
@@ -553,7 +573,10 @@ async function start() {
     });
     updateTrip();
     const { place, layout } = scene;
-    const pose = poseOf(animator, stage);
+    calmInteraction(interaction, now);
+    const reaction = reactionPose(poseOf(animator, stage), interaction, now, layout.characterScale);
+    const pose = reaction.pose;
+    const expression = reaction.expression ?? expressionOf(game.character);
     // Cleared first: sprites may have see-through pixels.
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     scene.scenery.draw(ctx, now / 1000);
@@ -561,7 +584,9 @@ async function start() {
       drawGoldenApple(ctx, layout, now / 1000);
     }
     drawCharacter(ctx, pose, stage, game.character.appearance,
-      expressionOf(game.character), layout.feetY, layout.characterScale, jobItem(game));
+      expression, layout.feetY, layout.characterScale, jobItem(game));
+    characterTarget.update((hitCtx) => drawCharacter(hitCtx, pose, stage, game.character.appearance,
+      expression, layout.feetY, layout.characterScale, jobItem(game), true));
     const { mark } = SPEEDS[game.clock.speed];
     setText(label, `${game.character.name} · ${age}y${mark ? ` ${mark}` : ''}`);
     setText(placeLabel, trip
@@ -572,6 +597,10 @@ async function start() {
     // Bubbles follow the character's head. Text bubbles take the spot
     // first; a new "!" waits until they're done.
     if (now >= speechUntil && bubbles.length) showBubble(bubbles.shift(), now);
+    if (pokeSpeech && (game.events.pending || eventCard.isOpen() || now >= speechUntil)) {
+      speechUntil = 0;
+      pokeSpeech = false;
+    }
     const bubbleY = bubbleBottomY(layout, figureHeight(stage, pose)) - pose.lift;
     const speaking = now < speechUntil;
     speech.hidden = !speaking;

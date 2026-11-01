@@ -22,6 +22,12 @@ Early development. What works so far:
   swinging, a small bounce each step) and breathe and blink while
   standing. Their face smiles, looks neutral or frowns depending on how
   happy they are.
+- Gently click the character for a little wiggle and playful chatter.
+  A poke can give +1 happiness once per 30 real seconds. Four pokes within
+  three seconds annoy them (-1 happiness once); more pokes keep them
+  annoyed. Leave them alone for five seconds to calm down. Poke chatter
+  yields to events and important news, and their current activity continues.
+  Only painted character pixels respond; empty background still drags.
 - Each character has stats (health, happiness, smarts, money) and is born
   with 2-3 personality traits (bold or careful, social or shy, curious or
   lazy). Hover the name label to see them; click it to keep the panel open.
@@ -187,7 +193,10 @@ npm.cmd start        # launch the game
 ```
 
 In Git Bash, plain `npm` works. The first start downloads Electron, so it
-takes a little longer. There are no tests yet.
+takes a little longer. Run `npm.cmd test` for interaction rules and pose
+checks (Node 22.7+), and `npm.cmd run test:smoke` for isolated Electron
+click/renderer checks. The smoke check uses in-memory saves, leaving your
+life untouched.
 
 ## Project layout
 

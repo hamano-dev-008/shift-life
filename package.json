@@ -5,7 +5,9 @@
   "private": true,
   "main": "main.js",
   "scripts": {
-    "start": "electron ."
+    "start": "electron .",
+    "test": "node --test test/*.test.mjs",
+    "test:smoke": "electron test/smoke.cjs"
   },
   "devDependencies": {
     "electron": "^45.2.1"
