@@ -18,6 +18,8 @@ export const SHIRT_COLORS = ['#e07a5f', '#81b29a', '#f2cc8f', '#6d9dc5', '#b48ea
 export const ELDER_HAIR_COLOR = '#c9c9d1';
 
 export const PANTS_COLOR = '#4a4e69';
+// The far leg while walking, so the two legs read separately.
+export const PANTS_DARK = '#363950';
 export const SHOE_COLOR = '#2e2a35';
 export const EYE_COLOR = '#2e2a35';
 export const EYE_WHITE = '#ffffff';

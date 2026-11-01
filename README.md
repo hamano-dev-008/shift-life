@@ -18,7 +18,9 @@ Early development. What works so far:
   top-right corner. It reopens where you left it.
 - A pixel character is born with a random name and look. They wander the
   grass between a little house and a tree, sometimes stopping by one for
-  a moment, with a two-frame walk, breathing and blinking. Their face
+  a moment. They stroll with a four-frame walk (feet planted, arms
+  swinging, a small bounce each step) and breathe and blink while
+  standing. Their face
   smiles, looks neutral or frowns depending on mood (a placeholder value
   for now).
 - Life runs in real time: one in-game year every 3 real minutes. The

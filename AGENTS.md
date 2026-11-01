@@ -57,7 +57,7 @@ Shift-Life/
 │   │   ├── scene.js       computeLayout() (data → canvas pixels) and the
 │   │   │                  backdrop: dithered sky, grass, props (drawn once)
 │   │   ├── props.js       Draws the house and tree
-│   │   ├── animator.js    Wandering, prop visits, facing, walk frames,
+│   │   ├── animator.js    Wandering, prop visits, turning, the walk cycle,
 │   │   │                  breathing, blinking
 │   │   └── sprite.js      Draws the character in code (all character
 │   │                      drawing lives here, to swap for sprite sheets)
@@ -67,7 +67,7 @@ Shift-Life/
 │       ├── layout.js      SCENE_SCALE (the one scene-size knob), ground,
 │       │                  feet row, prop edges/sizes/visit spots, margins
 │       ├── characterShapes.js  Body proportions per life stage
-│       ├── animation.js   Walk speeds, stride length, pause and blink timing,
+│       ├── animation.js   Walk speeds, stride, pause/turn/blink timing,
 │       │                  visit chance
 │       ├── lifeStages.js  Life stages and the age each one starts at
 │       ├── names.js       Names a newborn can get
@@ -101,7 +101,20 @@ How it works, for anyone extending it:
   - The backdrop with its props is drawn once and copied in every frame.
     The character is redrawn every frame from `poseOf()` (animator) and
     `drawCharacter()` (sprite), painted facing right and mirrored when
-    facing left.
+    facing left. Its position is snapped to whole scene pixels, so it
+    moves in crisp 1px steps.
+- **Walking:** a 4-frame cycle (contact, passing, contact with the other
+  leg, passing) driven by whole scene pixels walked, not time. It advances
+  one frame per `STRIDE` pixels.
+  - While a foot is planted, its reach shrinks 1px per pixel the body
+    moves, so it stays fixed on the ground. Keep `STRIDE` equal to the
+    feet's reach at contact if you change the leg art.
+  - Passing frames bob the body up 1px and lift the swinging foot. Arms
+    swing opposite the legs.
+  - Standing, the legs are drawn in 3/4 view; walking, in side view from
+    the hips. The contact poses put the feet on the standing spots.
+  - Before walking off the other way, the character turns and waits a
+    `TURN_BEAT`.
 - **Sizes and positions** belong in `src/data/` (`layout.js`,
   `characterShapes.js`, `animation.js`), not in `ui/` code. Colors that are
   pure art (sky, props) may stay in the drawing file.

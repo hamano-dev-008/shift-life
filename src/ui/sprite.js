@@ -7,7 +7,7 @@
 
 import { CHARACTER_SHAPES } from '../data/characterShapes.js';
 import {
-  ELDER_HAIR_COLOR, PANTS_COLOR, SHOE_COLOR, EYE_COLOR, EYE_WHITE,
+  ELDER_HAIR_COLOR, PANTS_COLOR, PANTS_DARK, SHOE_COLOR, EYE_COLOR, EYE_WHITE,
   MOUTH_COLOR, MOUTH_COLOR_LIGHT, OUTLINE_COLOR, SHADOW_COLOR,
 } from '../data/appearance.js';
 import { createLayer, clearLayer, fill, outline, drawLayer } from './pixel.js';
@@ -37,16 +37,25 @@ export function drawCharacter(ctx, pose, stage, appearance, expression, feetY, s
   const shape = CHARACTER_SHAPES[stage];
   const px = (col, row, w, h, color) => fill(layer, ANCHOR + col, row, w, h, color);
 
-  // Mid-stride the body sinks 1px; idle breathing dips the head 1px.
-  const legsTop = FOOT_ROW - shape.legs;
-  const bodyTop = legsTop - shape.body + (pose.stride ? 1 : 0);
+  // Passing frames bob the body up 1px (the legs stretch to match); idle
+  // breathing dips the head 1px.
+  const walk = pose.walk;
+  const bob = walk && walk.frame % 2 === 1 ? 1 : 0;
+  const bodyTop = FOOT_ROW - shape.legs - shape.body - bob;
   const headTop = bodyTop - shape.head + pose.breath;
   const bodyLeft = -Math.floor(shape.width / 2);
   const headLeft = -Math.floor(shape.head / 2) + shape.stoop;
 
+  // Arms swing opposite the legs: when the near leg is forward (frame 0)
+  // the front arm swings back, and vice versa on frame 2.
+  const swing = !walk || walk.frame % 2 === 1 ? 0 : walk.frame === 0 ? -1 : 1;
+
   clearLayer(layer);
-  drawLegs(px, shape, stage, appearance, bodyLeft, legsTop, pose.stride);
-  drawBody(px, shape, appearance, bodyLeft, bodyTop);
+  drawLegs(px, shape, stage, appearance, bodyLeft, bodyTop + shape.body, walk);
+  // The back arm goes behind the torso and the front arm over it.
+  drawArm(px, shape, appearance, bodyLeft - 1, bodyTop, -swing);
+  px(bodyLeft, bodyTop, shape.width, shape.body, appearance.shirt);
+  drawArm(px, shape, appearance, bodyLeft + shape.width, bodyTop, swing);
   drawHead(px, shape, stage, appearance, headLeft, headTop, pose.blinking, expression);
   outline(layer, OUTLINE_COLOR);
 
@@ -59,32 +68,46 @@ export function drawCharacter(ctx, pose, stage, appearance, expression, feetY, s
   });
 }
 
-// Two legs, 2px wide. Mid-stride they splay apart (front leg forward, back
-// leg back) more toward the feet; otherwise they stand straight.
-function drawLegs(px, shape, stage, look, bodyLeft, legsTop, stride) {
-  const back = bodyLeft + 1;
-  const front = bodyLeft + shape.width - 3;
-  const maxSplay = Math.min(2, Math.ceil(shape.legs / 2));
-  for (let i = 0; i < shape.legs; i++) {
-    const splay = stride ? Math.round(((i + 1) / shape.legs) * maxSplay) : 0;
-    const isFoot = i === shape.legs - 1;
-    // Babies have bare feet under a onesie; feet get a toe pointing forward.
-    const color = stage === 'baby' ? look.skin : isFoot ? SHOE_COLOR : PANTS_COLOR;
-    const width = isFoot ? 3 : 2;
-    px(back - splay, legsTop + i, width, 1, color);
-    px(front + splay, legsTop + i, width, 1, color);
+// Legs from row `top` down to the ground. Standing, they're side by side
+// as seen in 3/4 view. Walking, both hang from the hips (side view) and
+// reach forward or back per the walk pose; the far leg is darker and drawn
+// first so the near leg overlaps it. At a contact pose the feet land where
+// the standing feet are, so starting and stopping don't jump.
+function drawLegs(px, shape, stage, look, bodyLeft, top, walk) {
+  // Babies have bare feet under a onesie.
+  const color = (far) => (stage === 'baby' ? look.skin : far ? PANTS_DARK : PANTS_COLOR);
+  const shoe = stage === 'baby' ? look.skin : SHOE_COLOR;
+  if (!walk) {
+    drawLeg(px, bodyLeft + 1, top, 0, false, color(false), shoe);
+    drawLeg(px, bodyLeft + shape.width - 3, top, 0, false, color(false), shoe);
+    return;
+  }
+  const hip = bodyLeft + Math.floor(shape.width / 2) - 1;
+  drawLeg(px, hip, top, walk.farReach, walk.farLifted, color(true), shoe);
+  drawLeg(px, hip, top, walk.nearReach, walk.nearLifted, color(false), shoe);
+}
+
+// One 2px-wide leg from row `top` to the ground, slanting so the foot ends
+// `reach` pixels forward (negative = back). A lifted foot stops 1px above
+// the ground. The foot is 3px wide, with the toe pointing forward.
+function drawLeg(px, col, top, reach, lifted, color, shoeColor) {
+  const length = FOOT_ROW - top;
+  const rows = lifted && length > 1 ? length - 1 : length;
+  for (let i = 0; i < rows; i++) {
+    const t = (i + 1) / length;
+    const offset = Math.sign(reach) * Math.round(Math.abs(reach) * t);
+    const isFoot = i === rows - 1;
+    px(col + offset, top + i, isFoot ? 3 : 2, 1, isFoot ? shoeColor : color);
   }
 }
 
-// Torso with an arm on each side: short sleeve, then bare arm and hand.
-function drawBody(px, shape, look, bodyLeft, bodyTop) {
-  px(bodyLeft, bodyTop, shape.width, shape.body, look.shirt);
+// One arm hanging beside the torso: a short sleeve, then the bare arm and
+// hand. `swing` shifts the lower arm 1px forward (1) or back (-1).
+function drawArm(px, shape, look, col, bodyTop, swing) {
   const armLength = shape.body - 1;
   const sleeve = Math.ceil(armLength / 2);
-  for (const col of [bodyLeft - 1, bodyLeft + shape.width]) {
-    px(col, bodyTop + 1, 1, sleeve, look.shirt);
-    px(col, bodyTop + 1 + sleeve, 1, armLength - sleeve, look.skin);
-  }
+  px(col, bodyTop + 1, 1, sleeve, look.shirt);
+  px(col + swing, bodyTop + 1 + sleeve, 1, armLength - sleeve, look.skin);
 }
 
 // Head in 3/4 view facing right: the back of the head is column 0 and the

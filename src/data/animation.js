@@ -2,15 +2,22 @@
 // Distances are in scene pixels (see data/layout.js). Ranges are
 // [min, max] in seconds; a random value is picked each time.
 
-// Walking speed per life stage, in scene pixels per second.
-export const WALK_SPEED = { baby: 3, child: 9, teen: 11, adult: 10, elder: 5 };
+// Walking speed per life stage, in scene pixels per second: a calm stroll.
+export const WALK_SPEED = { baby: 2, child: 7, teen: 7, adult: 6, elder: 3 };
 
-// Scene pixels walked per leg frame, so steps match the ground covered.
-export const STRIDE_LENGTH = { baby: 1, child: 2, teen: 2.5, adult: 2.5, elder: 2 };
+// How far each foot reaches forward or back at a contact pose. The walk
+// cycle (contact, passing, contact with the other leg, passing) advances
+// one frame per STRIDE pixels walked, so each step covers 2 x STRIDE: the
+// exact gap between the feet at contact, which keeps the feet planted.
+// At adult speed that's 3 frames, or 1.5 steps, per second.
+export const STRIDE = { baby: 1, child: 2, teen: 2, adult: 2, elder: 1 };
 
 // Pause after wandering to a random spot, and after reaching a prop.
 export const IDLE_PAUSE = [1.5, 5];
 export const VISIT_PAUSE = [3, 7];
+
+// After turning to face the other way, a beat before walking off.
+export const TURN_BEAT = [0.4, 0.8];
 
 // Chance that the next walk heads to a prop instead of a random spot.
 export const VISIT_CHANCE = 0.35;
