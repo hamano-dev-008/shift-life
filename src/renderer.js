@@ -182,7 +182,7 @@ async function start() {
     const pose = poseOf(animator, stage);
     ctx.drawImage(background, 0, 0);
     drawCharacter(ctx, pose, stage, game.character.appearance,
-      expressionOf(game.character), layout.feetY, layout.scale);
+      expressionOf(game.character), layout.feetY, layout.characterScale);
     setLabel(`${game.character.name} · ${age}y${game.clock.fastForward ? ' >>' : ''}`);
 
     // Bubbles follow the character's head. Text bubbles take the spot

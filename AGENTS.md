@@ -84,11 +84,13 @@ Shift-Life/
 │       ├── traits.js      Personality trait pairs, how many a newborn gets
 │       ├── goals.js       Life goals: stat, yearly drift, activity,
 │       │                  milestones (format documented in the file)
-│       ├── layout.js      SCENE_SCALE (the one scene-size knob), ground,
-│       │                  feet row, prop edges/sizes/visit spots, margins,
-│       │                  bubble size and head clearance
+│       ├── layout.js      SCENE_SCALE (scene size), CHARACTER_SCALE (the
+│       │                  character's own size), ground, feet row, prop
+│       │                  edges/sizes/visit spots, margins, bubble size
+│       │                  and head clearance
 │       ├── characterShapes.js  Body proportions per life stage
-│       ├── animation.js   Walk speeds, stride, pause/turn/blink timing,
+│       ├── animation.js   Walk speeds and stride (character pixels),
+│       │                  pause/turn/blink timing,
 │       │                  visit chance, bubble bob and times, goal
 │       │                  activities (chance, place, duration, loops)
 │       ├── lifeStages.js  Life stages and the age each one starts at
@@ -110,25 +112,32 @@ How it works, for anyone extending it:
   and relative `import`s with `.js` extensions), with no bundler.
   `main.js` and `preload.js` are CommonJS.
 - **Rendering:** the canvas matches the window (320x240 CSS pixels).
-  - All art is pixel art on a grid of "scene pixels", each drawn as a
-    `SCENE_SCALE` x `SCENE_SCALE` block (`data/layout.js`, default 3).
-    Sky, grass, props and character are painted on small offscreen layers
-    in scene pixels (`ui/pixel.js`), then drawn scaled with
+  - All art is pixel art. The scene (sky, grass, props, the "!" bubble)
+    is on a grid of "scene pixels", each drawn as a `SCENE_SCALE` x
+    `SCENE_SCALE` block (`data/layout.js`, default 3). The character has
+    its own size, `CHARACTER_SCALE` (default 2): its art is in "character
+    pixels", each a `CHARACTER_SCALE` x `CHARACTER_SCALE` block, so it can
+    be resized without touching the scene. Art is painted on small
+    offscreen layers (`ui/pixel.js`), then drawn scaled with
     nearest-neighbour. Props and the character get a 1px outline. Never
     smooth or use non-integer scales.
   - Sizes and positions in `data/` are in scene pixels, measured from the
-    window edges. `computeLayout()` in `ui/scene.js` turns them into
+    window edges, except the character's own measurements
+    (`characterShapes.js`, walk speed and stride, head clearance), which
+    are in character pixels. `computeLayout()` in `ui/scene.js` turns them into
     canvas pixels. Code that places things (animator, sprite, props) uses
     that layout, never raw canvas numbers, so changing `SCENE_SCALE`
     resizes the whole scene and props stay at the edges.
   - The backdrop with its props is drawn once and copied in every frame.
     The character is redrawn every frame from `poseOf()` (animator) and
     `drawCharacter()` (sprite), painted facing right and mirrored when
-    facing left. Its position is snapped to whole scene pixels, so it
+    facing left. Its position is snapped to whole character pixels, so it
     moves in crisp 1px steps.
 - **Walking:** a 4-frame cycle (contact, passing, contact with the other
-  leg, passing) driven by whole scene pixels walked, not time. It advances
-  one frame per `STRIDE` pixels.
+  leg, passing) driven by whole character pixels walked, not time. It
+  advances one frame per `STRIDE` pixels. Speed and stride are in
+  character pixels, so they scale with `CHARACTER_SCALE` and the feet stay
+  planted at any size.
   - While a foot is planted, its reach shrinks 1px per pixel the body
     moves, so it stays fixed on the ground. Keep `STRIDE` equal to the
     feet's reach at contact if you change the leg art.

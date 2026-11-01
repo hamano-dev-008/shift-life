@@ -1,7 +1,7 @@
-// characterShapes.js — Body proportions per life stage, in scene pixels
+// characterShapes.js — Body proportions per life stage, in character pixels
 // (see data/layout.js). head: head width and height; body: torso height;
 // legs: leg height; width: torso width; stoop: how far the head leans
-// forward. An adult is 20 scene pixels tall, plus hair.
+// forward. An adult is 20 character pixels tall, plus hair.
 
 export const CHARACTER_SHAPES = {
   baby: { head: 7, body: 3, legs: 1, width: 6, stoop: 0 },

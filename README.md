@@ -47,8 +47,11 @@ Early development. What works so far:
 - The life is saved, so closing and reopening continues it. Time doesn't
   pass while the app is closed.
 
-**Scene size:** `SCENE_SCALE` in `src/data/layout.js` sets how big
-everything is drawn (whole numbers; 3 by default, try 2 or 4).
+**Sizes:** in `src/data/layout.js`, `SCENE_SCALE` sets how big the scene
+(sky, grass, house, tree) is drawn, and `CHARACTER_SCALE` sets the
+character's size on its own. Both are whole numbers, so pixels stay
+crisp: the scene is 3 by default and the character 2 (try 3 to match the
+scene).
 
 **For testing:** with the window focused, Ctrl+Shift+F toggles
 fast-forward (about one year every 5 seconds; the label shows `>>`),

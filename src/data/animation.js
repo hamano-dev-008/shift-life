@@ -1,8 +1,11 @@
 // animation.js — Speeds and timings for the character's visual motion.
-// Distances are in scene pixels (see data/layout.js). Ranges are
-// [min, max] in seconds; a random value is picked each time.
+// Walk speed and stride are in character pixels (CHARACTER_SCALE in
+// data/layout.js), so they scale with the character's size; other
+// distances are in scene pixels. Ranges are [min, max] in seconds; a
+// random value is picked each time.
 
-// Walking speed per life stage, in scene pixels per second: a calm stroll.
+// Walking speed per life stage, in character pixels per second: a calm
+// stroll.
 export const WALK_SPEED = { baby: 2, child: 7, teen: 7, adult: 6, elder: 3 };
 
 // How far each foot reaches forward or back at a contact pose. The walk

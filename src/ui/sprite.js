@@ -2,8 +2,9 @@
 // character drawing lives here so it can be swapped for hand-drawn sprite
 // sheets later without touching the rest of the game.
 //
-// The sprite is painted facing right on a small layer in scene pixels,
-// outlined, then scaled up by the scene scale (mirrored when facing left).
+// The sprite is painted facing right on a small layer in character pixels,
+// outlined, then scaled up by CHARACTER_SCALE (data/layout.js), which is
+// separate from the scene scale (mirrored when facing left).
 
 import { CHARACTER_SHAPES } from '../data/characterShapes.js';
 import {
@@ -16,7 +17,7 @@ import { createLayer, clearLayer, fill, outline, drawLayer } from './pixel.js';
 // Big enough for the tallest stage plus hair and outline. Column ANCHOR is
 // the character's center; feet end just above the last row, which is left
 // for the outline.
-// Layer sizes and coordinates below are in scene pixels.
+// Layer sizes and coordinates below are in character pixels.
 const LAYER_WIDTH = 24;
 const LAYER_HEIGHT = 30;
 const ANCHOR = 12;
@@ -45,7 +46,7 @@ const layer = createLayer(LAYER_WIDTH, LAYER_HEIGHT);
 
 // Draws the character. `pose` comes from poseOf() in animator.js;
 // `expression` is 'smile', 'neutral', or 'frown'; feetY is the canvas row
-// the feet rest on; scale is screen pixels per scene pixel.
+// the feet rest on; scale is screen pixels per character pixel.
 export function drawCharacter(ctx, pose, stage, appearance, expression, feetY, scale) {
   const shape = CHARACTER_SHAPES[stage];
   const px = (col, row, w, h, color) => fill(layer, ANCHOR + col, row, w, h, color);

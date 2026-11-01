@@ -3,7 +3,7 @@
 // strip, props) once to an offscreen canvas copied in every frame.
 
 import {
-  SCENE_SCALE, GROUND_HEIGHT, FEET_FROM_BOTTOM, PROP_BASE_FROM_BOTTOM, PROPS, WANDER_MARGIN,
+  SCENE_SCALE, CHARACTER_SCALE, GROUND_HEIGHT, FEET_FROM_BOTTOM, PROP_BASE_FROM_BOTTOM, PROPS, WANDER_MARGIN,
 } from '../data/layout.js';
 import { createLayer, drawLayer } from './pixel.js';
 import { drawProps } from './props.js';
@@ -46,6 +46,7 @@ export function computeLayout(width, height) {
     width,
     height,
     scale,
+    characterScale: CHARACTER_SCALE,
     feetY: fromBottom(FEET_FROM_BOTTOM),
     props,
     wanderMinX: WANDER_MARGIN * scale,

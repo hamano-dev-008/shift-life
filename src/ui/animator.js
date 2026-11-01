@@ -2,8 +2,9 @@
 // the house and tree, goal activities (reading, counting coins, jogging,
 // waving), turning, the walk cycle, breathing, and blinking. Never touches
 // game state; the renderer passes in which activity the goal calls for.
-// Speeds and timings live in data/animation.js, in scene pixels; positions
-// here are canvas pixels from computeLayout().
+// Speeds and timings live in data/animation.js (walking in character
+// pixels, other distances in scene pixels); positions here are canvas
+// pixels from computeLayout().
 
 import {
   WALK_SPEED, STRIDE, IDLE_PAUSE, VISIT_PAUSE, TURN_BEAT, VISIT_CHANCE,
@@ -34,8 +35,8 @@ export function createAnimator(layout) {
     destination: null, // prop id being walked to, or null
     lastVisited: null,
     pauseLeft: randomIn([1, 3]),
-    gridX: Math.round(x / layout.scale), // position in whole scene pixels
-    steps: 0, // whole scene pixels walked this walk; drives the walk cycle
+    gridX: Math.round(x / layout.characterScale), // position in whole character pixels
+    steps: 0, // whole character pixels walked this walk; drives the walk cycle
     blinkIn: randomIn(BLINK_INTERVAL),
     blinkLeft: 0,
     time: 0,
@@ -88,10 +89,10 @@ function setOff(anim, target) {
 }
 
 // Moves toward the target at `speed` times the walking speed and counts
-// each whole scene pixel crossed, so walk frames change exactly when the
+// each whole character pixel crossed, so walk frames change exactly when the
 // drawn sprite moves a pixel. Returns whether the target was reached.
 function walk(anim, dt, stage, speed = 1) {
-  const { scale } = anim.layout;
+  const { characterScale: scale } = anim.layout;
   const step = WALK_SPEED[stage] * speed * scale * dt;
   const distance = anim.targetX - anim.x;
   const arrived = Math.abs(distance) <= step;
@@ -219,7 +220,7 @@ function walkPose(p, stride) {
 }
 
 // The current frame's pose, in the shape drawCharacter() expects. x is
-// snapped to whole scene pixels so the sprite moves in crisp steps.
+// snapped to whole character pixels so the sprite moves in crisp steps.
 // `activity` is the activity being done (null when none) and
 // `activityTime` how long it has been going, in seconds.
 export function poseOf(anim, stage) {
@@ -227,7 +228,7 @@ export function poseOf(anim, stage) {
   const walking = anim.mode === 'walking' || (doing && anim.jogging);
   const stride = STRIDE[stage];
   return {
-    x: anim.gridX * anim.layout.scale,
+    x: anim.gridX * anim.layout.characterScale,
     facing: anim.facing,
     blinking: anim.blinkLeft > 0,
     breath: !walking && anim.time % BREATH_CYCLE > BREATH_CYCLE * 0.6 ? 1 : 0,

@@ -5,9 +5,16 @@
 // when SCENE_SCALE changes.
 
 // Overall scene scale: screen pixels per scene pixel. Whole numbers only,
-// so pixels stay crisp. 3 makes an adult about a quarter of the window
-// height; 2 is smaller, 4 is bigger.
+// so pixels stay crisp. Sizes everything except the character.
 export const SCENE_SCALE = 3;
+
+// The character's own size: screen pixels per pixel of the character's
+// art, separate from SCENE_SCALE. Whole numbers only, so pixels stay
+// crisp; the art itself never changes, so the face stays readable. 2 makes
+// an adult 40px tall (two thirds of 3, the closest crisp size to 75%); 3
+// matches the scene. Walk speed and stride are in character pixels
+// (data/animation.js), so they scale with this and the feet stay planted.
+export const CHARACTER_SCALE = 2;
 
 // Height of the grass strip along the bottom of the window.
 export const GROUND_HEIGHT = 16;
@@ -33,5 +40,5 @@ export const WANDER_MARGIN = 6;
 export const EVENT_BUBBLE = { width: 7, height: 9, tail: 2 };
 
 // Gap between the top of the character's head and the bubbles above it,
-// leaving room for the tallest hair and the outline.
+// leaving room for the tallest hair and the outline. In character pixels.
 export const HEAD_CLEARANCE = 5;

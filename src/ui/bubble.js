@@ -42,7 +42,7 @@ function paintBubble() {
 // bubbles sit with their bottom here.
 export function bubbleBottomY(layout, stage) {
   const { legs, body, head } = CHARACTER_SHAPES[stage];
-  return layout.feetY - (legs + body + head + HEAD_CLEARANCE) * layout.scale;
+  return layout.feetY - (legs + body + head + HEAD_CLEARANCE) * layout.characterScale;
 }
 
 // Draws the "!" bubble centered over canvas x, bobbing with `time`
