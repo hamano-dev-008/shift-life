@@ -1,25 +1,35 @@
-// home.js — Home's game logic: resting on the sofa, which slowly restores
-// health over real time (passed in by the renderer, so game speed doesn't
-// change it and it pauses while the app is closed). All numbers and text
-// live in data/home.js.
+// home.js — Resting: lying on the sofa, in the sleeping bag or in the
+// tent to slowly restore health over real time (passed in by the
+// renderer, so game speed doesn't change it and it pauses while the app
+// is closed). How fast depends on where (restMinutes() in
+// game/housing.js). Numbers and text live in data/home.js.
 
-import { REST_MINUTES, REST_HEALTH, REST_HEALTH_MAX } from '../data/home.js';
+import { REST_HEALTH, REST_HEALTH_MAX } from '../data/home.js';
 import { changeStats } from './character.js';
+import { restMinutes } from './housing.js';
 
-const REST_MS = REST_MINUTES * 60 * 1000;
+const MINUTE_MS = 60 * 1000;
+// A saved rest time is never trusted past this (it's well over any rate).
+const MAX_SAVED_REST_MS = 60 * MINUTE_MS;
 
-// resting: lying on the sofa right now. restMs: real time rested towards
-// the next health gain.
+// Real ms per health gain where the character rests now.
+function restPeriodMs(game) {
+  return restMinutes(game) * MINUTE_MS;
+}
+
+// resting: lying down right now. restMs: real time rested towards the
+// next health gain. (Saved as `home`, its name from when only the sofa
+// existed.)
 export function createHomeState() {
   return { resting: false, restMs: 0 };
 }
 
-// Rebuilds the home state from save data, with defaults for anything
-// missing or unusable (such as saves from before Home existed).
+// Rebuilds the rest state from save data, with defaults for anything
+// missing or unusable (such as saves from before resting existed).
 export function restoreHomeState(data) {
   const state = createHomeState();
   state.resting = data?.resting === true;
-  if (Number.isFinite(data?.restMs) && data.restMs >= 0) state.restMs = Math.min(data.restMs, REST_MS);
+  if (Number.isFinite(data?.restMs) && data.restMs >= 0) state.restMs = Math.min(data.restMs, MAX_SAVED_REST_MS);
   return state;
 }
 
@@ -27,7 +37,7 @@ export function isResting(game) {
   return game.home.resting;
 }
 
-// Lies down on the sofa. Returns whether resting started.
+// Lies down. Returns whether resting started.
 export function startResting(game) {
   if (game.home.resting) return false;
   game.home.resting = true;
@@ -51,38 +61,38 @@ function restoreHealth(game) {
   return amount ? changeStats(game.character, { health: amount }).health ?? 0 : 0;
 }
 
-// Finishes the current rest period right away (dev menu). Returns whether
-// they were resting.
-export function finishRestPeriod(game) {
-  if (!game.home.resting) return false;
-  game.home.restMs = 0;
-  restoreHealth(game);
-  return true;
-}
-
 // Call regularly with the real time passed since the last call, in ms
 // (capped by the caller, so a sleeping PC doesn't count). Returns the
 // health gained.
 export function updateHome(game, realMs) {
   const home = game.home;
   if (!home.resting) return 0;
+  const period = restPeriodMs(game);
   home.restMs += realMs;
   let gained = 0;
-  while (home.restMs >= REST_MS) {
-    home.restMs -= REST_MS;
+  while (home.restMs >= period) {
+    home.restMs -= period;
     gained += restoreHealth(game);
   }
   return gained;
 }
 
-// Everything the sofa menu shows. Times are in ms.
-export function sofaView(game) {
+// Rests one more real minute right away (dev menu). Returns whether they
+// were resting.
+export function restOneMinute(game) {
+  if (!game.home.resting) return false;
+  updateHome(game, MINUTE_MS);
+  return true;
+}
+
+// Everything the rest menu shows about resting. Times are in ms.
+export function restView(game) {
   return {
     resting: game.home.resting,
     restMs: game.home.restMs,
-    restTotalMs: REST_MS,
+    restTotalMs: restPeriodMs(game),
     amount: REST_HEALTH,
-    minutes: REST_MINUTES,
+    minutes: restMinutes(game),
     health: game.character.stats.health,
     max: REST_HEALTH_MAX,
   };

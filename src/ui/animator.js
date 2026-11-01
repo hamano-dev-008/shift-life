@@ -399,6 +399,14 @@ export function enterScene(anim, layout, x, inX = null) {
   }
 }
 
+// Swaps in a new `layout` for the same place (its props changed: a new
+// housing tier), leaving the character where they are, doing what they
+// were doing.
+export function setLayout(anim, layout) {
+  anim.layout = layout;
+  anim.lastVisited = null;
+}
+
 // Moves the character into `layout` at once, somewhere near the middle
 // (dev menu's Go to).
 export function placeIn(anim, layout) {

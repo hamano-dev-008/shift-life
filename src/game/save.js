@@ -2,13 +2,14 @@
 // main process (via window.shiftLife) to read and write the save file.
 
 import { createClock } from './clock.js';
-import { restoreCharacter } from './character.js';
+import { restoreCharacter, ageOf } from './character.js';
 import { restoreEventState } from './events.js';
 import { restoreGoalState } from './goals.js';
 import { restoreJobState } from './jobs.js';
 import { restorePlace, settlePlace } from './places.js';
 import { restoreTreeState } from './fortuneTree.js';
 import { restoreHomeState } from './home.js';
+import { restoreHousingState } from './housing.js';
 
 const SAVE_VERSION = 1;
 
@@ -23,13 +24,16 @@ function toSaveData(game) {
     place: game.place,
     fortuneTree: game.fortuneTree,
     home: game.home,
+    housing: game.housing,
   };
 }
 
 // Returns the saved { clock, character, events, goals, jobs, place,
-// fortuneTree, home }, or null if there's no usable save. Saves from
-// before events, goals, jobs, places, the Fortune Tree or Home existed get
-// fresh state for them (and start at DEFAULT_PLACE).
+// fortuneTree, home, housing }, or null if there's no usable save. Saves
+// from before events, goals, jobs, places, the Fortune Tree, Home or
+// housing existed get fresh state for them (and start at DEFAULT_PLACE;
+// adults from before housing have moved out, and leave the parents'
+// house for My Yard).
 export async function loadGame() {
   const data = await window.shiftLife.loadSave();
   if (data?.version !== SAVE_VERSION || !Number.isFinite(data.clock?.years)) return null;
@@ -44,6 +48,7 @@ export async function loadGame() {
     place: restorePlace(data.place),
     fortuneTree: restoreTreeState(data.fortuneTree),
     home: restoreHomeState(data.home),
+    housing: restoreHousingState(data.housing, ageOf(character, data.clock.years)),
   };
   settlePlace(game);
   return game;

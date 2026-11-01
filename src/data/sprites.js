@@ -8,8 +8,8 @@
 //
 // Sprite names drawing code looks for:
 //   Scenery (scene pixels, SCENE_SCALE in data/layout.js). Outdoors (the
-//   Fortune Tree and the Yard; each place shows its own, data/places.js),
-//   back to front:
+//   Fortune Tree, the Parents' Yard and My Yard; each place shows its own,
+//   data/places.js), back to front:
 //     sky     Tiled across the window above the grass, its bottom edge
 //             on the grass line.
 //     grass   Tiled across the bottom of the window, bottom-aligned. Make
@@ -21,11 +21,23 @@
 //     goldenApple  The Fortune Tree's golden apple, shown while one is
 //             ready. Drawn at the tree's scale (or its own `scale`), its
 //             middle pixel on APPLE_SPOT in data/fortuneTree.js.
-//     yard.house  The house in the Yard, against the right edge
-//             (PROPS['yard.house'] in data/layout.js), bottom edge one row
-//             below the prop's base line. The code-drawn house plus its
-//             1px outline is 24 x 28; its door is in the middle.
-//   Home (the living room), back to front:
+//     parents.house  The parents' house in the Parents' Yard, against
+//             the right edge (PROPS['parents.house'] in data/layout.js),
+//             bottom edge one row below the prop's base line. The
+//             code-drawn house plus its 1px outline is 24 x 28; its door
+//             is in the middle.
+//   My Yard shows one housing tier (data/housing.js) at a time:
+//     yard.sleepingBag  On the grass near the right edge
+//             (PROPS['yard.sleepingBag']); code-drawn with outline 24 x 6,
+//             pillow on the left. The character lies on it
+//             REST_SEATS['yard.sleepingBag'] (data/home.js) scene pixels
+//             above its base line.
+//     yard.tent   Against the right edge (PROPS['yard.tent']);
+//             code-drawn with outline 28 x 20, opening in the middle. The
+//             character lies at its base line (REST_SEATS['yard.tent']).
+//     yard.house  The character's own house, placed like parents.house
+//             (PROPS['yard.house']); code-drawn it looks the same.
+//   Home and the Parents' Home (the living room), back to front:
 //     home.wall    The back wall, tiled across and upward from the floor
 //             line, like sky.
 //     home.floor   The floor, tiled across the bottom, like grass. Make it
@@ -35,9 +47,9 @@
 //     home.door    The front door, against the left edge
 //             (PROPS['home.door']); code-drawn with outline 16 x 29.
 //     home.sofa    Against the right edge (PROPS['home.sofa']); code-drawn
-//             with outline 34 x 15. The character lies on it SOFA_SEAT
-//             (data/home.js) scene pixels above its base line, so keep
-//             the seat at that height.
+//             with outline 34 x 15. The character lies on it
+//             REST_SEATS['home.sofa'] (data/home.js) scene pixels above
+//             its base line, so keep the seat at that height.
 //   Props are placed like the tree: their outer column against their
 //   window edge (or centered), bottom edge one row below the base line.
 //   Character (character pixels, CHARACTER_SCALE in data/layout.js):
@@ -50,7 +62,8 @@
 //       animation  idle, walk, sit (baby, toddler), crawl (baby), a goal
 //                  activity (read, coins, wave, jog), busk (sitting
 //                  under the Fortune Tree playing an instrument), or
-//                  rest (lying on the sofa; drawn raised to the seat)
+//                  rest (lying on the sofa, sleeping bag or in the tent;
+//                  drawn raised to the seat)
 //     Drawn facing right (mirrored when facing left), with the frame's
 //     bottom edge one row below the feet (the outline's row) and column
 //     `anchorX` on the character's center. A sprite replaces the whole

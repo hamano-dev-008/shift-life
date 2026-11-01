@@ -1,7 +1,7 @@
 // scene.js — Works out where everything goes for the window's size, the
 // scene scale and a place (data/places.js), and draws that place's
-// scenery: outdoors a dithered sky, grassy ground strip, the tree or the
-// house; at Home the wall, floor, window, door and sofa (ui/room.js).
+// scenery: outdoors a dithered sky, grassy ground strip, the tree, the
+// parents' house or the housing tier (ui/housing.js); at Home the wall, floor, window, door and sofa (ui/room.js).
 // Each piece uses its sprite (ui/assets.js) when there is one, or the
 // code-drawn art. Still pieces are drawn once to offscreen canvases
 // copied in every frame; animated sprites are drawn every frame.
@@ -10,7 +10,8 @@ import {
   SCENE_SCALE, CHARACTER_SCALE, GROUND_HEIGHT, FEET_FROM_BOTTOM, PROP_BASE_FROM_BOTTOM, PROPS, WANDER_MARGIN,
 } from '../data/layout.js';
 import { createLayer, drawLayer } from './pixel.js';
-import { drawTree, drawHouse } from './props.js';
+import { drawTree, drawParentsHouse, drawHouse } from './props.js';
+import { drawSleepingBag, drawTent } from './housing.js';
 import { drawWall, drawFloor, drawHomeWindow, drawHomeDoor, drawSofa } from './room.js';
 import { getSprite, isAnimated, frameAtTime, drawSprite } from './assets.js';
 
@@ -246,6 +247,9 @@ const SCENERY = [
   backdrop('sky', drawSky),
   ground('grass', drawGround),
   prop('tree', drawTree),
+  prop('parents.house', drawParentsHouse),
+  prop('yard.sleepingBag', drawSleepingBag),
+  prop('yard.tent', drawTent),
   prop('yard.house', drawHouse),
   backdrop('home.wall', drawWall),
   ground('home.floor', drawFloor),

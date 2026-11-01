@@ -1,8 +1,9 @@
 // dev.js — Developer actions behind the dev settings menu and shortcuts:
 // start a new life, change the clock speed, skip ahead, force an event,
-// add money, finish a busking session, grow a golden apple, finish a rest
-// period or switch place now, and a read-out of the character. The menu
-// (ui/devMenu.js) only calls these.
+// add money, finish a busking session, grow a golden apple, rest a
+// minute, switch place, set the housing tier or jump to moving-out age
+// now, and a read-out of the character. The menu (ui/devMenu.js) only
+// calls these.
 
 import { SPEEDS } from '../data/balance.js';
 import { STAT_TAGS } from '../data/stats.js';
@@ -13,8 +14,10 @@ import { createGoalState, goalById } from './goals.js';
 import { createJobState, careerView } from './jobs.js';
 import { NEW_LIFE_PLACE } from '../data/places.js';
 import { createTreeState, finishSession, makeAppleReady, treeView } from './fortuneTree.js';
-import { createHomeState, finishRestPeriod, isResting } from './home.js';
-import { currentPlace, enterPlace, leavePlace } from './places.js';
+import { MOVE_OUT_AGE } from '../data/housing.js';
+import { createHomeState, restOneMinute, isResting } from './home.js';
+import { currentPlace, enterPlace, leavePlace, settlePlace } from './places.js';
+import { createHousingState, setTier, housingText } from './housing.js';
 
 // Replaces the life with a newborn, in place, so everything holding `game`
 // sees the new one. The clock starts over at 0 and keeps its speed. Save
@@ -28,6 +31,7 @@ export function newLife(game) {
   game.place = NEW_LIFE_PLACE;
   game.fortuneTree = createTreeState();
   game.home = createHomeState();
+  game.housing = createHousingState();
 }
 
 export function setSpeed(game, speed) {
@@ -72,10 +76,29 @@ export function appleNow(game) {
   makeAppleReady(game);
 }
 
-// Finishes the current rest period on the sofa, gaining its health.
+// Rests one more real minute at once (any health it earns is gained).
 // Returns whether they were resting.
 export function finishRest(game) {
-  return finishRestPeriod(game);
+  return restOneMinute(game);
+}
+
+// Sets the housing tier directly, ending a rest (the bed may be gone) and
+// leaving Home if the house is. Applies once moved out.
+export function setHousingTier(game, id) {
+  if (!setTier(game, id)) return false;
+  leavePlace(game);
+  settlePlace(game);
+  return true;
+}
+
+// Moves the clock ahead to the moment the character turns MOVE_OUT_AGE
+// (moving out follows on the next tick). Returns false if they're
+// already that old.
+export function jumpToMoveOut(game) {
+  const target = game.character.bornAt + MOVE_OUT_AGE;
+  if (game.clock.years >= target) return false;
+  game.clock.years = target;
+  return true;
 }
 
 // Switches to place `id` at once, without walking (ending busking or
@@ -87,7 +110,8 @@ export function goToPlace(game, id) {
 
 // A compact summary for the menu: "HP 80  JOY 70  IQ 35  $120",
 // "Bold · Shy", "Scholar, 3y (age 12)", "Developer 2/3, $170/yr",
-// "Tree: busking 2:10, 3 sess, apple 85m", "Place: Home, resting".
+// "Tree: busking 2:10, 3 sess, apple 85m", "Place: My Yard, resting ·
+// Tent".
 export function devReadout(game) {
   const { character, goals, clock } = game;
   const stats = Object.entries(character.stats).map(([id, value]) =>
@@ -99,7 +123,7 @@ export function devReadout(game) {
     goal: `${goalById(goals.active).label}, ${goalYears}y (age ${ageOf(character, clock.years)})`,
     job: jobText(careerView(game)),
     tree: treeText(treeView(game)),
-    place: `Place: ${currentPlace(game).name}${isResting(game) ? ', resting' : ''}`,
+    place: `Place: ${currentPlace(game).name}${isResting(game) ? ', resting' : ''} · ${housingText(game)}`,
   };
 }
 

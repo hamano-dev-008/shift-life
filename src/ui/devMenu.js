@@ -5,7 +5,7 @@
 
 import { SPEEDS } from '../data/balance.js';
 import { DEV_SKIP_YEARS, DEV_MONEY } from '../data/dev.js';
-import { PLACES } from '../data/places.js';
+import { HOUSING_TIERS, MOVE_OUT_AGE } from '../data/housing.js';
 
 function button(text, onClick, className = '') {
   const node = document.createElement('button');
@@ -33,14 +33,18 @@ function row(label, ...children) {
 // (returns whether an event started), addMoney(n), finishSession()
 // (returns whether a busking session was playing), appleNow(), finishRest()
 // (returns whether they were resting), goTo(placeId), place() (current
-// place id), readout() (returns { stats, traits, goal, job, tree, place }),
-// speed() (current speed id), onOpen() }.
+// place id), places() (the places that exist now, { id, name }),
+// setTier(tierId), tier() (current housing tier id), toMoveOut()
+// (returns whether the clock moved), readout() (returns { stats, traits,
+// goal, job, tree, place }), speed() (current speed id), onOpen() }.
 export function createDevMenu(menu, gear, actions) {
   const body = menu.querySelector('.dev-body');
   const readout = menu.querySelector('.dev-readout');
   let confirming = false;
   let note = '';
   let shown = '';
+  let shownPlaces = '';
+  const placesKey = () => actions.places().map((place) => place.id).join('|');
 
   const close = () => {
     menu.hidden = true;
@@ -60,7 +64,11 @@ export function createDevMenu(menu, gear, actions) {
         actions.speed() === id ? 'active' : '')));
 
     const skips = row('Skip', ...DEV_SKIP_YEARS.map((years) =>
-      button(`+${years} year${years === 1 ? '' : 's'}`, () => actions.skipYears(years))));
+      button(`+${years} year${years === 1 ? '' : 's'}`, () => actions.skipYears(years))),
+    button(`To ${MOVE_OUT_AGE}`, () => {
+      note = actions.toMoveOut() ? '' : `Already ${MOVE_OUT_AGE} or older.`;
+      render();
+    }));
 
     const extras = row('',
       button('Trigger event', () => {
@@ -94,11 +102,16 @@ export function createDevMenu(menu, gear, actions) {
         render();
       }));
 
-    const places = row('Go to', ...PLACES.map((place) =>
+    const housing = row('Housing', ...HOUSING_TIERS.map((tier) =>
+      button(tier.name, () => { actions.setTier(tier.id); render(); },
+        actions.tier() === tier.id ? 'active' : '')));
+
+    shownPlaces = placesKey();
+    const places = row('Go to', ...actions.places().map((place) =>
       button(place.name, () => { actions.goTo(place.id); render(); },
         actions.place() === place.id ? 'active' : '')));
 
-    const children = [newLife, speeds, skips, extras, tree, home, places];
+    const children = [newLife, speeds, skips, extras, tree, home, housing, places];
     if (note) {
       const message = document.createElement('p');
       message.className = 'dev-note';
@@ -122,9 +135,11 @@ export function createDevMenu(menu, gear, actions) {
 
   return {
     close,
-    // Call every frame; refreshes the read-out while the menu is open.
+    // Call every frame; refreshes the read-out while the menu is open, and
+    // the buttons when the places change (moving out, a new tier).
     update() {
       if (menu.hidden) return;
+      if (placesKey() !== shownPlaces) render();
       const { stats, traits, goal, job, tree, place } = actions.readout();
       const lines = [stats, traits, goal, job, tree, place];
       const key = lines.join('|');

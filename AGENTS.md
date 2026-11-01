@@ -25,9 +25,10 @@ with **Electron and plain JavaScript**.
 > traits, wanders the window, ages in real time, meets life events as
 > speech bubbles, pursues a life goal the player picks, works jobs from
 > 18 (pay, promotions, work events) and retires at 65, and walks
-> between three places: the Fortune Tree (busking, the golden apple), the
-> Yard (the house) and Home (resting on the sofa); the life is saved
-> between launches. Items marked
+> between places: the Fortune Tree (busking, the golden apple), the
+> Parents' Yard and Home (resting on the sofa) while growing up, then
+> from 18 My Yard (sleeping bag, tent or house, bought by the player)
+> and their own Home; the life is saved between launches. Items marked
 > *(planned)* don't exist yet; follow the planned layout when adding them,
 > and update this section whenever files are added, moved, or removed.
 
@@ -50,18 +51,19 @@ Shift-Life/
 ├── src/
 │   ├── index.html     Renderer page: scene canvas, prop click areas,
 │   │                  label, place name, stats panel, event bubble/card,
-│   │                  goal, tree, sofa, Go to and dev menus, text
+│   │                  goal, tree, rest, Go to and dev menus, text
 │   │                  bubble, top-right buttons (goal, place, gear, -, x)
 │   ├── styles.css     Rounded frame, drag region, pixelated canvas, label,
 │   │                  place name, stats panel, prop click areas, panels
-│   │                  (event card, goal, tree, sofa, Go to and dev
+│   │                  (event card, goal, tree, rest, Go to and dev
 │   │                  menus), top-right buttons, text bubble
 │   ├── renderer.js    Renderer entry point (ES module): loads or starts a
 │   │                  life, builds each place's scene, runs clock,
-│   │                  events, goals, jobs, the Fortune Tree and resting
-│   │                  (real-time tick), trips between places, prop
-│   │                  clicks, autosave, frame loop, text bubble queue,
-│   │                  menu wiring, dev shortcuts
+│   │                  events, goals, jobs, the Fortune Tree, resting
+│   │                  and moving out (real-time tick), trips between
+│   │                  places, following map changes, prop clicks,
+│   │                  buying housing, autosave, frame loop, text
+│   │                  bubble queue, menu wiring, dev shortcuts
 │   ├── game/          Game logic only (no hard-coded content)
 │   │   ├── clock.js       Real-time clock: in-game years, speed
 │   │   ├── character.js   Birth (random name/look/traits), stats,
@@ -75,18 +77,24 @@ Shift-Life/
 │   │   │                  pay, promotions, job changes, retirement and
 │   │   │                  pension, the stats panel's job view
 │   │   ├── places.js      The current place (game.place): look-up,
-│   │   │                  restoring, exits, routes between places,
-│   │   │                  entering and leaving (ends busking/resting)
-│   │   ├── home.js        Home: resting on the sofa (real-time health
-│   │   │                  gain), the sofa menu's view
+│   │   │                  restoring, which places exist now and what
+│   │   │                  they show (housing), exits, routes, the rest
+│   │   │                  spot, entering, leaving and settling (ends
+│   │   │                  busking/resting), moving out
+│   │   ├── home.js        Resting (sofa, sleeping bag, tent): real-time
+│   │   │                  health gain at the housing's rate, the rest
+│   │   │                  menu's view
+│   │   ├── housing.js     Moving out at 18, the housing tier, place
+│   │   │                  requirements, which tier prop shows, rest
+│   │   │                  rate, upgrade offer and buying
 │   │   ├── fortuneTree.js The Fortune Tree: busking sessions and pay,
 │   │   │                  the golden apple (growth, pick chance, pick),
 │   │   │                  real-time timers, the tree menu's view
 │   │   ├── dev.js         Dev actions: new life, speed, skip years,
 │   │   │                  trigger event, add money, finish a busking
-│   │   │                  session, apple now, finish a rest period, go
-│   │   │                  to a place instantly, read-out (job, tree,
-│   │   │                  place)
+│   │   │                  session, apple now, rest a minute, go to a
+│   │   │                  place instantly, set the housing tier, jump
+│   │   │                  to 18, read-out (job, tree, place, housing)
 │   │   └── save.js        Save format (versioned) and load/save calls
 │   ├── ui/            Drawing and visual-only behavior
 │   │   ├── pixel.js       Low-res layer helpers: paint, outline, scaled draw
@@ -95,12 +103,15 @@ Shift-Life/
 │   │   ├── scene.js       computeLayout() (data → canvas pixels, for a
 │   │   │                  place), where props are drawn and clicked
 │   │   │                  (propRect, propClickRect), and the place's
-│   │   │                  scenery (sky, grass, tree, house; Home's
-│   │   │                  wall, floor, window, door, sofa), each a
+│   │   │                  scenery (sky, grass, tree, houses, sleeping
+│   │   │                  bag, tent; Home's wall, floor, window, door,
+│   │   │                  sofa), each a
 │   │   │                  sprite or code-drawn; still pieces cached,
 │   │   │                  animated sprites drawn every frame
-│   │   ├── props.js       Draws the tree and the house in code; the
-│   │   │                  shared prop painter and house colors
+│   │   ├── props.js       Draws the tree and the houses (parents' and
+│   │   │                  own) in code; the shared prop painter and
+│   │   │                  house colors
+│   │   ├── housing.js     Draws the sleeping bag and the tent in code
 │   │   ├── room.js        Draws Home's living room in code: wallpaper,
 │   │   │                  wooden floor, window, front door, sofa
 │   │   ├── animator.js    Wandering, prop visits, goal activities,
@@ -124,10 +135,12 @@ Shift-Life/
 │   │   ├── goldenApple.js The golden apple on the tree (sprite or code)
 │   │   ├── treeMenu.js    The Fortune Tree menu: play/stop, pick the
 │   │   │                  apple, progress and pick chance
-│   │   ├── sofaMenu.js    The sofa menu: rest/get up, rest progress,
-│   │   │                  health
+│   │   ├── restMenu.js    The rest menu (sofa, sleeping bag, tent):
+│   │   │                  rest/get up, rest progress, health, the next
+│   │   │                  housing upgrade
 │   │   ├── goMenu.js      The Go to menu (place button): the other
-│   │   │                  places; disabled while travelling
+│   │   │                  places that exist now; disabled while
+│   │   │                  travelling
 │   │   ├── devMenu.js     The dev settings menu (gear; dev runs only)
 │   │   └── statsPanel.js  Stats, job and traits panel under the name label
 │   └── data/          Pure game data, no logic
@@ -136,11 +149,16 @@ Shift-Life/
 │       │                  goal weights for decisions and event picks
 │       ├── stats.js       Starting stats, stat names and short tags
 │       ├── dev.js         Dev menu amounts (skip-ahead years, money)
-│       ├── places.js      Places (id, name, scenery pieces, exits,
-│       │                  clickable props), where a new life starts, the
-│       │                  default place, travel distances, Go to text
-│       ├── home.js        Home numbers and text: sofa prop and seat
-│       │                  height, rest health gain, z's, sofa menu
+│       ├── places.js      Places (id, name, requirement, where to go
+│       │                  when gone, scenery pieces, exits, clickable
+│       │                  props), where a new life starts, the default
+│       │                  place, travel distances, Go to text
+│       ├── home.js        Resting numbers and text: what can be rested
+│       │                  on and its seat height, rest health gain, z's,
+│       │                  rest menu
+│       ├── housing.js     Moving-out age, housing tiers (name, price,
+│       │                  prop, rest rate), the parents' rest rate,
+│       │                  upgrade and bubble text
 │       ├── fortuneTree.js Fortune Tree numbers and text: min age,
 │       │                  session length and pay, apple timing, pick
 │       │                  chance and reward, apple spot, busking loops
@@ -375,17 +393,32 @@ How it works, for anyone extending it:
     read the job, level and money from `careerView()` and `history`.
 - **Places:** the scene is a place (`data/places.js`: id, name, the
   `scenery` pieces it shows back to front, `exits`, and clickable
-  `targets`). There are three: the Fortune Tree and the Yard side by
-  side (walking off the tree's right edge comes into the Yard from its
-  left, and back), and Home, the living room, entered through the
-  house's front door in the Yard.
+  `targets`, plus `requires` and `gone`, see **Housing**). Growing up
+  there are three: the Fortune Tree and the Parents' Yard (`yard`) side
+  by side (walking off the tree's right edge comes into the yard from
+  its left, and back), and the Parents' Home (`home`), the living room,
+  entered through the house's front door. From 18 the parents' places
+  are gone and My Yard (`myYard`) is beside the tree, with Home
+  (`myHome`, the own living room) once they own the house.
   - `game.place` holds the current place's id (saved; a save without one
     or with an unknown one goes to `DEFAULT_PLACE`, the Fortune Tree). A
-    new life starts at `NEW_LIFE_PLACE` (Home).
+    new life starts at `NEW_LIFE_PLACE` (the Parents' Home).
+  - `placeView(game, id)` (`game/places.js`) is the place as it is now:
+    only the scenery that shows (one housing tier prop), the exits to
+    places that exist through props that show, and those props'
+    targets. `currentPlace()` and `existingPlaces()` use it; routing and
+    exits take `game` for the same reason.
   - The renderer builds each place's scene (`computeLayout(width,
-    height, place)` with only that place's props, and `createScenery()`)
-    the first time it's shown, and shows the place's name under the name
-    label ("From > To" while travelling).
+    height, place)` with only the props it shows, and `createScenery()`)
+    the first time it's shown with that scenery (cached by id and
+    pieces), and shows the place's name under the name label ("From >
+    To" while travelling).
+  - Map changes (moving out, buying a tier, the dev tier buttons): each
+    frame the renderer compares the current place's view with the one
+    shown (`followMapChanges()`). If it changed, any trip ends; if the
+    character had to leave the place, they're put in the new one
+    (`placeIn()`), otherwise the new layout is swapped in where they
+    stand (`setLayout()`), walking back in if they were past an edge.
   - Exits are `{ to, via }`: `via` is `'left'`/`'right'` (a window edge)
     or a prop id (a door). Each link needs an exit back in the
     destination, which is also where the character comes in.
@@ -401,45 +434,79 @@ How it works, for anyone extending it:
     plop), and starts from wherever they are (even away at work). Only
     the place reached is saved; closing mid-trip ends it there.
   - The place button (map pin, top bar) opens Go to (`ui/goMenu.js`),
-    listing the other places; it's disabled, and the prop click areas
-    hidden, while travelling.
+    listing the other places that exist now; it's disabled, and the
+    prop click areas hidden, while travelling.
   - Click areas: the renderer puts an invisible no-drag button in
     `#targets` over each of the place's `targets` (the prop's visible
-    pixels, `propClickRect()`). Clicking an exit's prop (the house, the
-    front door) travels through it; the tree and the sofa open their
-    menus.
+    pixels, `propClickRect()`). Clicking an exit's prop (a house, the
+    front door) travels through it; the tree opens its menu and anything
+    in `REST_SEATS` (sofa, sleeping bag, tent) the rest menu.
   - Work trips work the same everywhere (out the nearest side and back).
   - A new place needs an entry in `PLACES` (with exits both ways), any
     new scenery pieces in `SCENERY` (`ui/scene.js`, with code-drawn
     art) and props in `PROPS` (`data/layout.js`), and its sprite names
     in `data/sprites.js`. Place-specific features check the place id
-    (`FORTUNE_TREE_PLACE`, `HOME_PLACE`).
-- **Yard and Home art:** the Yard is sky, grass and the house (the old
-  code-drawn house, `ui/props.js`). Home (`ui/room.js`) is drawn in the
+    (`FORTUNE_TREE_PLACE`) or the props it shows (`REST_SEATS`).
+- **Yard and Home art:** the Parents' Yard is sky, grass and the house
+  (`parents.house`, the old code-drawn house, `ui/props.js`). My Yard is
+  sky, grass and one housing tier: the sleeping bag (`yard.sleepingBag`)
+  or tent (`yard.tent`), both in `ui/housing.js`, or the house
+  (`yard.house`, the same art as the parents' for now). Both living
+  rooms (`ui/room.js`) are drawn in the
   house's colors (`HOUSE_COLORS`): striped wallpaper with a baseboard,
   a wooden plank floor (feet on the usual row), a window with curtains
   and a bit of sky, the front door and a red sofa. Props can sit higher
-  than the floor with `base` in `PROPS` (the window). Each piece has a
-  sprite name (`yard.house`, `home.wall`, `home.floor`, `home.window`,
-  `home.door`, `home.sofa`).
-- **Home (resting):** `game.home` holds `resting` and `restMs` (real
-  time towards the next gain). Numbers and text in `data/home.js`;
-  logic in `game/home.js`.
-  - Clicking the sofa opens the sofa menu (`ui/sofaMenu.js`): Rest or
-    Get up, with progress and health. Any age can rest.
+  than the floor (the window) or lower (the sleeping bag) with `base`
+  in `PROPS`. Each piece has a sprite name (`parents.house`,
+  `yard.sleepingBag`, `yard.tent`, `yard.house`, `home.wall`,
+  `home.floor`, `home.window`, `home.door`, `home.sofa`).
+- **Resting:** `game.home` holds `resting` and `restMs` (real time
+  towards the next gain; saved as `home` from when only the sofa
+  existed). Numbers and text in `data/home.js`; logic in
+  `game/home.js`.
+  - Anything in `REST_SEATS` can be rested on: the sofa (both living
+    rooms), the sleeping bag and the tent. A place's first one that
+    shows is its rest spot (`restSpotOf()`). Clicking it opens the rest
+    menu (`ui/restMenu.js`, titled with the prop's target name): Rest or
+    Get up, with progress and health, and in My Yard the next housing
+    upgrade (below). Any age can rest.
   - While resting, the animator (`stay` option, mode `'resting'`) walks
-    the character to the sofa's visit spot and lays them on it: the
+    the character to the rest spot's visit spot and lays them on it: the
     pose is `lying` with `activity: 'rest'`, raised `lift` canvas
-    pixels so the figure sits on the seat (`SOFA_SEAT` scene pixels
-    above the sofa's base), with z's rising. No wandering, activities
-    or work trips.
-  - Every `REST_MINUTES` real minutes adds `REST_HEALTH` health, up to
-    `REST_HEALTH_MAX`, through the same real-time life tick as the
-    Fortune Tree (`updateHome()`); resting carries on at full health
-    until "Get up". Getting up drops the time towards the next gain.
+    pixels so the figure lies on it (`REST_SEATS` scene pixels above
+    the prop's base), with z's rising. No wandering, activities or work
+    trips.
+  - Every `restMinutes(game)` real minutes (`game/housing.js`: the
+    parents' sofa before moving out, then the tier's rate) adds
+    `REST_HEALTH` health, up to `REST_HEALTH_MAX`, through the same
+    real-time life tick as the Fortune Tree (`updateHome()`); resting
+    carries on at full health until "Get up". Getting up drops the time
+    towards the next gain.
   - Events are frozen while resting, as while busking (below).
   - `settlePlace()` ends busking away from the Fortune Tree and resting
-    away from Home (e.g. a save from elsewhere).
+    where there's no rest spot (e.g. a save from elsewhere).
+- **Housing:** `game.housing` holds `movedOut` and the `tier` id.
+  Numbers and text in `data/housing.js`; logic in `game/housing.js`.
+  - Places say when they exist with `requires`: `'parents'` (before
+    moving out), `'movedOut'`, or `'tier:<id>'` (that tier or better);
+    `gone` is where someone in a place that no longer exists goes
+    (`settlePlace()` follows it). The tier props in a place's scenery
+    show only at their own tier (`showsPiece()`).
+  - `updatePlaces()` runs on the life tick: at `MOVE_OUT_AGE` (also when
+    years are skipped past it) `updateHousing()` sets `movedOut`, returns
+    the golden "Moving out!" bubble, and the character is settled out of
+    the parents' house into My Yard.
+  - Tiers (`HOUSING_TIERS`): sleeping bag (free, the start), tent and
+    house, each with a `price`, its `prop` in My Yard and `restMinutes`.
+    The house's tier unlocks `myHome`.
+  - The rest menu shows `upgradeView()`: "Upgrade to <tier> - $<price>",
+    disabled with "Need $X more" when they can't afford it. Buying
+    (`buyUpgrade()`) gets them up, takes the money, shows a golden
+    bubble and sets the tier; the renderer settles them and the yard
+    changes at once (map changes, under **Places**).
+  - Saves from before housing: adults have moved out (sleeping bag, and
+    out of the parents' house), children still live with their parents.
+    No bubble for that.
 - **Fortune Tree:** `game.fortuneTree` holds `playing`, `sessionMs`
   (real time into the current session), `sessions` (full sessions since
   the last successful pick), `appleReady` and `appleInMs`. Numbers and
@@ -458,7 +525,7 @@ How it works, for anyone extending it:
     away) and sits them there playing (`activity: 'busk'` in the pose):
     no wandering, activities or work trips, even when something needs
     them on screen. Travelling elsewhere stops busking.
-  - Event freeze: while playing (or resting at Home),
+  - Event freeze: while playing (or resting),
     `updateEvents(game, { freeze: true })`
     starts nothing and records `events.frozenAt`. On the first update
     after, `nextAt` and a waiting event's `shownAt` move forward by the
@@ -486,18 +553,23 @@ How it works, for anyone extending it:
     years, trigger a fitting event now (opens its card; a job offer for
     an adult without a job, even while busking), add $1,000, finish the
     busking session now (paid; "Not playing." otherwise), make a golden
-    apple ready now, finish a rest period now ("Rest 1 min": its health
-    gain; "Not resting." otherwise), Go to any place instantly (no
-    walking; ends busking or resting and any trip), and a read-out of
-    stats, traits, goal, job, the tree and the place. The menu scrolls
-    (no scrollbar) if it's taller than the window.
+    apple ready now, rest one more real minute now ("Rest 1 min": any
+    health it earns; "Not resting." otherwise), jump to 18 ("To 18" in
+    the Skip row: the clock moves to the 18th birthday and moving out
+    follows on the next tick), set the housing tier directly (Sleeping
+    bag, Tent, House; ends resting, leaves Home if the house goes; a
+    child stays with their parents), Go to any place that exists
+    instantly (no walking; ends busking or resting and any trip), and a
+    read-out of stats, traits, goal, job, the tree, the place and
+    housing. The menu scrolls (no scrollbar) if it's taller than the
+    window, and rebuilds when the places change.
   - `ui/devMenu.js` only calls the actions it's given; the work lives in
     `game/dev.js`, and the renderer wraps it to keep the screen in step.
     Amounts are in `data/dev.js`.
   - Skipping years doesn't replay events: the character ages, goal
     boosts and paydays (with promotions and retirement) catch up, and at
     most one due event comes up.
-  - The event card and the goal, tree, sofa, Go to and dev menus share
+  - The event card and the goal, tree, rest, Go to and dev menus share
     the same spot, so opening one closes the others (`closePanels()` in
     the renderer).
 - **Dev shortcuts** (window focused; these work in any build):
@@ -524,19 +596,21 @@ How it works, for anyone extending it:
   - `window-state.json` holds the window position. It's ignored if it
     would put the window off every connected screen.
   - `save.json` holds the life: `{ version, clock: { years }, character,
-    events, goals, jobs, place, fortuneTree, home }`. `character` includes
+    events, goals, jobs, place, fortuneTree, home, housing }`.
+    `character` includes
     `stats` and `traits`; `events`
     holds `nextAt`, the `pending` event, how often each was `seen`,
     `lastId`, and `frozenAt` (while busking or resting); `goals` holds the `active` goal, `since` and `nextDriftAt`,
     `pastYears` per goal, and reached `milestones` ({ goal, id, age });
-    `jobs` is described under **Jobs** above; `place`, `fortuneTree`
-    and `home` under **Places**, **Fortune Tree** and **Home**.
+    `jobs` is described under **Jobs** above; `place`, `fortuneTree`,
+    `home` and `housing` under **Places**, **Fortune Tree**, **Resting**
+    and **Housing**.
     The renderer autosaves every 10s and saves synchronously on
     `beforeunload`, so every way of closing is covered. `main.js` writes
     via a temp file and rename.
   - New optional fields can keep the version if `restore*()` fills in a
     default (as `stats`, `traits`, `events`, `goals`, `jobs`, `place`,
-    `fortuneTree` and `home` do; older saves'
+    `fortuneTree`, `home` and `housing` do; older saves'
     `mood` becomes happiness). For breaking changes, bump `SAVE_VERSION` in
     `game/save.js` and handle old versions. Right now an unrecognised save
     is replaced by a new life.

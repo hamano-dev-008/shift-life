@@ -1,6 +1,6 @@
 /* styles.css — Look of the companion window: rounded frame, pixel-crisp
    scene canvas, name/age label, place name and stats panel, event bubble
-   and card, click areas over props, the tree, sofa and Go to menus, goal
+   and card, click areas over props, the tree, rest and Go to menus, goal
    and place buttons, goal menu, dev gear and menu, and the
    minimize/close buttons. */
 
@@ -63,7 +63,7 @@ body {
   display: none;
 }
 
-/* Invisible click areas over props (tree, house, sofa, door); the props
+/* Invisible click areas over props (tree, houses, beds, sofa, door); the props
    are canvas art. */
 #targets button {
   position: absolute;
@@ -348,7 +348,7 @@ body {
   color: #6b6478;
 }
 
-/* The Fortune Tree, sofa and Go to menus. */
+/* The Fortune Tree, rest and Go to menus. */
 .panel .menu-options {
   display: flex;
   flex-direction: column;
@@ -364,8 +364,13 @@ body {
   background: #f6e7c8;
 }
 
-.panel .menu-options button:hover {
+.panel .menu-options button:hover:not(:disabled) {
   background: #f2cc8f;
+}
+
+.panel .menu-options button:disabled {
+  opacity: 0.45;
+  cursor: default;
 }
 
 .panel .menu-options button.active {

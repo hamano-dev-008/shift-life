@@ -1,9 +1,9 @@
 // renderer.js — Renderer entry point: loads the saved life or starts a new
-// one, runs the clock, life events, goals, jobs, the Fortune Tree and
-// resting at Home, draws the current place each frame, walks the
-// character between places, and wires up controls, the click areas over
-// props, the tree, sofa and Go to menus, the dev settings menu (dev runs
-// only) and saving.
+// one, runs the clock, life events, goals, jobs, the Fortune Tree,
+// resting and moving out, draws the current place each frame (rebuilt when
+// the housing changes it), walks the character between places, and wires
+// up controls, the click areas over props, the tree, rest and Go to menus,
+// the dev settings menu (dev runs only) and saving.
 
 import { createClock, startClock } from './game/clock.js';
 import { createCharacter, ageOf, lifeStageOf, expressionOf, setStat } from './game/character.js';
@@ -17,34 +17,36 @@ import {
   createJobState, updateJobs, isEmployed, jobItem, careerView,
 } from './game/jobs.js';
 import {
-  placeById, currentPlace, exitBetween, routeBetween, enterPlace, leavePlace,
+  placeById, currentPlace, existingPlaces, exitBetween, routeBetween, enterPlace, leavePlace,
+  settlePlace, restSpotOf, updatePlaces,
 } from './game/places.js';
 import {
   createTreeState, updateFortuneTree, isPlaying, startPlaying, stopPlaying, pickApple, treeView,
 } from './game/fortuneTree.js';
 import {
-  createHomeState, updateHome, isResting, startResting, stopResting, sofaView,
+  createHomeState, updateHome, isResting, startResting, stopResting, restView,
 } from './game/home.js';
+import { createHousingState, upgradeView, buyUpgrade } from './game/housing.js';
 import { loadGame, saveGame, saveGameNow } from './game/save.js';
 import {
   newLife, setSpeed, toggleFastForward, skipYears, triggerEvent, addMoney, finishBuskingSession,
-  appleNow, finishRest, goToPlace, devReadout,
+  appleNow, finishRest, goToPlace, setHousingTier, jumpToMoveOut, devReadout,
 } from './game/dev.js';
 import { RESULT_BUBBLE_SECONDS, MILESTONE_BUBBLE_SECONDS } from './data/animation.js';
 import { SPEEDS } from './data/balance.js';
 import { CRAWL_UNTIL_AGE, FIRST_STEPS } from './data/infant.js';
 import { NEW_LIFE_PLACE, TRAVEL, PLACE_TEXT } from './data/places.js';
 import { FORTUNE_TREE_PLACE, TREE_PROP } from './data/fortuneTree.js';
-import { HOME_PLACE, SOFA_PROP, SOFA_SEAT } from './data/home.js';
+import { REST_SEATS } from './data/home.js';
 import { computeLayout, createScenery, propClickRect } from './ui/scene.js';
 import { drawGoldenApple } from './ui/goldenApple.js';
 import { createTreeMenu } from './ui/treeMenu.js';
-import { createSofaMenu } from './ui/sofaMenu.js';
+import { createRestMenu } from './ui/restMenu.js';
 import { createGoMenu } from './ui/goMenu.js';
 import { loadSprites } from './ui/assets.js';
 import {
   createAnimator, updateAnimator, poseOf, startActivityNow, goToWorkNow, gaitOf,
-  travelTo, hasExited, enterScene, placeIn,
+  travelTo, hasExited, enterScene, placeIn, setLayout,
 } from './ui/animator.js';
 import { drawCharacter, figureHeight } from './ui/sprite.js';
 import {
@@ -61,7 +63,7 @@ const AUTOSAVE_MS = 10000;
 // minimized.
 const LIFE_TICK_MS = 250;
 // Most real time one life tick counts for the Fortune Tree's and the
-// sofa's timers, so a sleeping PC doesn't count as busking or resting.
+// resting timers, so a sleeping PC doesn't count as busking or resting.
 const MAX_TICK_MS = 2000;
 // Caps one frame's animation step so a stalled window doesn't teleport the
 // character when it resumes.
@@ -96,6 +98,7 @@ function newGame() {
     place: NEW_LIFE_PLACE,
     fortuneTree: createTreeState(),
     home: createHomeState(),
+    housing: createHousingState(),
   };
 }
 
@@ -147,8 +150,9 @@ async function start() {
     seconds: RESULT_BUBBLE_SECONDS,
     celebrate: false,
   });
-  // A bubble from updateJobs() (a payday, promotion or retirement) or the
-  // Fortune Tree (busking tips, the golden apple).
+  // A bubble from updateJobs() (a payday, promotion or retirement), the
+  // Fortune Tree (busking tips, the golden apple) or housing (moving out,
+  // a new home).
   const showNews = (news) => queueBubble({
     heading: news.heading,
     text: news.text,
@@ -161,7 +165,7 @@ async function start() {
     seconds: MILESTONE_BUBBLE_SECONDS, celebrate: true,
   });
 
-  // The event card and the goal, tree, sofa, Go to and dev menus share the
+  // The event card and the goal, tree, rest, Go to and dev menus share the
   // space below the top bar, so opening one closes the others.
   let devMenu = null;
   function closeEventCard() {
@@ -171,7 +175,7 @@ async function start() {
   }
   function closePanels(except = null) {
     if (except !== 'event') closeEventCard();
-    for (const [id, panel] of [['goal', goalMenu], ['tree', treeMenu], ['sofa', sofaMenu],
+    for (const [id, panel] of [['goal', goalMenu], ['tree', treeMenu], ['rest', restMenu],
       ['go', goMenu], ['dev', devMenu]]) {
       if (id !== except) panel?.close();
     }
@@ -210,15 +214,29 @@ async function start() {
     },
     onOpen: () => closePanels('tree'),
   });
-  // Clicking the sofa at Home opens its menu: rest or get up.
-  const sofaMenu = createSofaMenu(document.getElementById('sofa-menu'), {
+  // Clicking something to rest on (the sofa, the sleeping bag, the tent)
+  // opens the rest menu: rest or get up, and in My Yard the next housing
+  // upgrade. Buying gets them up (the bed may go) and the yard changes at
+  // once (the frame loop rebuilds the scene).
+  const restMenu = createRestMenu(document.getElementById('rest-menu'), {
     rest: () => {
       if (startResting(game)) saveGame(game);
     },
     getUp: () => {
       if (stopResting(game)) saveGame(game);
     },
-    onOpen: () => closePanels('sofa'),
+    upgrade: () => {
+      const wasResting = stopResting(game);
+      const news = buyUpgrade(game);
+      if (!news) {
+        if (wasResting) startResting(game);
+        return;
+      }
+      showNews(news);
+      settlePlace(game);
+      saveGame(game);
+    },
+    onOpen: () => closePanels('rest'),
   });
   // The place button opens Go to; picking a place starts the trip there.
   const goMenu = createGoMenu(document.getElementById('go-menu'), document.getElementById('go-btn'), {
@@ -252,8 +270,9 @@ async function start() {
 
   // While busking or resting, events are frozen: none start, and the wait
   // for the next one (and a waiting one's auto-decide) stands still. The
-  // Fortune Tree's and the sofa's timers get real time, so game speed
-  // doesn't change them.
+  // Fortune Tree's and resting's timers get real time, so game speed
+  // doesn't change them. Moving out happens here too (the frame loop then
+  // shows where they are).
   let lastTick = performance.now();
   setInterval(() => {
     const tickNow = performance.now();
@@ -269,45 +288,56 @@ async function start() {
     const treeNews = updateFortuneTree(game, realMs);
     treeNews.forEach(showNews);
     const rested = updateHome(game, realMs);
+    const moved = updatePlaces(game);
+    if (moved) showNews(moved);
     checkFirstSteps();
-    if (result || reached.length || jobNews.length || treeNews.length || rested) saveGame(game);
+    if (result || reached.length || jobNews.length || treeNews.length || rested || moved) saveGame(game);
   }, LIFE_TICK_MS);
 
   const statsPanel = createStatsPanel(label, document.getElementById('stats'));
   // Sprite PNGs replace code-drawn art where they exist (data/sprites.js).
   await loadSprites();
 
-  // Each place's layout and scenery, built the first time it's shown.
+  // Each place's layout and scenery, built the first time it's shown with
+  // those scenery pieces (My Yard has one per housing tier). `place` is
+  // the place as it is now (placeView()): what shows, its exits and click
+  // targets.
   const scenes = new Map();
-  function sceneFor(id) {
-    if (!scenes.has(id)) {
-      const place = placeById(id);
+  const sceneKey = (place) => `${place.id}:${place.scenery.join(',')}`;
+  // Changes when anything shown about the place changes.
+  const viewKey = (place) => [sceneKey(place), ...place.exits.map((exit) => exit.to),
+    ...Object.keys(place.targets)].join('|');
+  function sceneFor(place) {
+    const key = sceneKey(place);
+    if (!scenes.has(key)) {
       const layout = computeLayout(canvas.width, canvas.height, place);
-      scenes.set(id, { place, layout, scenery: createScenery(layout, place) });
+      scenes.set(key, { layout, scenery: createScenery(layout, place) });
     }
-    return scenes.get(id);
+    return { place, ...scenes.get(key) };
   }
-  let scene = sceneFor(currentPlace(game).id);
+  let scene = sceneFor(currentPlace(game));
+  let shownView = '';
   let animator = createAnimator(scene.layout);
 
-  // Clicking a prop: through a door (an exit) walks there; the tree and
-  // the sofa open their menus.
+  // Clicking a prop: through a door (an exit) walks there; the tree opens
+  // its menu, and anything to rest on the rest menu.
   function clickProp(id) {
     const exit = scene.place.exits.find((candidate) => candidate.via === id);
     if (exit) {
       startTrip(exit.to);
     } else if (id === TREE_PROP && scene.place.id === FORTUNE_TREE_PLACE) {
       treeMenu.toggle();
-    } else if (id === SOFA_PROP && scene.place.id === HOME_PLACE) {
-      sofaMenu.toggle();
+    } else if (id in REST_SEATS) {
+      restMenu.toggle();
     }
   }
 
-  // Switches the screen to the current place: its scene, name and click
-  // areas (each over a prop's visible pixels).
+  // Switches the screen to the current place as it is now: its scene,
+  // name and click areas (each over a prop's visible pixels).
   function showPlace() {
-    scene = sceneFor(currentPlace(game).id);
-    targets.replaceChildren(...Object.entries(scene.place.targets ?? {}).map(([id, title]) => {
+    scene = sceneFor(currentPlace(game));
+    shownView = viewKey(scene.place);
+    targets.replaceChildren(...Object.entries(scene.place.targets).map(([id, title]) => {
       const button = document.createElement('button');
       button.title = title;
       button.setAttribute('aria-label', title);
@@ -316,9 +346,32 @@ async function start() {
       return button;
     }));
     treeMenu.close();
-    sofaMenu.close();
+    restMenu.close();
   }
   showPlace();
+
+  // When the map changes under the character (moving out, a new housing
+  // tier, the house taken away by the dev menu), shows the place as it is
+  // now. A trip under way ends where they are; if they had to leave the
+  // place (the parents' house is gone), they're put in the new one.
+  function followMapChanges() {
+    const view = currentPlace(game);
+    if (viewKey(view) === shownView) return;
+    const samePlace = view.id === scene.place.id;
+    const wasTravelling = Boolean(trip);
+    trip = null;
+    showPlace();
+    const { layout } = scene;
+    if (!samePlace) {
+      placeIn(animator, layout);
+    } else if (wasTravelling) {
+      // Walk back in if they were already past the edge.
+      const inX = Math.min(Math.max(animator.x, layout.wanderMinX), layout.wanderMaxX);
+      enterScene(animator, layout, animator.x, inX === animator.x ? null : inX);
+    } else {
+      setLayout(animator, layout);
+    }
+  }
 
   // A trip to another place: the character walks out of each place on the
   // way (off an edge, or through a door) and into the next. `route` is the
@@ -336,12 +389,12 @@ async function start() {
   }
 
   function headForExit() {
-    travelTo(animator, exitX(scene.layout, exitBetween(game.place, trip.route[0])));
+    travelTo(animator, exitX(scene.layout, exitBetween(game, game.place, trip.route[0])));
   }
 
   function startTrip(to) {
     if (trip || to === game.place) return;
-    const route = routeBetween(game.place, to);
+    const route = routeBetween(game, game.place, to);
     if (!route) return;
     if (leavePlace(game)) saveGame(game);
     trip = { route, to };
@@ -358,7 +411,7 @@ async function start() {
     enterPlace(game, next);
     saveGame(game);
     showPlace();
-    const back = exitBetween(next, from);
+    const back = exitBetween(game, next, from);
     const { layout } = scene;
     const last = trip.route.length === 0;
     if (back.via === 'left' || back.via === 'right') {
@@ -376,18 +429,26 @@ async function start() {
   }
 
   // Where the character stays put, if anywhere: under the tree while
-  // busking, on the sofa while resting.
+  // busking, on the sofa, sleeping bag or tent while resting.
   function stayOf() {
     const { place, layout } = scene;
     if (place.id === FORTUNE_TREE_PLACE && isPlaying(game) && layout.props[TREE_PROP]) {
       return { x: layout.props[TREE_PROP].visitX, mode: 'busking' };
     }
-    const sofa = layout.props[SOFA_PROP];
-    if (place.id === HOME_PLACE && isResting(game) && sofa) {
-      const seatY = sofa.baseY - SOFA_SEAT * layout.scale;
-      return { x: sofa.visitX, mode: 'resting', lift: layout.feetY - seatY };
+    const spot = restSpotOf(game);
+    const bed = spot && layout.props[spot];
+    if (isResting(game) && bed) {
+      const seatY = bed.baseY - REST_SEATS[spot] * layout.scale;
+      return { x: bed.visitX, mode: 'resting', lift: layout.feetY - seatY };
     }
     return null;
+  }
+
+  // What the rest menu shows here, or null with nothing to rest on.
+  function restMenuView() {
+    const spot = restSpotOf(game);
+    if (!spot || trip) return null;
+    return { ...restView(game), title: scene.place.targets[spot], upgrade: upgradeView(game) };
   }
 
   // Developer settings, only when running from source (npm start). The
@@ -443,6 +504,12 @@ async function start() {
         placeIn(animator, scene.layout);
       },
       place: () => game.place,
+      places: () => existingPlaces(game),
+      setTier: (id) => {
+        if (setHousingTier(game, id)) saveGame(game);
+      },
+      tier: () => game.housing.tier,
+      toMoveOut: () => jumpToMoveOut(game),
       readout: () => devReadout(game),
       onOpen: () => closePanels('dev'),
     });
@@ -480,6 +547,7 @@ async function start() {
     // calls them back.
     const needed = Boolean(game.events.pending) || bubbles.length > 0 || now < speechUntil
       || eventCard.isOpen();
+    followMapChanges();
     updateAnimator(animator, dt, stage, gaitOf(age), {
       activity: activeActivity(game), employed: isEmployed(game), needed, stay: stayOf(),
     });
@@ -516,8 +584,8 @@ async function start() {
     statsPanel.update(game.character, careerView(game));
     goalMenu.update(goalView(game));
     treeMenu.update(place.name, place.id === FORTUNE_TREE_PLACE ? treeView(game) : null);
-    sofaMenu.update(place.id === HOME_PLACE ? sofaView(game) : null);
-    goMenu.update(place, Boolean(trip));
+    restMenu.update(restMenuView());
+    goMenu.update(place, existingPlaces(game), Boolean(trip));
     devMenu?.update();
 
     requestAnimationFrame(frame);

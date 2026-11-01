@@ -53,26 +53,40 @@ Early development. What works so far:
   of the window to work, coming back a bit later. At 65 they retire with
   a small yearly pension. Hover the name label to see job, level, pay and
   money. Job data is in `src/data/jobs.js`.
-- Places: there are three, and the current one's name shows under the
-  name label.
-  - The Fortune Tree and the Yard sit side by side: walking off the
-    Fortune Tree's right edge leads into the Yard, and back.
-  - The Yard has the house on the grass. Click the house and the
+- Places: the current one's name shows under the name label.
+  - Growing up, there are three: the Fortune Tree, the Parents' Yard
+    beside it (walking off the tree's right edge leads there, and back)
+    and the Parents' Home inside their house. Click the house and the
     character walks to the front door and goes inside.
-  - Home is the cozy living room inside: wallpaper, a wooden floor, a
-    window with a bit of sky, the front door and a sofa. Click the front
-    door to walk back out into the Yard.
+  - The Parents' Home is a cozy living room: wallpaper, a wooden floor,
+    a window with a bit of sky, the front door and a sofa. Click the
+    front door to walk back out into the yard.
   - The place button (the map pin in the top bar) opens "Go to", listing
     the other places. Pick one and the character walks there, through
-    any places in between (Fortune Tree to Home goes through the Yard
-    and in the front door). Babies crawl the whole way. The button is
-    disabled while they're on the way, and travelling stops busking or
-    resting.
-  - A new life starts at Home; a save from before places existed
-    continues at the Fortune Tree.
-- Resting at Home: click the sofa and pick "Rest". The character lies
-  on the sofa with little z's floating up, gaining 1 health every real
-  minute (up to 100) until you pick "Get up". No new events come up
+    any places in between (the Fortune Tree to the living room goes
+    through the yard and in the front door). Babies crawl the whole way.
+    The button is disabled while they're on the way, and travelling
+    stops busking or resting.
+  - A new life starts in the Parents' Home; a save from before places
+    existed continues at the Fortune Tree.
+- Moving out and your own home: at 18 the character moves out (a golden
+  "Moving out!" bubble). The parents' house is gone from the map; next
+  to the Fortune Tree is now My Yard, with just a sleeping bag on the
+  grass (if they were in the parents' living room, they end up there).
+  Click the sleeping bag to rest in it or buy the next home:
+  - Sleeping bag: where they start; resting gives 1 health every 3 real
+    minutes.
+  - Tent ($200): 1 health every 2 real minutes.
+  - House ($1,500): stands in My Yard and has their own living room,
+    Home, whose sofa gives 1 health every real minute.
+  The upgrade is greyed out with "Need $X more" until they can afford
+  it. Buying takes the money, shows a golden bubble, and the yard
+  changes right away. A save from before housing existed: adults start
+  with the sleeping bag in My Yard, children keep the parents' house.
+  Prices and rates are in `src/data/housing.js`.
+- Resting: click the sofa (or the sleeping bag or tent) and pick
+  "Rest". The character lies down with little z's floating up, gaining
+  health (up to 100) until you pick "Get up". No new events come up
   while resting (the event timer waits). The numbers are in
   `src/data/home.js`.
 - The Fortune Tree: from age 6, click the tree to open its menu:
@@ -112,9 +126,10 @@ button next to minimize opens the dev settings: start a new life, set
 the speed (normal, fast at about one year every 5 seconds, or very fast
 at one year a second), skip ahead 1 or 10 years, trigger an event, add
 $1,000, finish a busking session instantly, grow a golden apple now,
-finish a minute of rest instantly, jump to any place without walking,
-and see the character's stats, traits, goal, job, tree progress and
-place.
+rest a minute instantly, jump to age 18 to test moving out, set the
+housing tier (sleeping bag, tent, house), jump to any place without
+walking, and see the character's stats, traits, goal, job, tree
+progress, place and housing.
 It's hidden in packaged builds.
 
 Keyboard shortcuts (window focused): Ctrl+Shift+F toggles fast speed (the
@@ -128,7 +143,8 @@ start a new life by closing the app and deleting
 **Adding sprites:** every graphic is drawn in code for now, but any of
 them can be replaced by your own pixel art, one at a time, without
 code. Save a PNG in `assets/sprites/` named after what it replaces:
-`sky.png`, `grass.png`, `tree.png`, `yard.house.png`, `home.wall.png`,
+`sky.png`, `grass.png`, `tree.png`, `parents.house.png`,
+`yard.sleepingBag.png`, `yard.tent.png`, `yard.house.png`, `home.wall.png`,
 `home.floor.png`, `home.window.png`, `home.door.png`, `home.sofa.png`,
 `goldenApple.png` (drawn at the
 tree's scale unless it has its own `scale`, as the current 40 x 40 apple

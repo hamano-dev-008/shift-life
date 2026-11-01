@@ -4,9 +4,10 @@
 // (outlined props). It uses the house's colors (HOUSE_COLORS in
 // ui/props.js) so inside matches outside. ui/scene.js uses these when
 // there's no sprite for a piece. Sizes and positions come from the layout
-// (data/layout.js); the sofa's seat height from data/home.js.
+// (data/layout.js); the sofa's seat height from REST_SEATS in
+// data/home.js.
 
-import { SOFA_SEAT } from '../data/home.js';
+import { REST_SEATS } from '../data/home.js';
 import { HOUSE_COLORS, drawProp } from './props.js';
 
 const c = HOUSE_COLORS;
@@ -135,10 +136,10 @@ function paintDoor(px, w, h) {
 }
 
 // A two-seat sofa in the roof's red: a backrest with two cushions,
-// rounded armrests, seat cushions whose top is SOFA_SEAT rows above the
+// rounded armrests, seat cushions whose top is REST_SEATS rows above the
 // base (where the character lies), and short wooden legs.
 function paintSofa(px, w, h) {
-  const seatTop = h - SOFA_SEAT;
+  const seatTop = h - REST_SEATS['home.sofa'];
   const mid = Math.floor(w / 2);
   // Backrest.
   px(4, 0, w - 8, 1, c.roof);

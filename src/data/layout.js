@@ -31,9 +31,13 @@ export const PROP_BASE_FROM_BOTTOM = 12;
 // height: the prop's size. base: rows above the window bottom where its
 // bottom sits (default PROP_BASE_FROM_BOTTOM; higher for things on a
 // wall). visitOffset: how far from the prop's left side the character
-// stops when visiting (the trunk, a door, the middle of the sofa).
+// stops when visiting (the trunk, a door, the middle of the sofa or the
+// sleeping bag).
 export const PROPS = {
   tree: { edge: 'center', margin: 0, width: 18, height: 34, visitOffset: 9 },
+  'parents.house': { edge: 'right', margin: 8, width: 22, height: 26, visitOffset: 11 },
+  'yard.sleepingBag': { edge: 'right', margin: 16, width: 22, height: 4, base: 9, visitOffset: 11 },
+  'yard.tent': { edge: 'right', margin: 12, width: 26, height: 18, visitOffset: 13 },
   'yard.house': { edge: 'right', margin: 8, width: 22, height: 26, visitOffset: 11 },
   'home.window': { edge: 'center', margin: 0, width: 22, height: 17, base: 36, visitOffset: 11 },
   'home.door': { edge: 'left', margin: 4, width: 14, height: 27, base: 15, visitOffset: 7 },

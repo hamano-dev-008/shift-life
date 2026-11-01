@@ -1,5 +1,5 @@
-// props.js — Draws the outdoor props (the Fortune Tree's tree and the
-// Yard's house) in code, as outlined low-res pixel art scaled onto the
+// props.js — Draws the outdoor props (the Fortune Tree's tree, the
+// parents' house and the character's own house in My Yard) in code, as outlined low-res pixel art scaled onto the
 // scenery; ui/scene.js uses these when there's no sprite for a prop. Also
 // the shared prop painter and the house colors, which Home's room
 // (ui/room.js) matches. Sizes and positions come from the layout
@@ -32,6 +32,12 @@ export function drawTree(ctx, layout) {
   drawProp(ctx, layout, 'tree', paintTree);
 }
 
+export function drawParentsHouse(ctx, layout) {
+  drawProp(ctx, layout, 'parents.house', paintHouse);
+}
+
+// The character's own house (the top housing tier) looks like the
+// parents' house for now.
 export function drawHouse(ctx, layout) {
   drawProp(ctx, layout, 'yard.house', paintHouse);
 }
