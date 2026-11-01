@@ -5,6 +5,10 @@ export const SKIN_TONES = ['#ffdbc4', '#f1c27d', '#e0ac69', '#c68642', '#8d5524'
 
 export const HAIR_COLORS = ['#2b1d14', '#5a3825', '#8b5a2b', '#c48a3a', '#e6c36a', '#b5452f', '#1f1f2e'];
 
+// Hair closer than this to the skin color (RGB distance, 0-441) would blend
+// into the face, so it's darkened until it's at least this far apart.
+export const MIN_HAIR_SKIN_DISTANCE = 60;
+
 // Each id must have a matching case in drawHair() in src/ui/sprite.js.
 export const HAIR_STYLES = ['short', 'long', 'spiky', 'bun'];
 
