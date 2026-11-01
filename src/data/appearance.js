@@ -16,3 +16,11 @@ export const ELDER_HAIR_COLOR = '#c9c9d1';
 export const PANTS_COLOR = '#4a4e69';
 export const SHOE_COLOR = '#2e2a35';
 export const EYE_COLOR = '#2e2a35';
+export const EYE_WHITE = '#ffffff';
+export const MOUTH_COLOR = '#3a1f24';
+// Used instead of MOUTH_COLOR on darker skin tones.
+export const MOUTH_COLOR_LIGHT = '#f2b8ae';
+
+// 1px border around the character and props so they read against the sky.
+export const OUTLINE_COLOR = '#3d3a4b';
+export const SHADOW_COLOR = 'rgba(40, 70, 40, 0.25)';

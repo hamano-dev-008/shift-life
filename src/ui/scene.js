@@ -1,11 +1,8 @@
-// scene.js — The static backdrop: a dithered sky and a grassy ground strip,
-// drawn once to an offscreen canvas that's copied in every frame.
+// scene.js — The static backdrop: a dithered sky, a grassy ground strip,
+// and the props, drawn once to an offscreen canvas copied in every frame.
 
-export const SCENE_WIDTH = 160;
-export const SCENE_HEIGHT = 120;
-export const GROUND_TOP = 96;
-// Where characters' feet rest, a little way into the grass.
-export const FEET_Y = 106;
+import { SCENE_WIDTH, SCENE_HEIGHT, GROUND_TOP } from '../data/layout.js';
+import { drawProps } from './props.js';
 
 const SKY_TOP = [142, 202, 230];
 const SKY_HORIZON = [253, 226, 200];
@@ -76,5 +73,6 @@ export function createBackground() {
   const ctx = canvas.getContext('2d');
   drawSky(ctx);
   drawGround(ctx);
+  drawProps(ctx);
   return canvas;
 }

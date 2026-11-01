@@ -16,8 +16,11 @@ Early development. What works so far:
 - A small floating window (320x240, frameless, rounded, always on top).
   Drag it by its background; minimize or close it with the buttons in the
   top-right corner. It reopens where you left it.
-- A pixel character is born with a random name and look, and wanders the
-  grass, breathing, blinking, and pausing now and then.
+- A pixel character is born with a random name and look. They wander the
+  grass between a little house and a tree, sometimes stopping by one for
+  a moment, with a two-frame walk, breathing and blinking. Their face
+  smiles, looks neutral or frowns depending on mood (a placeholder value
+  for now).
 - Life runs in real time: one in-game year every 3 real minutes. The
   character grows from baby to child, teen, adult, and elder (grey hair),
   and the top-left label shows their name and age.
@@ -27,9 +30,9 @@ Early development. What works so far:
 No goals or events yet.
 
 **For testing:** with the window focused, Ctrl+Shift+F toggles
-fast-forward (about one year every 5 seconds; the label shows `>>`). To
-start a new life, close the app and delete
-`%APPDATA%\shift-life\save.json`.
+fast-forward (about one year every 5 seconds; the label shows `>>`), and
+Ctrl+Shift+M cycles the mood (smile, neutral, frown). To start a new life,
+close the app and delete `%APPDATA%\shift-life\save.json`.
 
 ## Requirements
 

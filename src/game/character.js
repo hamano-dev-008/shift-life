@@ -1,8 +1,10 @@
-// character.js — Character state: name, appearance, age, and life stage.
+// character.js — Character state: name, appearance, mood, age, and life
+// stage.
 
 import { NAMES } from '../data/names.js';
 import { SKIN_TONES, HAIR_COLORS, HAIR_STYLES, SHIRT_COLORS } from '../data/appearance.js';
 import { LIFE_STAGES } from '../data/lifeStages.js';
+import { DEFAULT_MOOD, MOOD_SMILE_AT, MOOD_FROWN_BELOW } from '../data/balance.js';
 
 function pick(list) {
   return list[Math.floor(Math.random() * list.length)];
@@ -14,6 +16,7 @@ export function createCharacter(bornAt) {
   return {
     name: pick(NAMES),
     bornAt,
+    mood: DEFAULT_MOOD,
     appearance: {
       skin: pick(SKIN_TONES),
       hair: pick(HAIR_COLORS),
@@ -32,6 +35,8 @@ export function restoreCharacter(data) {
   return {
     name: data.name,
     bornAt: data.bornAt,
+    // Saves from before mood existed get the default.
+    mood: Number.isFinite(data.mood) ? clampMood(data.mood) : DEFAULT_MOOD,
     appearance: {
       skin: look.skin,
       hair: look.hair,
@@ -40,6 +45,21 @@ export function restoreCharacter(data) {
       shirt: look.shirt,
     },
   };
+}
+
+function clampMood(mood) {
+  return Math.min(100, Math.max(0, mood));
+}
+
+export function setMood(character, mood) {
+  character.mood = clampMood(mood);
+}
+
+// Facial expression for the current mood: 'smile', 'neutral', or 'frown'.
+export function expressionOf(character) {
+  if (character.mood >= MOOD_SMILE_AT) return 'smile';
+  if (character.mood < MOOD_FROWN_BELOW) return 'frown';
+  return 'neutral';
 }
 
 // Age in whole years at clock time `years`.

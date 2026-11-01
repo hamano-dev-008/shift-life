@@ -2,9 +2,10 @@
 // one, runs the clock, draws each frame, and wires up controls and saving.
 
 import { createClock, startClock } from './game/clock.js';
-import { createCharacter, ageOf, lifeStageOf } from './game/character.js';
+import { createCharacter, ageOf, lifeStageOf, expressionOf, setMood } from './game/character.js';
 import { loadGame, saveGame, saveGameNow } from './game/save.js';
-import { createBackground, FEET_Y } from './ui/scene.js';
+import { SCENE_WIDTH, SCENE_HEIGHT, FEET_Y } from './data/layout.js';
+import { createBackground } from './ui/scene.js';
 import { createAnimator, updateAnimator, poseOf } from './ui/animator.js';
 import { drawCharacter } from './ui/sprite.js';
 
@@ -12,10 +13,14 @@ const AUTOSAVE_MS = 10000;
 // Caps one frame's animation step so a stalled window doesn't teleport the
 // character when it resumes.
 const MAX_FRAME_SECONDS = 0.1;
+// Moods the Ctrl+Shift+M dev shortcut cycles through (smile, neutral, frown).
+const DEV_MOODS = [80, 50, 20];
 
-// The scene is drawn on a low-res canvas (160x120) that CSS scales up 2x
-// with nearest-neighbour filtering, so every pixel stays a crisp square.
+// The scene is drawn on a low-res canvas that CSS scales up 2x with
+// nearest-neighbour filtering, so every pixel stays a crisp square.
 const canvas = document.getElementById('scene');
+canvas.width = SCENE_WIDTH;
+canvas.height = SCENE_HEIGHT;
 const ctx = canvas.getContext('2d');
 const label = document.getElementById('label');
 
@@ -36,10 +41,15 @@ async function start() {
   // Fires however the window closes (button, Alt+F4, taskbar).
   window.addEventListener('beforeunload', () => saveGameNow(game));
 
-  // Hidden developer shortcut: toggle fast-forward.
+  // Hidden developer shortcuts: Ctrl+Shift+F toggles fast-forward,
+  // Ctrl+Shift+M cycles the placeholder mood.
   window.addEventListener('keydown', (event) => {
-    if (event.ctrlKey && event.shiftKey && event.code === 'KeyF') {
+    if (!event.ctrlKey || !event.shiftKey) return;
+    if (event.code === 'KeyF') {
       game.clock.fastForward = !game.clock.fastForward;
+    } else if (event.code === 'KeyM') {
+      const next = DEV_MOODS.find((mood) => mood < game.character.mood) ?? DEV_MOODS[0];
+      setMood(game.character, next);
     }
   });
 
@@ -55,7 +65,8 @@ async function start() {
 
     updateAnimator(animator, dt, stage);
     ctx.drawImage(background, 0, 0);
-    drawCharacter(ctx, poseOf(animator, stage), stage, game.character.appearance, FEET_Y);
+    drawCharacter(ctx, poseOf(animator, stage), stage, game.character.appearance,
+      expressionOf(game.character), FEET_Y);
     setLabel(`${game.character.name} · ${age}y${game.clock.fastForward ? ' >>' : ''}`);
 
     requestAnimationFrame(frame);
