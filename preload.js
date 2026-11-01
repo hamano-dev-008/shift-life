@@ -1,6 +1,6 @@
 // preload.js — Exposes a minimal API to the renderer as window.shiftLife
-// (window controls and save file access), without giving the page access
-// to Node or Electron.
+// (window controls, save file access, and whether it's a dev run), without
+// giving the page access to Node or Electron.
 
 const { contextBridge, ipcRenderer } = require('electron');
 
@@ -10,4 +10,5 @@ contextBridge.exposeInMainWorld('shiftLife', {
   loadSave: () => ipcRenderer.invoke('save:load'),
   save: (data) => ipcRenderer.send('save:write', data),
   saveSync: (data) => ipcRenderer.sendSync('save:write-sync', data),
+  isDev: () => ipcRenderer.invoke('app:is-dev'),
 });

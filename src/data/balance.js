@@ -3,8 +3,15 @@
 // How long one in-game year lasts in real time, in minutes.
 export const REAL_MINUTES_PER_YEAR = 3;
 
-// Developer fast-forward (Ctrl+Shift+F): real seconds per in-game year.
-export const FAST_FORWARD_SECONDS_PER_YEAR = 5;
+// Clock speeds, set from the dev menu (Ctrl+Shift+F toggles normal and
+// fast). Per speed: real seconds per in-game year, the menu button's
+// label, and the mark after the age in the name label. Not saved; every
+// launch starts at normal.
+export const SPEEDS = {
+  normal: { secondsPerYear: REAL_MINUTES_PER_YEAR * 60, label: 'Normal', mark: '' },
+  fast: { secondsPerYear: 5, label: 'Fast', mark: '>>' },
+  veryFast: { secondsPerYear: 1, label: 'Very fast', mark: '>>>' },
+};
 
 // The mouth follows happiness (0-100). At or above MOOD_SMILE_AT smiles;
 // below MOOD_FROWN_BELOW frowns; anything between is neutral.

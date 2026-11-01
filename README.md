@@ -53,12 +53,19 @@ character's size on its own. Both are whole numbers, so pixels stay
 crisp: the scene is 3 by default and the character 2 (try 3 to match the
 scene).
 
-**For testing:** with the window focused, Ctrl+Shift+F toggles
-fast-forward (about one year every 5 seconds; the label shows `>>`),
-Ctrl+Shift+M cycles happiness (smile, neutral, frown), Ctrl+Shift+E
-starts an event right away (children and older only), and Ctrl+Shift+A
-starts the goal's idle activity. To start a new life, close the app and
-delete `%APPDATA%\shift-life\save.json`.
+**For testing:** when you run from source (`npm.cmd start`), a gear
+button next to minimize opens the dev settings: start a new life, set
+the speed (normal, fast at about one year every 5 seconds, or very fast
+at one year a second), skip ahead 1 or 10 years, trigger an event, add
+$1,000, and see the character's stats, traits and goal. It's hidden in
+packaged builds.
+
+Keyboard shortcuts (window focused): Ctrl+Shift+F toggles fast speed (the
+label shows `>>`), Ctrl+Shift+M cycles happiness (smile, neutral,
+frown), Ctrl+Shift+E starts an event right away (children and older
+only), and Ctrl+Shift+A starts the goal's idle activity. You can also
+start a new life by closing the app and deleting
+`%APPDATA%\shift-life\save.json`.
 
 **Adding events and goals:** add an entry to `src/data/events.js` or
 `src/data/goals.js`; each file describes its format at the top. Event

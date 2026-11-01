@@ -38,27 +38,32 @@ Shift-Life/
 ├── package-lock.json  Locked dependency versions (commit it)
 ├── main.js            Electron main process: creates the frameless,
 │                      transparent, always-on-top 320x240 window, saves and
-│                      restores its position, handles window and save IPC
+│                      restores its position, handles window and save IPC,
+│                      reports dev runs (!app.isPackaged)
 ├── preload.js         Exposes window.shiftLife { minimize, close, loadSave,
-│                      save, saveSync } to the renderer via contextBridge
+│                      save, saveSync, isDev } to the renderer via
+│                      contextBridge
 ├── src/
 │   ├── index.html     Renderer page: scene canvas, label, stats panel,
-│   │                  event bubble/card, goal button/menu, text bubble,
-│   │                  window buttons
+│   │                  event bubble/card, goal menu, dev menu, text
+│   │                  bubble, top-right buttons (goal, gear, -, x)
 │   ├── styles.css     Rounded frame, drag region, pixelated canvas, label,
-│   │                  stats panel, panels (event card, goal menu), goal
-│   │                  button, text bubble, buttons
+│   │                  stats panel, panels (event card, goal menu, dev
+│   │                  menu), top-right buttons, text bubble
 │   ├── renderer.js    Renderer entry point (ES module): loads or starts a
 │   │                  life, runs clock, events, goals, autosave, frame
-│   │                  loop, text bubble queue, dev shortcuts
+│   │                  loop, text bubble queue, dev menu wiring, dev
+│   │                  shortcuts
 │   ├── game/          Game logic only (no hard-coded content)
-│   │   ├── clock.js       Real-time clock: in-game years, fast-forward
+│   │   ├── clock.js       Real-time clock: in-game years, speed
 │   │   ├── character.js   Birth (random name/look/traits), stats,
 │   │   │                  expression, age, life stage
 │   │   ├── events.js      Event engine: scheduling, picking, choices,
 │   │   │                  outcomes, goal- and trait-based auto-decide
 │   │   ├── goals.js       Active goal, yearly stat drift, milestones,
 │   │   │                  the goal menu's view
+│   │   ├── dev.js         Dev actions: new life, speed, skip years,
+│   │   │                  trigger event, add money, read-out
 │   │   └── save.js        Save format (versioned) and load/save calls
 │   ├── ui/            Drawing and visual-only behavior
 │   │   ├── pixel.js       Low-res layer helpers: paint, outline, scaled draw
@@ -75,12 +80,14 @@ Shift-Life/
 │   │   │                  the text bubble, both following the head
 │   │   ├── eventCard.js   The event card: prompt and choice buttons
 │   │   ├── goalMenu.js    The goal menu: pick a goal, boost, milestones
+│   │   ├── devMenu.js     The dev settings menu (gear; dev runs only)
 │   │   └── statsPanel.js  Stats and traits panel under the name label
 │   └── data/          Pure game data, no logic
-│       ├── balance.js     Pacing (minutes per year, fast-forward), mood
+│       ├── balance.js     Pacing (minutes per year, clock speeds), mood
 │       │                  thresholds, event gap, auto-decide wait, whim,
 │       │                  goal weights for decisions and event picks
 │       ├── stats.js       Starting stats, stat names and short tags
+│       ├── dev.js         Dev menu amounts (skip-ahead years, money)
 │       ├── traits.js      Personality trait pairs, how many a newborn gets
 │       ├── goals.js       Life goals: stat, yearly drift, activity,
 │       │                  milestones (format documented in the file)
@@ -205,9 +212,24 @@ How it works, for anyone extending it:
     visual (`ui/animator.js`, drawn in `ui/sprite.js`).
 - **Stats panel:** hovering the name label shows stats and traits;
   clicking it pins the panel open.
-- **Dev shortcuts** (window focused):
-  - Ctrl+Shift+F toggles fast-forward, shown as `>>` in the label. It
-    isn't saved.
+- **Dev settings menu:** a gear button (left of minimize) opens it, but
+  only when running from source: `main.js` answers `app:is-dev` with
+  `!app.isPackaged`, so a packaged build never shows it.
+  - It offers: New life (confirmed in the menu with Yes/No, then replaces
+    the life in place and saves over the old one), clock speed (normal,
+    fast, very fast; `SPEEDS` in `data/balance.js`), skip ahead +1/+10
+    years, trigger a fitting event now (opens its card), add $1,000, and
+    a read-out of stats, traits and goal.
+  - `ui/devMenu.js` only calls the actions it's given; the work lives in
+    `game/dev.js`, and the renderer wraps it to keep the screen in step.
+    Amounts are in `data/dev.js`.
+  - Skipping years doesn't replay events: the character ages, goal
+    boosts catch up, and at most one due event comes up.
+  - The event card, goal menu and dev menu share the same spot, so
+    opening one closes the others.
+- **Dev shortcuts** (window focused; these work in any build):
+  - Ctrl+Shift+F toggles between normal and fast speed. The label shows
+    `>>` for fast and `>>>` for very fast. Speed isn't saved.
   - Ctrl+Shift+M cycles happiness through 80, 50 and 20 (smile, neutral,
     frown).
   - Ctrl+Shift+E starts a fitting event now (if none is waiting).

@@ -1,6 +1,6 @@
 // renderer.js — Renderer entry point: loads the saved life or starts a new
 // one, runs the clock, life events and goals, draws each frame, and wires
-// up controls and saving.
+// up controls, the dev settings menu (dev runs only) and saving.
 
 import { createClock, startClock } from './game/clock.js';
 import { createCharacter, ageOf, lifeStageOf, expressionOf, setStat } from './game/character.js';
@@ -11,7 +11,11 @@ import {
   createGoalState, updateGoals, setGoal, goalView, activeActivity,
 } from './game/goals.js';
 import { loadGame, saveGame, saveGameNow } from './game/save.js';
+import {
+  newLife, setSpeed, toggleFastForward, skipYears, triggerEvent, addMoney, devReadout,
+} from './game/dev.js';
 import { RESULT_BUBBLE_SECONDS, MILESTONE_BUBBLE_SECONDS } from './data/animation.js';
+import { SPEEDS } from './data/balance.js';
 import { computeLayout, createBackground } from './ui/scene.js';
 import {
   createAnimator, updateAnimator, poseOf, startActivityNow,
@@ -22,6 +26,7 @@ import {
 } from './ui/bubble.js';
 import { createEventCard } from './ui/eventCard.js';
 import { createGoalMenu } from './ui/goalMenu.js';
+import { createDevMenu } from './ui/devMenu.js';
 import { createStatsPanel } from './ui/statsPanel.js';
 
 const AUTOSAVE_MS = 10000;
@@ -109,8 +114,14 @@ async function start() {
     seconds: MILESTONE_BUBBLE_SECONDS, celebrate: true,
   });
 
-  // The event card and goal menu share the space below the top bar, so
-  // opening one closes the other.
+  // The event card, goal menu and dev menu share the space below the top
+  // bar, so opening one closes the others.
+  let devMenu = null;
+  function closeEventCard() {
+    if (!eventCard.isOpen()) return;
+    eventCard.close();
+    postponeAutoDecide(game);
+  }
   const eventCard = createEventCard(document.getElementById('event-card'), {
     onChoose: (index) => {
       const result = chooseEvent(game, index);
@@ -128,18 +139,18 @@ async function start() {
         if (setGoal(game, id)) saveGame(game);
       },
       onOpen: () => {
-        if (eventCard.isOpen()) {
-          eventCard.close();
-          postponeAutoDecide(game);
-        }
+        closeEventCard();
+        devMenu?.close();
       },
     });
-  eventBubble.addEventListener('click', () => {
+  function openEventCard() {
     const view = pendingEventView(game);
     if (!view) return;
     goalMenu.close();
+    devMenu?.close();
     eventCard.open(view);
-  });
+  }
+  eventBubble.addEventListener('click', openEventCard);
 
   setInterval(() => {
     const result = updateEvents(game, { holdAutoDecide: eventCard.isOpen() });
@@ -151,7 +162,43 @@ async function start() {
 
   const statsPanel = createStatsPanel(label, document.getElementById('stats'));
   const background = createBackground(layout);
-  const animator = createAnimator(layout);
+  let animator = createAnimator(layout);
+
+  // Developer settings, only when running from source (npm start). The
+  // menu calls the game/dev.js actions through these wrappers, which also
+  // keep the screen in step (saving, bubbles, the event card).
+  if (await window.shiftLife.isDev()) {
+    const gear = document.getElementById('dev-btn');
+    gear.hidden = false;
+    devMenu = createDevMenu(document.getElementById('dev-menu'), gear, {
+      newLife: () => {
+        newLife(game);
+        saveGameNow(game);
+        bubbles.length = 0;
+        speechUntil = 0;
+        eventCard.close();
+        goalMenu.close();
+        animator = createAnimator(layout);
+      },
+      setSpeed: (speed) => setSpeed(game, speed),
+      speed: () => game.clock.speed,
+      skipYears: (years) => skipYears(game, years),
+      triggerEvent: () => {
+        if (!triggerEvent(game)) return false;
+        openEventCard();
+        return true;
+      },
+      addMoney: (amount) => {
+        addMoney(game, amount);
+        saveGame(game);
+      },
+      readout: () => devReadout(game),
+      onOpen: () => {
+        closeEventCard();
+        goalMenu.close();
+      },
+    });
+  }
 
   // Hidden developer shortcuts: Ctrl+Shift+F toggles fast-forward,
   // Ctrl+Shift+M cycles happiness, Ctrl+Shift+E starts an event now,
@@ -159,7 +206,7 @@ async function start() {
   window.addEventListener('keydown', (event) => {
     if (!event.ctrlKey || !event.shiftKey) return;
     if (event.code === 'KeyF') {
-      game.clock.fastForward = !game.clock.fastForward;
+      toggleFastForward(game);
     } else if (event.code === 'KeyM') {
       const { happiness } = game.character.stats;
       setStat(game.character, 'happiness', DEV_MOODS.find((mood) => mood < happiness) ?? DEV_MOODS[0]);
@@ -183,7 +230,8 @@ async function start() {
     ctx.drawImage(background, 0, 0);
     drawCharacter(ctx, pose, stage, game.character.appearance,
       expressionOf(game.character), layout.feetY, layout.characterScale);
-    setLabel(`${game.character.name} · ${age}y${game.clock.fastForward ? ' >>' : ''}`);
+    const { mark } = SPEEDS[game.clock.speed];
+    setLabel(`${game.character.name} · ${age}y${mark ? ` ${mark}` : ''}`);
 
     // Bubbles follow the character's head. Text bubbles take the spot
     // first; a new "!" waits until they're done.
@@ -199,6 +247,7 @@ async function start() {
     }
     statsPanel.update(game.character);
     goalMenu.update(goalView(game));
+    devMenu?.update();
 
     requestAnimationFrame(frame);
   }

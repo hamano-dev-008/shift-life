@@ -1,6 +1,7 @@
 /* styles.css — Look of the companion window: rounded frame, pixel-crisp
    scene canvas, name/age label and stats panel, event bubble and card,
-   goal button and menu, and the minimize/close buttons. */
+   goal button and menu, dev gear and menu, and the minimize/close
+   buttons. */
 
 html,
 body {
@@ -336,21 +337,13 @@ body {
   flex: 1;
 }
 
-/* Opens the goal menu; sits left of the minimize/close buttons. A small
-   pixel flag is drawn before the goal's name. */
-#goal-btn {
-  position: absolute;
-  top: 6px;
-  right: 46px;
-  height: 16px;
+/* Opens the goal menu; first in the top-right row of buttons, wider than
+   the others to fit the goal's name. A small pixel flag is drawn before
+   the name. */
+#controls #goal-btn {
+  position: relative;
+  width: auto;
   padding: 0 5px 0 13px;
-  border: none;
-  border-radius: 4px;
-  font: 8px/16px 'Press Start 2P', monospace;
-  color: #3d3a4b;
-  background: rgba(255, 255, 255, 0.55);
-  cursor: pointer;
-  -webkit-app-region: no-drag;
 }
 
 #goal-btn::before {
@@ -373,10 +366,61 @@ body {
   background: #e07a5f;
 }
 
-#goal-btn:hover {
-  background: rgba(255, 255, 255, 0.9);
+#controls button:focus {
+  outline: none;
 }
 
-#goal-btn:focus {
-  outline: none;
+/* The dev settings gear: an 8x8 pixel SVG centered in the button. */
+#dev-btn svg {
+  display: block;
+  margin: 4px auto;
+}
+
+/* Dev settings menu rows: an optional label, then buttons. */
+.panel .dev-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 4px;
+}
+
+.panel .dev-label {
+  min-width: 48px;
+}
+
+.panel .dev-row button {
+  padding: 2px 5px;
+  border: 2px solid #3d3a4b;
+  border-radius: 4px;
+  background: #f6e7c8;
+}
+
+.panel .dev-row button:hover {
+  background: #f2cc8f;
+}
+
+.panel .dev-row button.active {
+  color: #fffaf0;
+  background: #81b29a;
+}
+
+.panel .dev-row button.danger {
+  color: #fffaf0;
+  background: #e07a5f;
+}
+
+.panel .dev-note {
+  margin: 0 0 4px;
+  color: #a24f49;
+}
+
+.panel .dev-readout {
+  margin: 6px 0 0;
+  padding-top: 4px;
+  border-top: 2px dashed #e3cfa8;
+  color: #6b6478;
+}
+
+.panel .dev-readout span {
+  display: block;
 }

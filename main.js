@@ -1,6 +1,7 @@
 // main.js — Electron main process: creates the floating, frameless,
-// always-on-top companion window, remembers where the player left it, and
-// reads/writes the game save file for the renderer.
+// always-on-top companion window, remembers where the player left it,
+// reads/writes the game save file for the renderer, and tells it whether
+// it's running from source (for developer settings).
 
 const { app, BrowserWindow, ipcMain, screen } = require('electron');
 const fs = require('fs');
@@ -87,6 +88,10 @@ ipcMain.on('window:minimize', (event) => {
 ipcMain.on('window:close', (event) => {
   BrowserWindow.fromWebContents(event.sender)?.close();
 });
+
+// True when running from source (npm start) rather than a packaged build;
+// the renderer only shows developer settings then.
+ipcMain.handle('app:is-dev', () => !app.isPackaged);
 
 // Returns the parsed save, or null if there is none or it can't be read.
 ipcMain.handle('save:load', () => {
