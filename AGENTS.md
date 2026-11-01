@@ -21,9 +21,10 @@ with **Electron and plain JavaScript**.
 
 ## Folder structure
 
-> **Status:** the project is just starting. The layout below is the
-> **planned** structure. Follow it when adding files, and update this section
-> to match reality whenever files are added, moved, or removed.
+> **Status:** the app shell exists: a floating window showing a placeholder
+> pixel scene. Items marked *(planned)* don't exist yet; follow the planned
+> layout when adding them, and update this section whenever files are added,
+> moved, or removed.
 
 ```
 Shift-Life/
@@ -31,27 +32,51 @@ Shift-Life/
 ├── CLAUDE.md          Imports AGENTS.md for Claude Code
 ├── README.md          Player/developer-facing overview and run steps
 ├── .gitignore         Keeps node_modules, build output, and OS files out of git
-├── package.json       npm scripts and dependencies (Electron)
+├── package.json       npm scripts and dependencies
+├── package-lock.json  Locked dependency versions (commit it)
 ├── main.js            Electron main process: creates the frameless,
-│                      transparent, always-on-top window; app lifecycle
-├── preload.js         Safe bridge (contextBridge) between main and renderer
+│                      transparent, always-on-top 320x240 window, saves and
+│                      restores its position, handles minimize/close IPC
+├── preload.js         Exposes window.shiftLife { minimize, close } to the
+│                      renderer via contextBridge
 ├── src/
-│   ├── index.html     Renderer page that hosts the character canvas
-│   ├── renderer.js    Entry point for the renderer: starts the game loop
-│   ├── game/          Game logic only (no hard-coded content)
+│   ├── index.html     Renderer page: scene canvas and window buttons
+│   ├── styles.css     Rounded frame, drag region, pixelated canvas, buttons
+│   ├── renderer.js    Renderer entry point: draws the placeholder scene
+│   │                  (dithered sky, grass, pixel text), wires up buttons
+│   ├── game/          (planned) Game logic only (no hard-coded content)
 │   │   ├── clock.js       Real-time simulation clock / ticks
 │   │   ├── character.js   Character state: needs, mood, current activity
 │   │   ├── goals.js       Player-set goals and progress
 │   │   └── events.js      Event engine: picks and resolves bubble events
-│   ├── ui/            Drawing and interface: sprites, speech bubbles
-│   └── data/          Pure game data, no logic
+│   ├── ui/            (planned) Drawing and interface: sprites, bubbles
+│   └── data/          (planned) Pure game data, no logic
 │       ├── events.js      Speech-bubble event definitions
 │       ├── jobs.js        Jobs/shifts and their effects
 │       └── names.js       Name lists
 ├── assets/
-│   └── sprites/       Pixel-art images
-└── test/              Automated tests
+│   └── sprites/       (planned) Pixel-art images
+└── test/              (planned) Automated tests
 ```
+
+How the shell works, for anyone extending it:
+
+- **Rendering:** the scene is drawn on a 160x120 canvas that CSS scales 2x
+  with `image-rendering: pixelated`. Draw in canvas pixels at integer
+  coordinates. Text goes through `drawPixelText()` in `renderer.js`, which
+  removes anti-aliasing.
+- **Font:** "Press Start 2P" comes from the `@fontsource/press-start-2p`
+  npm package and is linked from `node_modules`, so no network is needed.
+  Use it at multiples of 8px.
+- **Dragging:** `#app` has `-webkit-app-region: drag`, so the whole window
+  background drags the window. Any element that needs clicks (buttons,
+  the character later) must set `-webkit-app-region: no-drag`.
+- **Renderer ↔ main:** the renderer has no Node access. Add new
+  capabilities as named IPC channels in `main.js` and expose them through
+  `window.shiftLife` in `preload.js`.
+- **Saved state:** the window position is stored in
+  `%APPDATA%\shift-life\window-state.json`. It's ignored if it would put
+  the window off every connected screen.
 
 ## Install, run, and test
 
@@ -64,8 +89,11 @@ The same goes for `npx` → `npx.cmd`. In Git Bash, plain `npm` works.
 ```powershell
 npm.cmd install      # install dependencies
 npm.cmd start        # launch the game (runs `electron .`)
-npm.cmd test         # run the test suite
+npm.cmd test         # run the test suite (not set up yet)
 ```
+
+The first `npm.cmd start` after a fresh install downloads the Electron
+binary, so it takes longer than later starts.
 
 There are no tests yet. When you add the first ones, wire them up to
 `npm.cmd test` and update this section. Before committing, at least launch

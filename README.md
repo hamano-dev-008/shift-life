@@ -11,8 +11,11 @@ Built with Electron and plain JavaScript.
 
 ## Status
 
-Early development. The app is not runnable yet; the steps below describe
-how it will work once `package.json` and the Electron entry point exist.
+Early development. The app shell runs: a small floating window (320x240,
+frameless, rounded, always on top) with a placeholder pixel scene that says
+"Life loading...". Drag the window by its background, and use the buttons
+in the top-right corner to minimize or close it. It reopens where you left
+it. There's no character or gameplay yet.
 
 ## Requirements
 
@@ -26,10 +29,10 @@ In PowerShell, use `npm.cmd` instead of `npm`:
 ```powershell
 npm.cmd install      # install dependencies
 npm.cmd start        # launch the game
-npm.cmd test         # run the tests
 ```
 
-In Git Bash, plain `npm` works.
+In Git Bash, plain `npm` works. The first start downloads Electron, so it
+takes a little longer. There are no tests yet.
 
 ## Project layout
 

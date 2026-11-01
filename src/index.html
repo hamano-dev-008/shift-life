@@ -1,0 +1,22 @@
+<!doctype html>
+<!-- index.html — Renderer page: the companion window's scene and controls. -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'">
+  <title>Shift-Life</title>
+  <link rel="stylesheet" href="../node_modules/@fontsource/press-start-2p/400.css">
+  <link rel="stylesheet" href="styles.css">
+  <script src="renderer.js" defer></script>
+</head>
+<body>
+  <main id="app">
+    <canvas id="scene" width="160" height="120"></canvas>
+    <div id="controls">
+      <button id="minimize-btn" title="Minimize" aria-label="Minimize">-</button>
+      <button id="close-btn" title="Close" aria-label="Close">x</button>
+    </div>
+  </main>
+</body>
+</html>
