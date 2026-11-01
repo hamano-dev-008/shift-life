@@ -688,3 +688,7 @@ the DevTools console.
    steps change.
 5. If a task is ambiguous or would break these rules (new framework, large
    refactor), ask the user before proceeding.
+6. **Restart the game after every completed change.** Gracefully close the
+   running Shift-Life window so its life saves, then launch `npm.cmd start`
+   again and confirm the updated game opens. Do this automatically so the
+   player can try the latest changes; avoid leaving duplicate instances.
