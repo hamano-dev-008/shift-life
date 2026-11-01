@@ -54,7 +54,8 @@ Shift-Life/
 │   │   └── events.js      (planned) Event engine for bubble events
 │   ├── ui/            Drawing and visual-only behavior
 │   │   ├── pixel.js       Low-res layer helpers: paint, outline, scaled draw
-│   │   ├── scene.js       Backdrop: dithered sky, grass, props (drawn once)
+│   │   ├── scene.js       computeLayout() (data → canvas pixels) and the
+│   │   │                  backdrop: dithered sky, grass, props (drawn once)
 │   │   ├── props.js       Draws the house and tree
 │   │   ├── animator.js    Wandering, prop visits, facing, walk frames,
 │   │   │                  breathing, blinking
@@ -63,8 +64,8 @@ Shift-Life/
 │   └── data/          Pure game data, no logic
 │       ├── balance.js     Pacing (minutes per year, fast-forward), default
 │       │                  mood and expression thresholds
-│       ├── layout.js      Scene size, ground, feet row, sprite scale, prop
-│       │                  positions/sizes/visit spots, wander bounds
+│       ├── layout.js      SCENE_SCALE (the one scene-size knob), ground,
+│       │                  feet row, prop edges/sizes/visit spots, margins
 │       ├── characterShapes.js  Body proportions per life stage
 │       ├── animation.js   Walk speeds, stride length, pause and blink timing,
 │       │                  visit chance
@@ -85,13 +86,18 @@ How it works, for anyone extending it:
 - **Modules:** the renderer uses native ES modules (`<script type="module">`
   and relative `import`s with `.js` extensions), with no bundler.
   `main.js` and `preload.js` are CommonJS.
-- **Rendering:** the scene is drawn on a 160x120 canvas that CSS scales 2x
-  with `image-rendering: pixelated`.
-  - Sky and grass are painted in canvas pixels.
-  - The character and props are painted on small offscreen layers in
-    sprite pixels (`ui/pixel.js`), given a 1px outline, then drawn at
-    `SPRITE_SCALE` (2x) with nearest-neighbour. Never smooth or use
-    non-integer scales.
+- **Rendering:** the canvas matches the window (320x240 CSS pixels).
+  - All art is pixel art on a grid of "scene pixels", each drawn as a
+    `SCENE_SCALE` x `SCENE_SCALE` block (`data/layout.js`, default 3).
+    Sky, grass, props and character are painted on small offscreen layers
+    in scene pixels (`ui/pixel.js`), then drawn scaled with
+    nearest-neighbour. Props and the character get a 1px outline. Never
+    smooth or use non-integer scales.
+  - Sizes and positions in `data/` are in scene pixels, measured from the
+    window edges. `computeLayout()` in `ui/scene.js` turns them into
+    canvas pixels. Code that places things (animator, sprite, props) uses
+    that layout, never raw canvas numbers, so changing `SCENE_SCALE`
+    resizes the whole scene and props stay at the edges.
   - The backdrop with its props is drawn once and copied in every frame.
     The character is redrawn every frame from `poseOf()` (animator) and
     `drawCharacter()` (sprite), painted facing right and mirrored when

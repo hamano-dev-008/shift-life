@@ -1,8 +1,7 @@
 // props.js — Draws the scene's props (a house and a tree) as outlined
 // low-res pixel art scaled onto the backdrop. Sizes and positions come
-// from PROPS in data/layout.js.
+// from the layout (computeLayout() in scene.js, from data/layout.js).
 
-import { PROPS, SPRITE_SCALE } from '../data/layout.js';
 import { OUTLINE_COLOR } from '../data/appearance.js';
 import { createLayer, fill, outline, drawLayer } from './pixel.js';
 
@@ -23,19 +22,19 @@ const LEAF_DARK = '#4b8a4a';
 const LEAF_LIGHT = '#7cc46d';
 const FRUIT = '#e07a5f';
 
-export function drawProps(ctx) {
-  drawProp(ctx, PROPS.house, paintHouse);
-  drawProp(ctx, PROPS.tree, paintTree);
+export function drawProps(ctx, layout) {
+  drawProp(ctx, layout.props.house, paintHouse, layout.scale);
+  drawProp(ctx, layout.props.tree, paintTree, layout.scale);
 }
 
 // Paints a prop on its own layer, leaving a 1px margin for the outline,
 // and places it so the art's left edge is at prop.x and bottom at prop.baseY.
-function drawProp(ctx, prop, paint) {
+function drawProp(ctx, prop, paint, scale) {
   const layer = createLayer(prop.width + 2, prop.height + 2);
   const px = (col, row, w, h, color) => fill(layer, col + 1, row + 1, w, h, color);
   paint(px, prop.width, prop.height);
   outline(layer, OUTLINE_COLOR);
-  drawLayer(ctx, layer, prop.x - SPRITE_SCALE, prop.baseY + SPRITE_SCALE, SPRITE_SCALE);
+  drawLayer(ctx, layer, prop.x - scale, prop.baseY + scale, scale);
 }
 
 function paintHouse(px, w, h) {

@@ -1,5 +1,5 @@
 // pixel.js — Helpers for low-res pixel art: paint on a small offscreen
-// "layer" in sprite pixels, outline it, then draw it scaled up with
+// "layer" in scene pixels, outline it, then draw it scaled up with
 // nearest-neighbour so every pixel stays a crisp square.
 
 export function createLayer(width, height) {

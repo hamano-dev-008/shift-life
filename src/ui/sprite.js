@@ -2,11 +2,10 @@
 // character drawing lives here so it can be swapped for hand-drawn sprite
 // sheets later without touching the rest of the game.
 //
-// The sprite is painted facing right on a small layer in sprite pixels,
-// outlined, then scaled up by SPRITE_SCALE (mirrored when facing left).
+// The sprite is painted facing right on a small layer in scene pixels,
+// outlined, then scaled up by the scene scale (mirrored when facing left).
 
 import { CHARACTER_SHAPES } from '../data/characterShapes.js';
-import { SPRITE_SCALE } from '../data/layout.js';
 import {
   ELDER_HAIR_COLOR, PANTS_COLOR, SHOE_COLOR, EYE_COLOR, EYE_WHITE,
   MOUTH_COLOR, MOUTH_COLOR_LIGHT, OUTLINE_COLOR, SHADOW_COLOR,
@@ -16,6 +15,7 @@ import { createLayer, clearLayer, fill, outline, drawLayer } from './pixel.js';
 // Big enough for the tallest stage plus hair and outline. Column ANCHOR is
 // the character's center; feet end just above the last row, which is left
 // for the outline.
+// Layer sizes and coordinates below are in scene pixels.
 const LAYER_WIDTH = 24;
 const LAYER_HEIGHT = 30;
 const ANCHOR = 12;
@@ -32,8 +32,8 @@ const layer = createLayer(LAYER_WIDTH, LAYER_HEIGHT);
 
 // Draws the character. `pose` comes from poseOf() in animator.js;
 // `expression` is 'smile', 'neutral', or 'frown'; feetY is the canvas row
-// the feet rest on.
-export function drawCharacter(ctx, pose, stage, appearance, expression, feetY) {
+// the feet rest on; scale is screen pixels per scene pixel.
+export function drawCharacter(ctx, pose, stage, appearance, expression, feetY, scale) {
   const shape = CHARACTER_SHAPES[stage];
   const px = (col, row, w, h, color) => fill(layer, ANCHOR + col, row, w, h, color);
 
@@ -50,10 +50,10 @@ export function drawCharacter(ctx, pose, stage, appearance, expression, feetY) {
   drawHead(px, shape, stage, appearance, headLeft, headTop, pose.blinking, expression);
   outline(layer, OUTLINE_COLOR);
 
-  const shadowWidth = (shape.width + 2) * SPRITE_SCALE;
+  const shadowWidth = (shape.width + 2) * scale;
   ctx.fillStyle = SHADOW_COLOR;
-  ctx.fillRect(pose.x - shadowWidth / 2, feetY, shadowWidth, SPRITE_SCALE);
-  drawLayer(ctx, layer, pose.x, feetY + SPRITE_SCALE, SPRITE_SCALE, {
+  ctx.fillRect(pose.x - shadowWidth / 2, feetY, shadowWidth, scale);
+  drawLayer(ctx, layer, pose.x, feetY + scale, scale, {
     anchorCol: ANCHOR,
     flip: pose.facing === -1,
   });

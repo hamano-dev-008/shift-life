@@ -1,25 +1,29 @@
-// layout.js — Sizes and positions in the scene. Units are canvas pixels
-// (the 160x120 canvas CSS scales 2x) unless noted as sprite pixels.
+// layout.js — Scene scale, sizes, and positions. Everything in the scene is
+// pixel art on a grid of "scene pixels"; each one is drawn as a
+// SCENE_SCALE x SCENE_SCALE block of screen pixels. Sizes and positions
+// below are in scene pixels, measured from the window edges, so they adapt
+// when SCENE_SCALE changes.
 
-export const SCENE_WIDTH = 160;
-export const SCENE_HEIGHT = 120;
-export const GROUND_TOP = 96;
+// Overall scene scale: screen pixels per scene pixel. Whole numbers only,
+// so pixels stay crisp. 3 makes an adult about a quarter of the window
+// height; 2 is smaller, 4 is bigger.
+export const SCENE_SCALE = 3;
 
-// Canvas row the character's feet rest on, in front of the props.
-export const FEET_Y = 110;
+// Height of the grass strip along the bottom of the window.
+export const GROUND_HEIGHT = 16;
 
-// The character and props are drawn on their own low-res grid ("sprite
-// pixels") and scaled up by this whole number with nearest-neighbour.
-export const SPRITE_SCALE = 2;
+// Rows above the window bottom where the character's feet rest, and where
+// the props stand (further back, so the character walks in front of them).
+export const FEET_FROM_BOTTOM = 7;
+export const PROP_BASE_FROM_BOTTOM = 12;
 
-// x / baseY: canvas position of the prop's left edge and bottom.
-// width / height: the prop's size in sprite pixels.
-// visitX: canvas x where the character stops when visiting it.
+// edge / margin: which window edge the prop sits against, and how far
+// from it. width / height: the prop's size. visitOffset: how far from the
+// prop's left side the character stops when visiting (the door, the trunk).
 export const PROPS = {
-  house: { x: 2, baseY: 102, width: 22, height: 26, visitX: 24 },
-  tree: { x: 120, baseY: 102, width: 18, height: 34, visitX: 138 },
+  house: { edge: 'left', margin: 1, width: 22, height: 26, visitOffset: 11 },
+  tree: { edge: 'right', margin: 1, width: 18, height: 34, visitOffset: 9 },
 };
 
-// How far left and right the character's center may wander.
-export const WANDER_MIN_X = 14;
-export const WANDER_MAX_X = SCENE_WIDTH - 14;
+// How close to the window edges the character's center may wander.
+export const WANDER_MARGIN = 6;

@@ -29,6 +29,9 @@ Early development. What works so far:
 
 No goals or events yet.
 
+**Scene size:** `SCENE_SCALE` in `src/data/layout.js` sets how big
+everything is drawn (whole numbers; 3 by default, try 2 or 4).
+
 **For testing:** with the window focused, Ctrl+Shift+F toggles
 fast-forward (about one year every 5 seconds; the label shows `>>`), and
 Ctrl+Shift+M cycles the mood (smile, neutral, frown). To start a new life,

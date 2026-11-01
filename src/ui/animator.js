@@ -1,8 +1,8 @@
 // animator.js — Purely visual motion for the character: wandering, visiting
 // the house and tree, facing, walking legs, breathing, and blinking. Never
-// touches game state. Speeds and timings live in data/animation.js.
+// touches game state. Speeds and timings live in data/animation.js, in
+// scene pixels; positions here are canvas pixels from computeLayout().
 
-import { PROPS, WANDER_MIN_X, WANDER_MAX_X } from '../data/layout.js';
 import {
   WALK_SPEED, STRIDE_LENGTH, IDLE_PAUSE, VISIT_PAUSE, VISIT_CHANCE,
   MIN_WALK_DISTANCE, BLINK_INTERVAL, BLINK_DURATION, BREATH_CYCLE,
@@ -12,9 +12,12 @@ function randomIn([min, max]) {
   return min + Math.random() * (max - min);
 }
 
-export function createAnimator() {
+export function createAnimator(layout) {
+  const middle = (layout.wanderMinX + layout.wanderMaxX) / 2;
+  const spread = (layout.wanderMaxX - layout.wanderMinX) / 4;
   return {
-    x: randomIn([WANDER_MIN_X + 30, WANDER_MAX_X - 30]),
+    layout,
+    x: randomIn([middle - spread, middle + spread]),
     facing: 1, // 1 = right, -1 = left
     walking: false,
     targetX: 0,
@@ -31,17 +34,19 @@ export function createAnimator() {
 // Sometimes heads to a prop (not the one just visited), otherwise to a
 // random spot at least MIN_WALK_DISTANCE away.
 function chooseTarget(anim) {
+  const { props, wanderMinX, wanderMaxX, scale } = anim.layout;
+  const minDistance = MIN_WALK_DISTANCE * scale;
   if (Math.random() < VISIT_CHANCE) {
-    const choices = Object.keys(PROPS).filter((id) => id !== anim.lastVisited);
+    const choices = Object.keys(props).filter((id) => id !== anim.lastVisited);
     const id = choices[Math.floor(Math.random() * choices.length)];
-    if (Math.abs(PROPS[id].visitX - anim.x) >= MIN_WALK_DISTANCE) {
-      return { x: PROPS[id].visitX, destination: id };
+    if (Math.abs(props[id].visitX - anim.x) >= minDistance) {
+      return { x: props[id].visitX, destination: id };
     }
   }
   let x;
   do {
-    x = randomIn([WANDER_MIN_X, WANDER_MAX_X]);
-  } while (Math.abs(x - anim.x) < MIN_WALK_DISTANCE);
+    x = randomIn([wanderMinX, wanderMaxX]);
+  } while (Math.abs(x - anim.x) < minDistance);
   return { x, destination: null };
 }
 
@@ -49,7 +54,7 @@ export function updateAnimator(anim, dt, stage) {
   anim.time += dt;
 
   if (anim.walking) {
-    const step = WALK_SPEED[stage] * dt;
+    const step = WALK_SPEED[stage] * anim.layout.scale * dt;
     const distance = anim.targetX - anim.x;
     if (Math.abs(distance) <= step) {
       anim.walked += Math.abs(distance);
@@ -86,6 +91,6 @@ export function poseOf(anim, stage) {
     breath: !anim.walking && anim.time % BREATH_CYCLE > BREATH_CYCLE * 0.6 ? 1 : 0,
     // 2-frame walk: legs together, then mid-stride, alternating with
     // ground covered so the feet don't slide.
-    stride: anim.walking && Math.floor(anim.walked / STRIDE_LENGTH[stage]) % 2 === 1,
+    stride: anim.walking && Math.floor(anim.walked / (STRIDE_LENGTH[stage] * anim.layout.scale)) % 2 === 1,
   };
 }

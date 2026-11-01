@@ -4,8 +4,7 @@
 import { createClock, startClock } from './game/clock.js';
 import { createCharacter, ageOf, lifeStageOf, expressionOf, setMood } from './game/character.js';
 import { loadGame, saveGame, saveGameNow } from './game/save.js';
-import { SCENE_WIDTH, SCENE_HEIGHT, FEET_Y } from './data/layout.js';
-import { createBackground } from './ui/scene.js';
+import { computeLayout, createBackground } from './ui/scene.js';
 import { createAnimator, updateAnimator, poseOf } from './ui/animator.js';
 import { drawCharacter } from './ui/sprite.js';
 
@@ -16,12 +15,13 @@ const MAX_FRAME_SECONDS = 0.1;
 // Moods the Ctrl+Shift+M dev shortcut cycles through (smile, neutral, frown).
 const DEV_MOODS = [80, 50, 20];
 
-// The scene is drawn on a low-res canvas that CSS scales up 2x with
-// nearest-neighbour filtering, so every pixel stays a crisp square.
+// The canvas matches the window's size in CSS pixels. The art is drawn
+// in scene pixels and scaled up by whole numbers (see data/layout.js).
 const canvas = document.getElementById('scene');
-canvas.width = SCENE_WIDTH;
-canvas.height = SCENE_HEIGHT;
+canvas.width = canvas.clientWidth;
+canvas.height = canvas.clientHeight;
 const ctx = canvas.getContext('2d');
+const layout = computeLayout(canvas.width, canvas.height);
 const label = document.getElementById('label');
 
 function newGame() {
@@ -53,8 +53,8 @@ async function start() {
     }
   });
 
-  const background = createBackground();
-  const animator = createAnimator();
+  const background = createBackground(layout);
+  const animator = createAnimator(layout);
   let last = performance.now();
 
   function frame(now) {
@@ -66,7 +66,7 @@ async function start() {
     updateAnimator(animator, dt, stage);
     ctx.drawImage(background, 0, 0);
     drawCharacter(ctx, poseOf(animator, stage), stage, game.character.appearance,
-      expressionOf(game.character), FEET_Y);
+      expressionOf(game.character), layout.feetY, layout.scale);
     setLabel(`${game.character.name} · ${age}y${game.clock.fastForward ? ' >>' : ''}`);
 
     requestAnimationFrame(frame);
