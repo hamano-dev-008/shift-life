@@ -1,7 +1,8 @@
 // dev.js — Developer actions behind the dev settings menu and shortcuts:
 // start a new life, change the clock speed, skip ahead, force an event,
-// add money, finish a busking session or grow a golden apple now, and a
-// read-out of the character. The menu (ui/devMenu.js) only calls these.
+// add money, finish a busking session, grow a golden apple, finish a rest
+// period or switch place now, and a read-out of the character. The menu
+// (ui/devMenu.js) only calls these.
 
 import { SPEEDS } from '../data/balance.js';
 import { STAT_TAGS } from '../data/stats.js';
@@ -10,8 +11,10 @@ import { createCharacter, changeStats, ageOf } from './character.js';
 import { createEventState, startEvent } from './events.js';
 import { createGoalState, goalById } from './goals.js';
 import { createJobState, careerView } from './jobs.js';
-import { DEFAULT_PLACE } from '../data/places.js';
+import { NEW_LIFE_PLACE } from '../data/places.js';
 import { createTreeState, finishSession, makeAppleReady, treeView } from './fortuneTree.js';
+import { createHomeState, finishRestPeriod, isResting } from './home.js';
+import { currentPlace, enterPlace, leavePlace } from './places.js';
 
 // Replaces the life with a newborn, in place, so everything holding `game`
 // sees the new one. The clock starts over at 0 and keeps its speed. Save
@@ -22,8 +25,9 @@ export function newLife(game) {
   game.events = createEventState(0);
   game.goals = createGoalState(0);
   game.jobs = createJobState();
-  game.place = DEFAULT_PLACE;
+  game.place = NEW_LIFE_PLACE;
   game.fortuneTree = createTreeState();
+  game.home = createHomeState();
 }
 
 export function setSpeed(game, speed) {
@@ -68,9 +72,22 @@ export function appleNow(game) {
   makeAppleReady(game);
 }
 
+// Finishes the current rest period on the sofa, gaining its health.
+// Returns whether they were resting.
+export function finishRest(game) {
+  return finishRestPeriod(game);
+}
+
+// Switches to place `id` at once, without walking (ending busking or
+// resting).
+export function goToPlace(game, id) {
+  leavePlace(game);
+  enterPlace(game, id);
+}
+
 // A compact summary for the menu: "HP 80  JOY 70  IQ 35  $120",
 // "Bold · Shy", "Scholar, 3y (age 12)", "Developer 2/3, $170/yr",
-// "Tree: busking 2:10, 3 sess, apple 85m".
+// "Tree: busking 2:10, 3 sess, apple 85m", "Place: Home, resting".
 export function devReadout(game) {
   const { character, goals, clock } = game;
   const stats = Object.entries(character.stats).map(([id, value]) =>
@@ -82,6 +99,7 @@ export function devReadout(game) {
     goal: `${goalById(goals.active).label}, ${goalYears}y (age ${ageOf(character, clock.years)})`,
     job: jobText(careerView(game)),
     tree: treeText(treeView(game)),
+    place: `Place: ${currentPlace(game).name}${isResting(game) ? ', resting' : ''}`,
   };
 }
 

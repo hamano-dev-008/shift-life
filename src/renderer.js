@@ -1,7 +1,9 @@
 // renderer.js — Renderer entry point: loads the saved life or starts a new
-// one, runs the clock, life events, goals, jobs and the Fortune Tree,
-// draws the current place each frame, and wires up controls, the tree
-// menu, the dev settings menu (dev runs only) and saving.
+// one, runs the clock, life events, goals, jobs, the Fortune Tree and
+// resting at Home, draws the current place each frame, walks the
+// character between places, and wires up controls, the click areas over
+// props, the tree, sofa and Go to menus, the dev settings menu (dev runs
+// only) and saving.
 
 import { createClock, startClock } from './game/clock.js';
 import { createCharacter, ageOf, lifeStageOf, expressionOf, setStat } from './game/character.js';
@@ -14,26 +16,35 @@ import {
 import {
   createJobState, updateJobs, isEmployed, jobItem, careerView,
 } from './game/jobs.js';
-import { currentPlace } from './game/places.js';
+import {
+  placeById, currentPlace, exitBetween, routeBetween, enterPlace, leavePlace,
+} from './game/places.js';
 import {
   createTreeState, updateFortuneTree, isPlaying, startPlaying, stopPlaying, pickApple, treeView,
 } from './game/fortuneTree.js';
+import {
+  createHomeState, updateHome, isResting, startResting, stopResting, sofaView,
+} from './game/home.js';
 import { loadGame, saveGame, saveGameNow } from './game/save.js';
 import {
   newLife, setSpeed, toggleFastForward, skipYears, triggerEvent, addMoney, finishBuskingSession,
-  appleNow, devReadout,
+  appleNow, finishRest, goToPlace, devReadout,
 } from './game/dev.js';
 import { RESULT_BUBBLE_SECONDS, MILESTONE_BUBBLE_SECONDS } from './data/animation.js';
 import { SPEEDS } from './data/balance.js';
 import { CRAWL_UNTIL_AGE, FIRST_STEPS } from './data/infant.js';
-import { DEFAULT_PLACE } from './data/places.js';
+import { NEW_LIFE_PLACE, TRAVEL, PLACE_TEXT } from './data/places.js';
 import { FORTUNE_TREE_PLACE, TREE_PROP } from './data/fortuneTree.js';
+import { HOME_PLACE, SOFA_PROP, SOFA_SEAT } from './data/home.js';
 import { computeLayout, createScenery, propClickRect } from './ui/scene.js';
 import { drawGoldenApple } from './ui/goldenApple.js';
 import { createTreeMenu } from './ui/treeMenu.js';
+import { createSofaMenu } from './ui/sofaMenu.js';
+import { createGoMenu } from './ui/goMenu.js';
 import { loadSprites } from './ui/assets.js';
 import {
   createAnimator, updateAnimator, poseOf, startActivityNow, goToWorkNow, gaitOf,
+  travelTo, hasExited, enterScene, placeIn,
 } from './ui/animator.js';
 import { drawCharacter, figureHeight } from './ui/sprite.js';
 import {
@@ -49,8 +60,8 @@ const AUTOSAVE_MS = 10000;
 // keep going (and auto-decide, and get paid) while the window is
 // minimized.
 const LIFE_TICK_MS = 250;
-// Most real time one life tick counts for the Fortune Tree's timers, so a
-// sleeping PC doesn't count as busking or apple-growing time.
+// Most real time one life tick counts for the Fortune Tree's and the
+// sofa's timers, so a sleeping PC doesn't count as busking or resting.
 const MAX_TICK_MS = 2000;
 // Caps one frame's animation step so a stalled window doesn't teleport the
 // character when it resumes.
@@ -72,7 +83,7 @@ const label = document.getElementById('label');
 const eventBubble = document.getElementById('event-bubble');
 const speech = document.getElementById('speech');
 const placeLabel = document.getElementById('place');
-const treeTarget = document.getElementById('tree-target');
+const targets = document.getElementById('targets');
 
 function newGame() {
   const clock = createClock();
@@ -82,20 +93,18 @@ function newGame() {
     events: createEventState(clock.years),
     goals: createGoalState(clock.years),
     jobs: createJobState(),
-    place: DEFAULT_PLACE,
+    place: NEW_LIFE_PLACE,
     fortuneTree: createTreeState(),
+    home: createHomeState(),
   };
 }
 
-function setLabel(text) {
-  if (label.textContent !== text) label.textContent = text;
+function setText(element, text) {
+  if (element.textContent !== text) element.textContent = text;
 }
 
 async function start() {
   const game = (await loadGame()) ?? newGame();
-  // The scene is laid out for the current place (data/places.js).
-  const place = currentPlace(game);
-  const layout = computeLayout(canvas.width, canvas.height, place);
   saveGame(game);
   startClock(game.clock);
   setInterval(() => saveGame(game), AUTOSAVE_MS);
@@ -152,13 +161,20 @@ async function start() {
     seconds: MILESTONE_BUBBLE_SECONDS, celebrate: true,
   });
 
-  // The event card, goal menu, tree menu and dev menu share the space
-  // below the top bar, so opening one closes the others.
+  // The event card and the goal, tree, sofa, Go to and dev menus share the
+  // space below the top bar, so opening one closes the others.
   let devMenu = null;
   function closeEventCard() {
     if (!eventCard.isOpen()) return;
     eventCard.close();
     postponeAutoDecide(game);
+  }
+  function closePanels(except = null) {
+    if (except !== 'event') closeEventCard();
+    for (const [id, panel] of [['goal', goalMenu], ['tree', treeMenu], ['sofa', sofaMenu],
+      ['go', goMenu], ['dev', devMenu]]) {
+      if (id !== except) panel?.close();
+    }
   }
   const eventCard = createEventCard(document.getElementById('event-card'), {
     onChoose: (index) => {
@@ -176,14 +192,10 @@ async function start() {
       onPick: (id) => {
         if (setGoal(game, id)) saveGame(game);
       },
-      onOpen: () => {
-        closeEventCard();
-        treeMenu.close();
-        devMenu?.close();
-      },
+      onOpen: () => closePanels('goal'),
     });
   // Clicking the Fortune Tree opens its menu: busking and the golden apple.
-  const treeMenu = createTreeMenu(document.getElementById('tree-menu'), treeTarget, {
+  const treeMenu = createTreeMenu(document.getElementById('tree-menu'), {
     play: () => {
       if (startPlaying(game)) saveGame(game);
     },
@@ -196,18 +208,27 @@ async function start() {
       showNews(news);
       saveGame(game);
     },
-    onOpen: () => {
-      closeEventCard();
-      goalMenu.close();
-      devMenu?.close();
+    onOpen: () => closePanels('tree'),
+  });
+  // Clicking the sofa at Home opens its menu: rest or get up.
+  const sofaMenu = createSofaMenu(document.getElementById('sofa-menu'), {
+    rest: () => {
+      if (startResting(game)) saveGame(game);
     },
+    getUp: () => {
+      if (stopResting(game)) saveGame(game);
+    },
+    onOpen: () => closePanels('sofa'),
+  });
+  // The place button opens Go to; picking a place starts the trip there.
+  const goMenu = createGoMenu(document.getElementById('go-menu'), document.getElementById('go-btn'), {
+    go: (id) => startTrip(id),
+    onOpen: () => closePanels('go'),
   });
   function openEventCard() {
     const view = pendingEventView(game);
     if (!view) return;
-    goalMenu.close();
-    treeMenu.close();
-    devMenu?.close();
+    closePanels('event');
     eventCard.open(view);
   }
   eventBubble.addEventListener('click', openEventCard);
@@ -229,15 +250,17 @@ async function start() {
     lastAge = age;
   }
 
-  // While busking, events are frozen: none start, and the wait for the
-  // next one (and a waiting one's auto-decide) stands still. The Fortune
-  // Tree's timers get real time, so game speed doesn't change them.
+  // While busking or resting, events are frozen: none start, and the wait
+  // for the next one (and a waiting one's auto-decide) stands still. The
+  // Fortune Tree's and the sofa's timers get real time, so game speed
+  // doesn't change them.
   let lastTick = performance.now();
   setInterval(() => {
     const tickNow = performance.now();
     const realMs = Math.min(tickNow - lastTick, MAX_TICK_MS);
     lastTick = tickNow;
-    const result = updateEvents(game, { holdAutoDecide: eventCard.isOpen(), freeze: isPlaying(game) });
+    const freeze = isPlaying(game) || isResting(game);
+    const result = updateEvents(game, { holdAutoDecide: eventCard.isOpen(), freeze });
     if (result) showResult(result);
     const reached = updateGoals(game);
     reached.forEach(celebrate);
@@ -245,23 +268,131 @@ async function start() {
     jobNews.forEach(showNews);
     const treeNews = updateFortuneTree(game, realMs);
     treeNews.forEach(showNews);
+    const rested = updateHome(game, realMs);
     checkFirstSteps();
-    if (result || reached.length || jobNews.length || treeNews.length) saveGame(game);
+    if (result || reached.length || jobNews.length || treeNews.length || rested) saveGame(game);
   }, LIFE_TICK_MS);
 
   const statsPanel = createStatsPanel(label, document.getElementById('stats'));
   // Sprite PNGs replace code-drawn art where they exist (data/sprites.js).
   await loadSprites();
-  const scenery = createScenery(layout, place);
-  let animator = createAnimator(layout);
-  placeLabel.textContent = place.name;
-  // The tree's click area (its visible pixels, with a sprite).
-  const atTree = place.id === FORTUNE_TREE_PLACE && Boolean(layout.props[TREE_PROP]);
-  if (atTree) placeOver(treeTarget, propClickRect(layout, TREE_PROP));
+
+  // Each place's layout and scenery, built the first time it's shown.
+  const scenes = new Map();
+  function sceneFor(id) {
+    if (!scenes.has(id)) {
+      const place = placeById(id);
+      const layout = computeLayout(canvas.width, canvas.height, place);
+      scenes.set(id, { place, layout, scenery: createScenery(layout, place) });
+    }
+    return scenes.get(id);
+  }
+  let scene = sceneFor(currentPlace(game).id);
+  let animator = createAnimator(scene.layout);
+
+  // Clicking a prop: through a door (an exit) walks there; the tree and
+  // the sofa open their menus.
+  function clickProp(id) {
+    const exit = scene.place.exits.find((candidate) => candidate.via === id);
+    if (exit) {
+      startTrip(exit.to);
+    } else if (id === TREE_PROP && scene.place.id === FORTUNE_TREE_PLACE) {
+      treeMenu.toggle();
+    } else if (id === SOFA_PROP && scene.place.id === HOME_PLACE) {
+      sofaMenu.toggle();
+    }
+  }
+
+  // Switches the screen to the current place: its scene, name and click
+  // areas (each over a prop's visible pixels).
+  function showPlace() {
+    scene = sceneFor(currentPlace(game).id);
+    targets.replaceChildren(...Object.entries(scene.place.targets ?? {}).map(([id, title]) => {
+      const button = document.createElement('button');
+      button.title = title;
+      button.setAttribute('aria-label', title);
+      placeOver(button, propClickRect(scene.layout, id));
+      button.addEventListener('click', () => clickProp(id));
+      return button;
+    }));
+    treeMenu.close();
+    sofaMenu.close();
+  }
+  showPlace();
+
+  // A trip to another place: the character walks out of each place on the
+  // way (off an edge, or through a door) and into the next. `route` is the
+  // places still to enter. Only the place reached is saved; a trip cut
+  // short by closing the app ends there.
+  let trip = null;
+
+  // Canvas x of the way out through `exit`: past the window edge, or at
+  // the door.
+  function exitX(layout, exit) {
+    const past = TRAVEL.exitPast * layout.scale;
+    if (exit.via === 'left') return -past;
+    if (exit.via === 'right') return layout.width + past;
+    return layout.props[exit.via].visitX;
+  }
+
+  function headForExit() {
+    travelTo(animator, exitX(scene.layout, exitBetween(game.place, trip.route[0])));
+  }
+
+  function startTrip(to) {
+    if (trip || to === game.place) return;
+    const route = routeBetween(game.place, to);
+    if (!route) return;
+    if (leavePlace(game)) saveGame(game);
+    trip = { route, to };
+    closePanels();
+    headForExit();
+  }
+
+  // Once the character is out of the current place, moves into the next:
+  // in from the edge they'd leave by going back, or out of its door.
+  function updateTrip() {
+    if (!trip || !hasExited(animator)) return;
+    const from = game.place;
+    const next = trip.route.shift();
+    enterPlace(game, next);
+    saveGame(game);
+    showPlace();
+    const back = exitBetween(next, from);
+    const { layout } = scene;
+    const last = trip.route.length === 0;
+    if (back.via === 'left' || back.via === 'right') {
+      const walkIn = TRAVEL.entryWalk * layout.scale;
+      const inX = back.via === 'left' ? layout.wanderMinX + walkIn : layout.wanderMaxX - walkIn;
+      enterScene(animator, layout, exitX(layout, back), inX);
+    } else {
+      enterScene(animator, layout, exitX(layout, back));
+    }
+    if (last) {
+      trip = null;
+    } else {
+      headForExit();
+    }
+  }
+
+  // Where the character stays put, if anywhere: under the tree while
+  // busking, on the sofa while resting.
+  function stayOf() {
+    const { place, layout } = scene;
+    if (place.id === FORTUNE_TREE_PLACE && isPlaying(game) && layout.props[TREE_PROP]) {
+      return { x: layout.props[TREE_PROP].visitX, mode: 'busking' };
+    }
+    const sofa = layout.props[SOFA_PROP];
+    if (place.id === HOME_PLACE && isResting(game) && sofa) {
+      const seatY = sofa.baseY - SOFA_SEAT * layout.scale;
+      return { x: sofa.visitX, mode: 'resting', lift: layout.feetY - seatY };
+    }
+    return null;
+  }
 
   // Developer settings, only when running from source (npm start). The
   // menu calls the game/dev.js actions through these wrappers, which also
-  // keep the screen in step (saving, bubbles, the event card).
+  // keep the screen in step (saving, bubbles, the event card, the place).
   if (await window.shiftLife.isDev()) {
     const gear = document.getElementById('dev-btn');
     gear.hidden = false;
@@ -271,10 +402,10 @@ async function start() {
         saveGameNow(game);
         bubbles.length = 0;
         speechUntil = 0;
-        eventCard.close();
-        goalMenu.close();
-        treeMenu.close();
-        animator = createAnimator(layout);
+        closePanels();
+        trip = null;
+        showPlace();
+        animator = createAnimator(scene.layout);
       },
       setSpeed: (speed) => setSpeed(game, speed),
       speed: () => game.clock.speed,
@@ -299,12 +430,21 @@ async function start() {
         appleNow(game);
         saveGame(game);
       },
-      readout: () => devReadout(game),
-      onOpen: () => {
-        closeEventCard();
-        goalMenu.close();
-        treeMenu.close();
+      finishRest: () => {
+        if (!finishRest(game)) return false;
+        saveGame(game);
+        return true;
       },
+      goTo: (id) => {
+        trip = null;
+        goToPlace(game, id);
+        saveGame(game);
+        showPlace();
+        placeIn(animator, scene.layout);
+      },
+      place: () => game.place,
+      readout: () => devReadout(game),
+      onOpen: () => closePanels('dev'),
     });
   }
 
@@ -340,25 +480,31 @@ async function start() {
     // calls them back.
     const needed = Boolean(game.events.pending) || bubbles.length > 0 || now < speechUntil
       || eventCard.isOpen();
-    // Busking, they sit and play at the tree's visit spot.
-    const buskX = atTree && isPlaying(game) ? layout.props[TREE_PROP].visitX : null;
     updateAnimator(animator, dt, stage, gaitOf(age), {
-      activity: activeActivity(game), employed: isEmployed(game), needed, buskX,
+      activity: activeActivity(game), employed: isEmployed(game), needed, stay: stayOf(),
     });
+    updateTrip();
+    const { place, layout } = scene;
     const pose = poseOf(animator, stage);
     // Cleared first: sprites may have see-through pixels.
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    scenery.draw(ctx, now / 1000);
-    if (atTree && game.fortuneTree.appleReady) drawGoldenApple(ctx, layout, now / 1000);
+    scene.scenery.draw(ctx, now / 1000);
+    if (place.id === FORTUNE_TREE_PLACE && game.fortuneTree.appleReady) {
+      drawGoldenApple(ctx, layout, now / 1000);
+    }
     drawCharacter(ctx, pose, stage, game.character.appearance,
       expressionOf(game.character), layout.feetY, layout.characterScale, jobItem(game));
     const { mark } = SPEEDS[game.clock.speed];
-    setLabel(`${game.character.name} · ${age}y${mark ? ` ${mark}` : ''}`);
+    setText(label, `${game.character.name} · ${age}y${mark ? ` ${mark}` : ''}`);
+    setText(placeLabel, trip
+      ? PLACE_TEXT.travelling.replaceAll('{place}', place.name).replaceAll('{to}', placeById(trip.to).name)
+      : place.name);
+    targets.hidden = Boolean(trip);
 
     // Bubbles follow the character's head. Text bubbles take the spot
     // first; a new "!" waits until they're done.
     if (now >= speechUntil && bubbles.length) showBubble(bubbles.shift(), now);
-    const bubbleY = bubbleBottomY(layout, figureHeight(stage, pose));
+    const bubbleY = bubbleBottomY(layout, figureHeight(stage, pose)) - pose.lift;
     const speaking = now < speechUntil;
     speech.hidden = !speaking;
     if (speaking) placeSpeech(speech, layout, pose.x, bubbleY);
@@ -369,7 +515,9 @@ async function start() {
     }
     statsPanel.update(game.character, careerView(game));
     goalMenu.update(goalView(game));
-    treeMenu.update(place.name, atTree ? treeView(game) : null);
+    treeMenu.update(place.name, place.id === FORTUNE_TREE_PLACE ? treeView(game) : null);
+    sofaMenu.update(place.id === HOME_PLACE ? sofaView(game) : null);
+    goMenu.update(place, Boolean(trip));
     devMenu?.update();
 
     requestAnimationFrame(frame);

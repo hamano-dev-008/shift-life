@@ -16,9 +16,9 @@ Early development. What works so far:
 - A small floating window (320x240, frameless, rounded, always on top).
   Drag it by its background; minimize or close it with the buttons in the
   top-right corner. It reopens where you left it.
-- A pixel character is born with a random name and look. They wander the
-  grass around a big tree in the middle, sometimes stopping by it for
-  a moment. They stroll with a four-frame walk (feet planted, arms
+- A pixel character is born with a random name and look. They wander
+  around wherever they are (see Places below), sometimes stopping by
+  the tree, the house or the furniture for a moment. They stroll with a four-frame walk (feet planted, arms
   swinging, a small bounce each step) and breathe and blink while
   standing. Their face smiles, looks neutral or frowns depending on how
   happy they are.
@@ -53,9 +53,29 @@ Early development. What works so far:
   of the window to work, coming back a bit later. At 65 they retire with
   a small yearly pension. Hover the name label to see job, level, pay and
   money. Job data is in `src/data/jobs.js`.
-- The Fortune Tree: the scene is the first named place (its name shows
-  under the name label; more places, like Home, will come later). From
-  age 6, click the tree to open its menu:
+- Places: there are three, and the current one's name shows under the
+  name label.
+  - The Fortune Tree and the Yard sit side by side: walking off the
+    Fortune Tree's right edge leads into the Yard, and back.
+  - The Yard has the house on the grass. Click the house and the
+    character walks to the front door and goes inside.
+  - Home is the cozy living room inside: wallpaper, a wooden floor, a
+    window with a bit of sky, the front door and a sofa. Click the front
+    door to walk back out into the Yard.
+  - The place button (the map pin in the top bar) opens "Go to", listing
+    the other places. Pick one and the character walks there, through
+    any places in between (Fortune Tree to Home goes through the Yard
+    and in the front door). Babies crawl the whole way. The button is
+    disabled while they're on the way, and travelling stops busking or
+    resting.
+  - A new life starts at Home; a save from before places existed
+    continues at the Fortune Tree.
+- Resting at Home: click the sofa and pick "Rest". The character lies
+  on the sofa with little z's floating up, gaining 1 health every real
+  minute (up to 100) until you pick "Get up". No new events come up
+  while resting (the event timer waits). The numbers are in
+  `src/data/home.js`.
+- The Fortune Tree: from age 6, click the tree to open its menu:
   - "Play an instrument": the character sits under the tree with a
     guitar, notes floating up. Every 8 real minutes of playing pays $10
     and counts as a full session, until you stop. Stopping early pays
@@ -92,7 +112,9 @@ button next to minimize opens the dev settings: start a new life, set
 the speed (normal, fast at about one year every 5 seconds, or very fast
 at one year a second), skip ahead 1 or 10 years, trigger an event, add
 $1,000, finish a busking session instantly, grow a golden apple now,
-and see the character's stats, traits, goal, job and tree progress.
+finish a minute of rest instantly, jump to any place without walking,
+and see the character's stats, traits, goal, job, tree progress and
+place.
 It's hidden in packaged builds.
 
 Keyboard shortcuts (window focused): Ctrl+Shift+F toggles fast speed (the
@@ -106,14 +128,16 @@ start a new life by closing the app and deleting
 **Adding sprites:** every graphic is drawn in code for now, but any of
 them can be replaced by your own pixel art, one at a time, without
 code. Save a PNG in `assets/sprites/` named after what it replaces:
-`sky.png`, `grass.png`, `tree.png`, `goldenApple.png` (drawn at the
+`sky.png`, `grass.png`, `tree.png`, `yard.house.png`, `home.wall.png`,
+`home.floor.png`, `home.window.png`, `home.door.png`, `home.sofa.png`,
+`goldenApple.png` (drawn at the
 tree's scale unless it has its own `scale`, as the current 40 x 40 apple
 does, its middle on the spot set by `APPLE_SPOT` in
 `src/data/fortuneTree.js`), or
 `character.<body>.<animation>.png` (for example
 `character.adult.walk.png`; bodies are baby, toddler, child, teen,
 adult, elder; animations are idle, walk, sit, crawl, read, coins, wave,
-jog, busk). Draw at 1 pixel per game pixel: the game scales it up crisply
+jog, busk, rest). Draw at 1 pixel per game pixel: the game scales it up crisply
 (scenery at the scene scale, the character at its own scale). Add
 `.smile`, `.neutral` or `.frown` before `.png` for a version that
 matches the mood. For an animation, put the frames side by side in one

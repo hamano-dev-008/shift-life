@@ -1,10 +1,25 @@
-// props.js — Draws the scene's prop (a tree) in code, as
-// outlined low-res pixel art scaled onto the scenery; ui/scene.js uses
-// these when there's no sprite for a prop. Sizes and positions come from
-// the layout (computeLayout() in scene.js, from data/layout.js).
+// props.js — Draws the outdoor props (the Fortune Tree's tree and the
+// Yard's house) in code, as outlined low-res pixel art scaled onto the
+// scenery; ui/scene.js uses these when there's no sprite for a prop. Also
+// the shared prop painter and the house colors, which Home's room
+// (ui/room.js) matches. Sizes and positions come from the layout
+// (computeLayout() in scene.js, from data/layout.js).
 
 import { OUTLINE_COLOR } from '../data/appearance.js';
 import { createLayer, fill, outline, drawLayer } from './pixel.js';
+
+// The house's colors, also used inside it (ui/room.js).
+export const HOUSE_COLORS = {
+  roof: '#c8645c',
+  roofDark: '#a24f49',
+  chimney: '#9d8f9e',
+  wall: '#f6e7c8',
+  wallShade: '#e3cfa8',
+  door: '#9a6a45',
+  knob: '#f2cc8f',
+  glass: '#bfe3f0',
+  glassShine: '#ffffff',
+};
 
 const TRUNK = '#8b5a3c';
 const TRUNK_DARK = '#6e4630';
@@ -14,17 +29,51 @@ const LEAF_LIGHT = '#7cc46d';
 const FRUIT = '#e07a5f';
 
 export function drawTree(ctx, layout) {
-  drawProp(ctx, layout.props.tree, paintTree, layout.scale);
+  drawProp(ctx, layout, 'tree', paintTree);
 }
 
-// Paints a prop on its own layer, leaving a 1px margin for the outline,
-// and places it so the art's left edge is at prop.x and bottom at prop.baseY.
-function drawProp(ctx, prop, paint, scale) {
+export function drawHouse(ctx, layout) {
+  drawProp(ctx, layout, 'yard.house', paintHouse);
+}
+
+// Paints prop `id` on its own layer, leaving a 1px margin for the
+// outline, and places it so the art's left edge is at prop.x and bottom
+// at prop.baseY. `paint(px, width, height)` paints with
+// px(col, row, w, h, color) in the prop's own pixels.
+export function drawProp(ctx, layout, id, paint) {
+  const prop = layout.props[id];
   const layer = createLayer(prop.width + 2, prop.height + 2);
   const px = (col, row, w, h, color) => fill(layer, col + 1, row + 1, w, h, color);
   paint(px, prop.width, prop.height);
   outline(layer, OUTLINE_COLOR);
-  drawLayer(ctx, layer, prop.x - scale, prop.baseY + scale, scale);
+  drawLayer(ctx, layer, prop.x - layout.scale, prop.baseY + layout.scale, layout.scale);
+}
+
+function paintHouse(px, w, h) {
+  const c = HOUSE_COLORS;
+  const mid = Math.floor(w / 2);
+  const roofHeight = mid - 1;
+
+  // Chimney first, so the roof overlaps its base.
+  px(w - 5, 1, 2, roofHeight - 2, c.chimney);
+  for (let row = 0; row < roofHeight; row++) {
+    const left = Math.max(0, mid - 1 - row);
+    const right = Math.min(w - 1, mid + row);
+    px(left, row, right - left + 1, 1, c.roof);
+  }
+  px(0, roofHeight - 1, w, 1, c.roofDark);
+
+  px(1, roofHeight, w - 2, h - roofHeight, c.wall);
+  px(1, roofHeight, w - 2, 1, c.wallShade);
+
+  const doorHeight = Math.round((h - roofHeight) * 0.6);
+  px(mid - 2, h - doorHeight, 4, doorHeight, c.door);
+  px(mid, h - Math.ceil(doorHeight / 2), 1, 1, c.knob);
+
+  for (const col of [3, w - 6]) {
+    px(col, roofHeight + 2, 3, 3, c.glass);
+    px(col, roofHeight + 2, 1, 1, c.glassShine);
+  }
 }
 
 function paintTree(px, w, h) {

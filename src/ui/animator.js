@@ -1,11 +1,13 @@
 // animator.js — Purely visual motion for the character: wandering, visiting
 // the tree, goal activities (reading, counting coins, jogging,
 // waving), walking off "to work" and back, busking under the Fortune
-// Tree, turning, the walk cycle, crawling and toddling for the youngest
-// (with sitting, fidgets and plops), breathing, and blinking. Never
-// touches game state; the renderer passes in the gait for the age, which
-// activity the goal calls for, whether the character has a job, and where
-// to busk while playing.
+// Tree, resting on the sofa, walking out of a place (off an edge or
+// through a door) and into the next, turning, the walk cycle, crawling
+// and toddling for the youngest (with sitting, fidgets and plops),
+// breathing, and blinking. Never touches game state; the renderer passes
+// in the gait for the age, which activity the goal calls for, whether the
+// character has a job, where to busk or rest, and drives trips between
+// places (travelTo(), enterScene()).
 // Speeds and timings live in data/animation.js and data/infant.js
 // (walking and crawling in character pixels, other distances in scene
 // pixels); positions here are canvas pixels from computeLayout().
@@ -23,6 +25,9 @@ import {
 // Crawling and toddling numbers by gait; walking uses the per-stage
 // WALK_SPEED and STRIDE.
 const INFANT_GAITS = { crawl: CRAWL, toddle: TODDLE };
+
+// Modes for staying put somewhere (see updateStay()).
+const STAY_MODES = ['busking', 'resting'];
 
 // A wobble shifts the sitting baby's upper body through these columns.
 const WOBBLE_STEPS = [1, 0, -1, 0];
@@ -51,15 +56,20 @@ export function createAnimator(layout) {
     // 'idle' (standing, or sitting for a crawler), 'turning' (beat after
     // turning), 'walking' (or crawling/toddling), 'plopped' (a toddler
     // sat down mid-walk), 'activity' (doing `activity`; jogging also
-    // walks during it), 'away' (at work, off past the window's edge), or
-    // 'busking' (sitting under the tree playing)
+    // walks during it), 'away' (at work, off past the window's edge),
+    // 'busking' (sitting under the tree playing), 'resting' (lying on the
+    // sofa), or 'exited' (reached the way out of the place, waiting for
+    // the next one)
     mode: 'idle',
     activity: null, // activity id being done, or being walked to
     activityLeft: 0,
     activityTime: 0, // seconds into the current activity
     jogging: false, // running to a spot while jogging
     targetX: 0,
-    destination: null, // prop id, 'work' or 'busk' being walked to, or null
+    destination: null, // prop id, 'work', 'stay' or 'exit' being walked to, or null
+    travelling: false, // walking out of the place (travelTo())
+    stayMode: null, // 'busking' or 'resting' once at the stay spot
+    stayLift: 0, // canvas pixels the figure is raised while staying
     lastVisited: null,
     pauseLeft: randomIn([1, 3]),
     gridX: Math.round(x / layout.characterScale), // position in whole character pixels
@@ -157,12 +167,12 @@ function walk(anim, dt, stage, speed = 1) {
   return arrived;
 }
 
-// End of a walk: off at work, sit down to busk, start the activity walked
-// to, or pause.
+// End of a walk: off at work, settle in to busk or rest, start the
+// activity walked to, or pause.
 function arrive(anim) {
   anim.lastVisited = anim.destination;
-  if (anim.destination === 'busk') {
-    startBusking(anim);
+  if (anim.destination === 'stay') {
+    startStay(anim);
   } else if (anim.destination === 'work') {
     anim.mode = 'away';
     anim.pauseLeft = randomIn(WORK_AWAY);
@@ -259,42 +269,51 @@ function comeBack(anim) {
   setOff(anim, target);
 }
 
-// Sends the character to work right away, unless already there. For the
-// Ctrl+Shift+W dev shortcut.
+// Staying put to busk or rest, or walking to do so.
+function isStaying(anim) {
+  return STAY_MODES.includes(anim.mode) || anim.destination === 'stay';
+}
+
+// Sends the character to work right away, unless already there, staying
+// put, or travelling. For the Ctrl+Shift+W dev shortcut.
 export function goToWorkNow(anim) {
   if (anim.mode === 'away' || anim.destination === 'work') return;
-  if (anim.mode === 'busking' || anim.destination === 'busk') return;
+  if (isStaying(anim) || anim.travelling) return;
   anim.jogging = false;
   goToWork(anim);
 }
 
-function startBusking(anim) {
-  anim.mode = 'busking';
+function startStay(anim) {
+  anim.mode = anim.stayMode;
   anim.activity = null;
   anim.jogging = false;
   anim.activityTime = 0;
 }
 
-// While playing, gets to the busking spot `buskX` and stays there: back
-// from work, done with any activity, and no wandering until it stops.
-function updateBusking(anim, dt, stage, buskX) {
-  if (anim.mode === 'busking') {
+// While busking or resting, gets to the spot `stay.x` and stays there in
+// `stay.mode`: back from work, done with any activity, and no wandering
+// until it stops.
+function updateStay(anim, dt, stage, stay) {
+  anim.stayLift = stay.lift ?? 0;
+  if (anim.mode === stay.mode) {
     anim.activityTime += dt;
     return;
   }
+  anim.stayMode = stay.mode;
   if (anim.mode === 'away') {
     anim.mode = 'idle';
     anim.gridX = Math.round(anim.x / anim.layout.characterScale);
   }
-  const heading = anim.destination === 'busk' && ['walking', 'turning', 'plopped'].includes(anim.mode);
+  if (STAY_MODES.includes(anim.mode)) anim.mode = 'idle';
+  const heading = anim.destination === 'stay' && ['walking', 'turning', 'plopped'].includes(anim.mode);
   if (!heading) {
     anim.activity = null;
     anim.jogging = false;
-    if (Math.abs(buskX - anim.x) < anim.layout.scale) {
-      startBusking(anim);
+    if (Math.abs(stay.x - anim.x) < anim.layout.scale) {
+      startStay(anim);
       return;
     }
-    setOff(anim, { x: buskX, destination: 'busk' });
+    setOff(anim, { x: stay.x, destination: 'stay' });
   }
   if (anim.mode === 'walking') {
     if (walk(anim, dt, stage)) arrive(anim);
@@ -303,41 +322,115 @@ function updateBusking(anim, dt, stage, buskX) {
   }
 }
 
-// Stops busking (or heading off to busk): stands up and carries on.
-function stopBusking(anim) {
-  if (anim.mode === 'busking') {
+// Stops staying (or heading off to stay): gets up and carries on.
+function stopStay(anim) {
+  if (STAY_MODES.includes(anim.mode)) {
     anim.mode = 'idle';
     anim.pauseLeft = randomIn(IDLE_PAUSE);
   }
-  if (anim.destination === 'busk') anim.destination = null;
+  if (anim.destination === 'stay') anim.destination = null;
 }
 
 // Starts activity `id` right away, replacing whatever is going on. For the
 // Ctrl+Shift+A dev shortcut.
 export function startActivityNow(anim, id) {
-  if (!ACTIVITIES[id] || anim.mode === 'busking' || anim.destination === 'busk') return;
+  if (!ACTIVITIES[id] || isStaying(anim) || anim.travelling) return;
   anim.jogging = false;
   beginActivity(anim, id);
+}
+
+// Starts walking to canvas x `x` to leave the place: off past an edge or
+// to a door. Drops whatever was going on (staying, an activity, work: from
+// off-screen they just walk to it). hasExited() says when they're there.
+export function travelTo(anim, x) {
+  if (anim.mode === 'away') anim.gridX = Math.round(anim.x / anim.layout.characterScale);
+  anim.travelling = true;
+  anim.activity = null;
+  anim.jogging = false;
+  anim.mode = 'idle';
+  if (Math.abs(x - anim.x) < 1) {
+    anim.x = x;
+    anim.mode = 'exited';
+    return;
+  }
+  setOff(anim, { x, destination: 'exit' });
+}
+
+export function hasExited(anim) {
+  return anim.mode === 'exited';
+}
+
+export function isTravelling(anim) {
+  return anim.travelling;
+}
+
+// Walking to the exit; toddlers still plop now and then.
+function updateTravel(anim, dt, stage) {
+  if (anim.mode === 'walking') {
+    if (walk(anim, dt, stage)) {
+      anim.mode = 'exited';
+    } else if (anim.gait === 'toddle' && Math.random() < PLOP_CHANCE * dt) {
+      anim.mode = 'plopped';
+      anim.pauseLeft = randomIn(PLOP_DURATION);
+    }
+  } else if (anim.mode !== 'exited' && (anim.pauseLeft -= dt) <= 0) {
+    startWalking(anim);
+  }
+}
+
+// Puts the character into a new place's `layout` at canvas x `x`: past an
+// edge (then walking in to `inX`, facing in) or at a door (`inX` null:
+// standing there). Ends the travelling; call travelTo() again to carry on
+// through.
+export function enterScene(anim, layout, x, inX = null) {
+  anim.layout = layout;
+  anim.x = x;
+  anim.gridX = Math.round(x / layout.characterScale);
+  anim.travelling = false;
+  anim.destination = null;
+  anim.lastVisited = null;
+  anim.activity = null;
+  anim.jogging = false;
+  anim.mode = 'idle';
+  anim.pauseLeft = randomIn(IDLE_PAUSE);
+  if (inX !== null) {
+    anim.facing = Math.sign(inX - x) || anim.facing;
+    setOff(anim, { x: inX, destination: null });
+  }
+}
+
+// Moves the character into `layout` at once, somewhere near the middle
+// (dev menu's Go to).
+export function placeIn(anim, layout) {
+  const middle = (layout.wanderMinX + layout.wanderMaxX) / 2;
+  enterScene(anim, layout, middle + randomIn([-1, 1]) * (layout.wanderMaxX - layout.wanderMinX) / 4);
 }
 
 // `gait` is gaitOf(age). `activity` is the goal's activity id (ACTIVITIES
 // in data/animation.js), or null; it's only used when deciding what to do
 // next. `employed`: the character has a job, so they sometimes go to work.
 // `needed`: something wants them on screen (an event, a bubble), so they
-// don't leave, and come back if they're out. `buskX`: while busking at the
-// Fortune Tree, the canvas x to sit and play at (null otherwise); they go
-// there and stay, with no wandering, activities or work trips.
+// don't leave, and come back if they're out. `stay`: while busking or
+// resting, { x, mode, lift }: they go to canvas x `x` and stay in `mode`
+// ('busking' or 'resting'), with no wandering, activities or work trips;
+// `lift` raises the figure that many canvas pixels (lying on the sofa).
+// Null otherwise. Travelling (travelTo()) comes before all of this.
 export function updateAnimator(anim, dt, stage, gait, {
-  activity = null, employed = false, needed = false, buskX = null,
+  activity = null, employed = false, needed = false, stay = null,
 } = {}) {
   anim.time += dt;
   anim.gait = gait;
-  if (buskX !== null) {
-    updateBusking(anim, dt, stage, buskX);
+  if (anim.travelling) {
+    updateTravel(anim, dt, stage);
     updateTimers(anim, dt);
     return;
   }
-  stopBusking(anim);
+  if (stay) {
+    updateStay(anim, dt, stage, stay);
+    updateTimers(anim, dt);
+    return;
+  }
+  stopStay(anim);
   const headingToWork = anim.mode === 'walking' && anim.destination === 'work';
   if (headingToWork && (needed || !employed)) {
     // Turn back: work can wait.
@@ -413,15 +506,19 @@ function walkPose(p, stride) {
 // `gait` is 'crawl', 'toddle' or 'walk'; `sit` means sitting on the ground
 // (a crawler at rest, or a toddler who plopped); `gaze` is -1 while
 // looking back over the shoulder; `wobble` shifts the sitting upper body
-// sideways. `activity` is the activity being done (null when none;
-// 'busk' while busking, sitting) and `activityTime` how long it has been
-// going, in seconds. `time` is seconds since the animator started (for
-// sprite animations).
+// sideways. `lying` means lying down (resting on the sofa), raised `lift`
+// canvas pixels above the feet row. `activity` is the activity being done
+// (null when none; 'busk' while busking, sitting; 'rest' while resting,
+// lying) and `activityTime` how long it has been going, in seconds.
+// `time` is seconds since the animator started (for sprite animations).
 export function poseOf(anim, stage) {
   const busking = anim.mode === 'busking';
+  const resting = anim.mode === 'resting';
+  const staying = busking || resting;
   const doing = anim.mode === 'activity';
   const walking = anim.mode === 'walking' || (doing && anim.jogging);
-  const sit = busking || anim.mode === 'plopped' || (anim.gait === 'crawl' && !walking && !doing);
+  const sit = busking || anim.mode === 'plopped'
+    || (anim.gait === 'crawl' && !walking && !doing && !resting);
   const stride = gaitStride(anim, stage);
   const wobbleStep = Math.floor((BABY_WOBBLE_DURATION - anim.wobbleLeft) * 8) % WOBBLE_STEPS.length;
   return {
@@ -434,8 +531,10 @@ export function poseOf(anim, stage) {
     blinking: anim.blinkLeft > 0,
     breath: !walking && anim.time % BREATH_CYCLE > BREATH_CYCLE * 0.6 ? 1 : 0,
     walk: walking ? walkPose(anim.steps % (4 * stride), stride) : null,
-    activity: busking ? 'busk' : doing ? anim.activity : null,
-    activityTime: doing || busking ? anim.activityTime : 0,
+    lying: resting,
+    lift: resting ? anim.stayLift : 0,
+    activity: busking ? 'busk' : resting ? 'rest' : doing ? anim.activity : null,
+    activityTime: doing || staying ? anim.activityTime : 0,
     time: anim.time,
   };
 }

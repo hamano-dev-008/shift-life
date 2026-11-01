@@ -1,15 +1,17 @@
 // scene.js — Works out where everything goes for the window's size, the
-// scene scale and the current place (data/places.js), and draws that
-// place's scenery: dithered sky, grassy ground strip, a tree. Each piece
-// uses its sprite (ui/assets.js) when there is one, or the code-drawn art.
-// Still pieces are drawn once to offscreen canvases copied in every frame;
-// animated sprites are drawn every frame.
+// scene scale and a place (data/places.js), and draws that place's
+// scenery: outdoors a dithered sky, grassy ground strip, the tree or the
+// house; at Home the wall, floor, window, door and sofa (ui/room.js).
+// Each piece uses its sprite (ui/assets.js) when there is one, or the
+// code-drawn art. Still pieces are drawn once to offscreen canvases
+// copied in every frame; animated sprites are drawn every frame.
 
 import {
   SCENE_SCALE, CHARACTER_SCALE, GROUND_HEIGHT, FEET_FROM_BOTTOM, PROP_BASE_FROM_BOTTOM, PROPS, WANDER_MARGIN,
 } from '../data/layout.js';
 import { createLayer, drawLayer } from './pixel.js';
-import { drawTree } from './props.js';
+import { drawTree, drawHouse } from './props.js';
+import { drawWall, drawFloor, drawHomeWindow, drawHomeDoor, drawSofa } from './room.js';
 import { getSprite, isAnimated, frameAtTime, drawSprite } from './assets.js';
 
 const SKY_TOP = [142, 202, 230];
@@ -49,7 +51,7 @@ export function computeLayout(width, height, place) {
     props[id] = {
       edge: prop.edge,
       x,
-      baseY: fromBottom(PROP_BASE_FROM_BOTTOM),
+      baseY: fromBottom(prop.base ?? PROP_BASE_FROM_BOTTOM),
       width: prop.width,
       height: prop.height,
       visitX: x + prop.visitOffset * scale,
@@ -116,9 +118,10 @@ function drawGround(grid, groundTop) {
   }
 }
 
-// Sky and grass are painted in scene pixels on a grid the size of the
-// window, then scaled up. The grid is bottom-aligned so the grass rows
-// are whole; any partial row or column falls off the top or right edge.
+// Sky and grass (and Home's wall and floor) are painted in scene pixels
+// on a grid the size of the window, then scaled up. The grid is
+// bottom-aligned so the ground rows are whole; any partial row or column
+// falls off the top or right edge.
 function paintOnGrid(ctx, layout, paint) {
   const grid = createLayer(Math.ceil(layout.width / layout.scale), Math.ceil(layout.height / layout.scale));
   paint(grid, grid.height - GROUND_HEIGHT);
@@ -202,31 +205,53 @@ function placeProp(ctx, layout, sprite, frame, id) {
   drawSprite(ctx, sprite, frame, rect.left, rect.top + rect.height, rect.scale);
 }
 
-// The scenery, back to front. Each piece has its sprite name (see
-// data/sprites.js), how to draw that sprite's frame, and the code-drawn
-// fallback.
-const SCENERY = [
-  {
-    name: 'sky',
-    // Tiled across and upward from the grass line.
+// A backdrop above the ground line (sky, wall): its sprite is tiled
+// across and upward from the ground line.
+function backdrop(name, paint) {
+  return {
+    name,
     drawSprite: (ctx, layout, sprite, frame) => {
       const step = sprite.frameHeight * scaleOf(layout, sprite);
       for (let bottom = layout.groundY; bottom > 0; bottom -= step) {
         tileAcross(ctx, layout, sprite, frame, bottom);
       }
     },
-    drawCode: (ctx, layout) => paintOnGrid(ctx, layout, drawSky),
-  },
-  {
-    name: 'grass',
+    drawCode: (ctx, layout) => paintOnGrid(ctx, layout, paint),
+  };
+}
+
+// A ground strip along the bottom (grass, floor): its sprite is tiled
+// across the bottom of the window.
+function ground(name, paint) {
+  return {
+    name,
     drawSprite: (ctx, layout, sprite, frame) => tileAcross(ctx, layout, sprite, frame, layout.height),
-    drawCode: (ctx, layout) => paintOnGrid(ctx, layout, drawGround),
-  },
-  {
-    name: 'tree',
-    drawSprite: (ctx, layout, sprite, frame) => placeProp(ctx, layout, sprite, frame, 'tree'),
-    drawCode: drawTree,
-  },
+    drawCode: (ctx, layout) => paintOnGrid(ctx, layout, paint),
+  };
+}
+
+// A prop (data/layout.js), placed by propRect().
+function prop(name, drawCode) {
+  return {
+    name,
+    drawSprite: (ctx, layout, sprite, frame) => placeProp(ctx, layout, sprite, frame, name),
+    drawCode,
+  };
+}
+
+// Every scenery piece a place can show (data/places.js lists which, back
+// to front). Each has its sprite name (see data/sprites.js), how to draw
+// that sprite's frame, and the code-drawn fallback.
+const SCENERY = [
+  backdrop('sky', drawSky),
+  ground('grass', drawGround),
+  prop('tree', drawTree),
+  prop('yard.house', drawHouse),
+  backdrop('home.wall', drawWall),
+  ground('home.floor', drawFloor),
+  prop('home.window', drawHomeWindow),
+  prop('home.door', drawHomeDoor),
+  prop('home.sofa', drawSofa),
 ];
 
 function createCanvas(layout) {

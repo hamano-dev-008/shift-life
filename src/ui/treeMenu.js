@@ -1,5 +1,5 @@
 // treeMenu.js — The Fortune Tree menu: a compact panel opened by clicking
-// the tree. Offers playing an instrument (or stopping) and picking the
+// the tree (the renderer calls toggle()). Offers playing an instrument (or stopping) and picking the
 // golden apple when one is ready, with busking progress, the next apple
 // and the pick chance. It only calls the actions it's given; the logic is
 // in game/fortuneTree.js. Text comes from TREE_TEXT in data/fortuneTree.js.
@@ -34,7 +34,7 @@ function longTime(ms) {
 // The buttons; rebuilt only when they change, so a click is never lost to
 // a re-render.
 function renderOptions(menu, view, actions) {
-  const options = menu.querySelector('.tree-options');
+  const options = menu.querySelector('.menu-options');
   if (!view.unlocked) {
     options.replaceChildren();
     return;
@@ -65,10 +65,9 @@ function statusLines(view) {
   ];
 }
 
-// `menu` is the #tree-menu element and `target` the #tree-target button
-// over the tree. `actions` is { play, stop, pick, onOpen } (onOpen closes
-// other panels).
-export function createTreeMenu(menu, target, actions) {
+// `menu` is the #tree-menu element. `actions` is { play, stop, pick,
+// onOpen } (onOpen closes other panels).
+export function createTreeMenu(menu, actions) {
   let shownOptions = '';
   let shownStatus = '';
   const close = () => { menu.hidden = true; };
@@ -76,28 +75,28 @@ export function createTreeMenu(menu, target, actions) {
   const then = (action) => () => { action(); close(); };
   const wrapped = { play: then(actions.play), stop: then(actions.stop), pick: then(actions.pick) };
 
-  target.addEventListener('click', () => {
-    if (!menu.hidden) {
-      close();
-      return;
-    }
-    shownOptions = '';
-    shownStatus = '';
-    menu.hidden = false;
-    actions.onOpen();
-  });
   menu.querySelector('.panel-close').addEventListener('click', close);
 
   return {
     close,
+    // Opens the menu, or closes it if it's open (clicking the tree).
+    toggle() {
+      if (!menu.hidden) {
+        close();
+        return;
+      }
+      shownOptions = '';
+      shownStatus = '';
+      menu.hidden = false;
+      actions.onOpen();
+    },
     // Call every frame with the place's name and treeView() (or null when
     // the place has no Fortune Tree). Updates the open menu only where
     // what it shows changed.
     update(title, view) {
-      target.hidden = !view;
       if (!view) close();
       if (menu.hidden) return;
-      const titleNode = menu.querySelector('.tree-title');
+      const titleNode = menu.querySelector('.menu-title');
       if (titleNode.textContent !== title) titleNode.textContent = title;
       const optionsKey = `${view.unlocked}|${view.playing}|${view.appleReady}`;
       if (optionsKey !== shownOptions) {
@@ -108,7 +107,7 @@ export function createTreeMenu(menu, target, actions) {
       const statusKey = lines.join('|');
       if (statusKey === shownStatus) return;
       shownStatus = statusKey;
-      menu.querySelector('.tree-status').replaceChildren(...lines.map((line) => element('span', '', line)));
+      menu.querySelector('.menu-status').replaceChildren(...lines.map((line) => element('span', '', line)));
     },
   };
 }

@@ -5,6 +5,7 @@
 
 import { SPEEDS } from '../data/balance.js';
 import { DEV_SKIP_YEARS, DEV_MONEY } from '../data/dev.js';
+import { PLACES } from '../data/places.js';
 
 function button(text, onClick, className = '') {
   const node = document.createElement('button');
@@ -30,9 +31,10 @@ function row(label, ...children) {
 // `menu` is the #dev-menu element and `gear` the #dev-btn that opens it.
 // `actions` is { newLife, setSpeed(id), skipYears(n), triggerEvent()
 // (returns whether an event started), addMoney(n), finishSession()
-// (returns whether a busking session was playing), appleNow(), readout()
-// (returns { stats, traits, goal, job, tree }), speed() (current speed
-// id), onOpen() }.
+// (returns whether a busking session was playing), appleNow(), finishRest()
+// (returns whether they were resting), goTo(placeId), place() (current
+// place id), readout() (returns { stats, traits, goal, job, tree, place }),
+// speed() (current speed id), onOpen() }.
 export function createDevMenu(menu, gear, actions) {
   const body = menu.querySelector('.dev-body');
   const readout = menu.querySelector('.dev-readout');
@@ -82,7 +84,21 @@ export function createDevMenu(menu, gear, actions) {
       }),
       button('Apple now', () => actions.appleNow()));
 
-    const children = [newLife, speeds, skips, extras, tree];
+    const home = row('Home',
+      button('Rest 1 min', () => {
+        if (actions.finishRest()) {
+          note = '';
+        } else {
+          note = 'Not resting.';
+        }
+        render();
+      }));
+
+    const places = row('Go to', ...PLACES.map((place) =>
+      button(place.name, () => { actions.goTo(place.id); render(); },
+        actions.place() === place.id ? 'active' : '')));
+
+    const children = [newLife, speeds, skips, extras, tree, home, places];
     if (note) {
       const message = document.createElement('p');
       message.className = 'dev-note';
@@ -109,8 +125,8 @@ export function createDevMenu(menu, gear, actions) {
     // Call every frame; refreshes the read-out while the menu is open.
     update() {
       if (menu.hidden) return;
-      const { stats, traits, goal, job, tree } = actions.readout();
-      const lines = [stats, traits, goal, job, tree];
+      const { stats, traits, goal, job, tree, place } = actions.readout();
+      const lines = [stats, traits, goal, job, tree, place];
       const key = lines.join('|');
       if (key === shown) return;
       shown = key;

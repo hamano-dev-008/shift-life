@@ -13,8 +13,9 @@
 <body>
   <main id="app">
     <canvas id="scene"></canvas>
-    <!-- Invisible click target over the Fortune Tree (opens its menu). -->
-    <button id="tree-target" title="Fortune Tree" aria-label="Fortune Tree" hidden></button>
+    <!-- Invisible click areas over the place's clickable props (the tree,
+         the house, the sofa, the front door); filled in by the renderer. -->
+    <div id="targets"></div>
     <!-- Invisible click target over the "!" bubble drawn on the canvas. -->
     <button id="event-bubble" title="Something's happening!" aria-label="Open event" hidden></button>
     <div id="speech" hidden></div>
@@ -32,9 +33,21 @@
     </section>
     <section id="tree-menu" class="panel" hidden>
       <button class="panel-close" title="Close" aria-label="Close">x</button>
-      <h2 class="goal-title tree-title"></h2>
-      <div class="tree-options"></div>
-      <p class="tree-status"></p>
+      <h2 class="goal-title menu-title"></h2>
+      <div class="menu-options"></div>
+      <p class="menu-status"></p>
+    </section>
+    <section id="sofa-menu" class="panel" hidden>
+      <button class="panel-close" title="Close" aria-label="Close">x</button>
+      <h2 class="goal-title menu-title"></h2>
+      <div class="menu-options"></div>
+      <p class="menu-status"></p>
+    </section>
+    <section id="go-menu" class="panel" hidden>
+      <button class="panel-close" title="Close" aria-label="Close">x</button>
+      <h2 class="goal-title menu-title"></h2>
+      <div class="menu-options"></div>
+      <p class="menu-status"></p>
     </section>
     <!-- Developer settings; the gear only shows when running from source. -->
     <section id="dev-menu" class="panel" hidden>
@@ -48,6 +61,12 @@
     <div id="stats" hidden></div>
     <div id="controls">
       <button id="goal-btn" title="Life goal" hidden></button>
+      <button id="go-btn" title="Go to" aria-label="Go to">
+        <!-- 8x8 pixel map pin. -->
+        <svg viewBox="0 0 8 8" width="8" height="8" shape-rendering="crispEdges" aria-hidden="true">
+          <path fill="currentColor" d="M2 0h4v1h-4zM1 1h2v1h-2zM5 1h2v1h-2zM1 2h1v2h-1zM6 2h1v2h-1zM1 4h2v1h-2zM5 4h2v1h-2zM2 5h4v1h-4zM3 6h2v1h-2z"/>
+        </svg>
+      </button>
       <button id="dev-btn" title="Dev settings" aria-label="Dev settings" hidden>
         <!-- 8x8 pixel gear. -->
         <svg viewBox="0 0 8 8" width="8" height="8" shape-rendering="crispEdges" aria-hidden="true">

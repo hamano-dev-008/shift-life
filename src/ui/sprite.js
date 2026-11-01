@@ -1,6 +1,6 @@
 // sprite.js — Draws the character as a small pixel sprite, in code,
-// with goal activity props, job items, and the guitar and notes while
-// busking. All character drawing lives here so it can be swapped for hand-drawn sprite
+// with goal activity props, job items, the guitar and notes while
+// busking, and lying down with floating z's while resting. All character drawing lives here so it can be swapped for hand-drawn sprite
 // sheets later without touching the rest of the game.
 //
 // The sprite is painted facing right on a small layer in character pixels,
@@ -16,6 +16,7 @@ import {
 } from '../data/appearance.js';
 import { ACTIVITY_LOOPS } from '../data/animation.js';
 import { BUSK_LOOPS } from '../data/fortuneTree.js';
+import { REST_LOOPS } from '../data/home.js';
 import { createLayer, clearLayer, fill, outline, drawLayer } from './pixel.js';
 import { getSprite, frameAtTime, frameAtProgress, drawSprite } from './assets.js';
 
@@ -79,6 +80,11 @@ const NOTE_PIXELS = [[1, 0], [2, 0], [1, 1], [1, 2], [0, 3], [1, 3]];
 // How many rows a note rises before it fades.
 const NOTE_RISE_ROWS = 12;
 
+// Resting: a "z" glyph, 3x3, rising from the sleeping head.
+const Z_COLORS = ['#ffffff', '#cfe8ff'];
+const Z_PIXELS = [[0, 0], [1, 0], [2, 0], [1, 1], [0, 2], [1, 2], [2, 2]];
+const Z_RISE_ROWS = 10;
+
 const {
   pageFlip: PAGE_FLIP_EVERY, coin: COIN_BEAT, wave: WAVE_BEAT, heart: HEART_EVERY, sweat: SWEAT_EVERY,
 } = ACTIVITY_LOOPS;
@@ -103,6 +109,7 @@ function isCrawling(pose) {
 // counting hair), in character pixels, for placing bubbles above it.
 export function figureHeight(stage, pose) {
   const shape = shapeOf(stage, pose);
+  if (pose.lying) return shape.head + 1;
   if (pose.sit) return shape.body + shape.head;
   if (isCrawling(pose)) return CRAWL_POSE.limbs + shape.body + CRAWL_POSE.headAbove;
   return shape.legs + shape.body + shape.head;
@@ -140,15 +147,18 @@ function characterSprite(pose, stage, expression) {
 }
 
 // Draws the character. `pose` comes from poseOf() in animator.js;
-// `expression` is 'smile', 'neutral', or 'frown'; feetY is the canvas row
+// `expression` is 'smile', 'neutral', or 'frown'; groundY is the canvas row
 // the feet rest on; scale is screen pixels per character pixel. `item` is
 // the job item they wear or carry (data/jobs.js), or null; it shows while
-// standing or walking.
-export function drawCharacter(ctx, pose, stage, appearance, expression, feetY, scale, item = null) {
+// standing or walking. A lying pose is drawn `pose.lift` canvas pixels
+// higher (on the sofa), with no shadow.
+export function drawCharacter(ctx, pose, stage, appearance, expression, groundY, scale, item = null) {
+  const feetY = groundY - (pose.lift ?? 0);
   const shape = shapeOf(stage, pose);
   const length = isCrawling(pose) ? shape.width + CRAWL_POSE.shin + 2 : shape.width;
   const shadowWidth = (length + 2) * scale;
   const drawShadow = () => {
+    if (pose.lift) return;
     ctx.fillStyle = SHADOW_COLOR;
     ctx.fillRect(pose.x - shadowWidth / 2, feetY, shadowWidth, scale);
   };
@@ -166,7 +176,9 @@ export function drawCharacter(ctx, pose, stage, appearance, expression, feetY, s
 
   const px = (col, row, w, h, color) => fill(layer, ANCHOR + col, row, w, h, color);
   clearLayer(layer);
-  if (pose.sit) {
+  if (pose.lying) {
+    drawLying(px, shape, stage, appearance, expression, pose);
+  } else if (pose.sit) {
     drawSitting(px, shape, stage, appearance, expression, pose);
   } else if (isCrawling(pose)) {
     drawCrawling(px, shape, stage, appearance, expression, pose);
@@ -360,6 +372,41 @@ function drawSitting(px, shape, stage, look, expression, pose) {
   }
   drawHead(px, shape, stage, look, headLeft, headTop, pose.blinking, expression, pose.gaze);
   if (busking) drawNotes(px, headLeft + shape.head + 1, headTop + 2, pose.activityTime);
+}
+
+// Lying on the back, resting: the head propped up at the back end with
+// eyes closed, the torso and legs stretched out forward along the bottom
+// row, toes up, a hand at the side, and z's floating up from the head.
+function drawLying(px, shape, stage, look, expression, pose) {
+  const torso = shape.body + 1;
+  const length = shape.head + torso + shape.legs;
+  const left = -Math.floor(length / 2);
+  const thick = Math.ceil(shape.width / 2);
+  const torsoLeft = left + shape.head;
+  const legsLeft = torsoLeft + torso;
+  const bare = stage === 'baby';
+
+  px(torsoLeft, FOOT_ROW - thick + 1, torso, thick, look.shirt);
+  px(torsoLeft + Math.floor(torso / 2), FOOT_ROW - thick + 2, 1, 1, look.skin);
+  px(legsLeft, FOOT_ROW - 1, shape.legs, 2, bare ? look.skin : PANTS_COLOR);
+  px(legsLeft + shape.legs - 1, FOOT_ROW - 2, 1, 1, bare ? look.skin : SHOE_COLOR);
+  const headTop = FOOT_ROW - shape.head;
+  drawHead(px, shape, stage, look, left, headTop, true, expression);
+  drawZs(px, left + shape.head - 1, headTop - 1, pose.activityTime);
+}
+
+// Sleepy z's: one starts every REST_LOOPS.z seconds with its bottom row at
+// `bottom`, drifts up Z_RISE_ROWS over REST_LOOPS.zRise, alternating
+// colors and columns.
+function drawZs(px, col, bottom, t) {
+  const { z: every, zRise: rise } = REST_LOOPS;
+  const newest = Math.floor(t / every);
+  for (let i = newest; i >= 0 && t - i * every < rise; i--) {
+    const phase = (t - i * every) / rise;
+    const top = Math.max(1, bottom - 2 - Math.floor(phase * Z_RISE_ROWS));
+    const left = col + (i % 2) * 2 + Math.floor(phase * 2);
+    for (const [x, y] of Z_PIXELS) px(left + x, top + y, 1, 1, Z_COLORS[i % 2]);
+  }
 }
 
 // A guitar resting on the lap: a wooden body with a sound hole, the neck
