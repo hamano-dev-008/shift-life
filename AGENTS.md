@@ -1309,6 +1309,14 @@ Run it before committing any change that touches UI layers (see **Click
 layers**). Before committing, at least launch
 the app with `npm.cmd start` and confirm the window opens without errors in
 the DevTools console.
+
+**Syntax-check before running:** run `node --check <file>` on any test or
+script file you edited (e.g. `node --check test/smoke.cjs`) before running
+it. A syntax error in `test/smoke.cjs` doesn't fail fast: Electron shows an
+error dialog and stays open, so the run looks hung. Watch quotes in
+strings: put text that may contain apostrophes (like "the tree's") in a
+template literal (backticks) or double quotes, never single quotes.
+
 ## Coding conventions
 
 - **Plain JavaScript.** No TypeScript, UI frameworks, game engines, or
