@@ -200,15 +200,25 @@ app.whenReady().then(async () => {
     await wait(300);
   };
   const openPanels = () => js('[...document.querySelectorAll(".panel")].filter((p) => !p.hidden).map((p) => p.id)');
+  const propBubbleShown = () => js('!document.querySelector("#prop-bubble").hidden');
+  async function untilPropBubbleGone() {
+    for (let i = 0; i < 80 && await propBubbleShown(); i++) await wait(50);
+    assert.equal(await propBubbleShown(), false, 'the prop bubble never went');
+  }
   // A plain real click on every prop here does something: opens its menu
-  // (closed again), or starts a trip through it (ended by the dev Go to,
-  // back here).
+  // (closed again), shows its bubble (the wishing well), or starts a trip
+  // through it (ended by the dev Go to, back here).
   async function clickEveryProp(when) {
     const place = await js('document.querySelector("#place").textContent');
     const titles = await checkProps(when);
     for (const title of titles) {
+      await untilPropBubbleGone();
       await pressProp(title);
       await wait(60);
+      if (await propBubbleShown()) {
+        assert.deepEqual(await openPanels(), [], `${title} (${when}): a bubble and a menu`);
+        continue;
+      }
       const open = await openPanels();
       if (open.length) {
         assert.equal(open.length, 1, `${title} (${when}): opened ${open}`);
@@ -395,6 +405,36 @@ app.whenReady().then(async () => {
     assert.deepEqual(await openPanels(), []);
     await dragFrom(await propPoint('Fortune Tree', 'dragging from it'), 25, -15);
     assert.deepEqual(await openPanels(), []);
+    // The wishing well, left of the tree: its click area is clear of the
+    // tree's, a plain click shows its bubble over it (no menu) for a
+    // couple of seconds, and a press-and-move from it, or from the
+    // background, moves the window without the bubble.
+    const clickAreas = await js(`(() => {
+      const box = (title) => document.querySelector('#targets button[title="' + title + '"]').getBoundingClientRect().toJSON();
+      return { well: box('Wishing well'), tree: box('Fortune Tree') };
+    })()`);
+    assert.ok(clickAreas.well.right <= clickAreas.tree.left,
+      `the well's click area (${JSON.stringify(clickAreas.well)}) runs into the tree's (${JSON.stringify(clickAreas.tree)})`);
+    await untilPropBubbleGone();
+    await dragFrom(await propPoint('Wishing well', 'dragging from it'), 20, 10);
+    await dragFrom(await propPoint('Wishing well', 'dragging from it'), -20, -10);
+    assert.equal(await propBubbleShown(), false);
+    await dragFrom(await backgroundPoint(), 15, -10);
+    await dragFrom(await backgroundPoint(), -15, 10);
+    assert.deepEqual(await openPanels(), []);
+    await pressProp('Wishing well');
+    await wait(60);
+    assert.equal(await propBubbleShown(), true);
+    assert.equal(await js('document.querySelector("#prop-bubble").textContent'), 'A coin for luck? Coming soon!');
+    assert.deepEqual(await openPanels(), []);
+    const bubbleBox = await js('document.querySelector("#prop-bubble").getBoundingClientRect().toJSON()');
+    assert.ok(bubbleBox.bottom <= clickAreas.well.top + 1 && bubbleBox.left >= 0 && bubbleBox.right <= 320,
+      `the bubble isn't over the well: ${JSON.stringify(bubbleBox)}`);
+    await checkProps('the Fortune Tree with the well bubble up');
+    await untilPropBubbleGone();
+    await pressProp('Fortune Tree');
+    assert.equal(await js('document.querySelector("#tree-menu").hidden'), false);
+    await press('document.querySelector("#tree-menu .panel-close")');
     // Load a synthetic transparent sprite to exercise the PNG drawing path.
     spriteFiles = ['character.child.idle.png'];
     assert.equal(await js(`(async () => {
@@ -585,7 +625,7 @@ app.whenReady().then(async () => {
     await checkProps('Home, resting with the activity bar up');
     assert.deepEqual(await appRegions(), []);
     assert.deepEqual(errors, []);
-    console.log('PASS: activities start only on arrival (walking to the tree from the far side, then "Busking - 0:00"; the sofa; the dock), no -webkit-app-region anywhere, JS window drags (background, character, tree: the window follows, no poke, no menu), plain clicks on every prop in every place, native gentle/rapid clicks, spam, calming, moving hit regions, drag rejection, 25 poses, offscreen, prop/event priority, real clicks on props and menus, prop click areas on top in every place (at rest, after travel, menus closed, an event waiting, the activity bar, a catch reveal), rest/travel/busking preserved, transparent sprite, end of life, summary, Book, new life, the Lake (frogs, butterflies), fishing (rod, bite, catch, reveal, collection, activity bar, selling); no renderer errors.');
+    console.log('PASS: the Fortune Tree\'s wishing well (its bubble, click area apart from the tree\'s, drags from it and the background), activities start only on arrival (walking to the tree from the far side, then "Busking - 0:00"; the sofa; the dock), no -webkit-app-region anywhere, JS window drags (background, character, tree: the window follows, no poke, no menu), plain clicks on every prop in every place, native gentle/rapid clicks, spam, calming, moving hit regions, drag rejection, 25 poses, offscreen, prop/event priority, real clicks on props and menus, prop click areas on top in every place (at rest, after travel, menus closed, an event waiting, the activity bar, a catch reveal), rest/travel/busking preserved, transparent sprite, end of life, summary, Book, new life, the Lake (frogs, butterflies), fishing (rod, bite, catch, reveal, collection, activity bar, selling); no renderer errors.');
   } catch (error) {
     console.error(error);
     process.exitCode = 1;

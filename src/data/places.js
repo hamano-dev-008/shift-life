@@ -4,6 +4,7 @@
 // renderer read it.
 
 import { LAKE_PLACE, LAKE_FEET_FROM_BOTTOM, LAKE_WALK, DOCK_PROP } from './lake.js';
+import { TREE_BACKGROUND, WELL_PROP, WELL_TEXT } from './fortuneTreeDecor.js';
 
 // Each place has:
 //   id        Unique and saved; don't rename one once it has shipped.
@@ -30,7 +31,8 @@ import { LAKE_PLACE, LAKE_FEET_FROM_BOTTOM, LAKE_WALK, DOCK_PROP } from './lake.
 //             title }. Clicking a prop that's an exit's `via` walks the
 //             character through it; resting props (REST_SEATS in
 //             data/home.js) open the rest menu; the tree opens its menu;
-//             the Lake's dock shows its bubble (data/lake.js).
+//             the Lake's dock opens its activity menu; the wishing well
+//             shows its bubble (data/fortuneTreeDecor.js).
 //   feetFromBottom  Optional: rows above the window bottom where the
 //             character's feet rest here (default FEET_FROM_BOTTOM in
 //             data/layout.js). Bubbles, pokes and the shadow follow it.
@@ -56,9 +58,11 @@ export const PLACES = [
   {
     id: 'fortuneTree',
     name: 'Fortune Tree',
-    scenery: ['sky', 'grass', 'tree'],
+    // Its background picture (sky and grass without it), the wishing well
+    // and the tree (data/fortuneTreeDecor.js).
+    scenery: [TREE_BACKGROUND, WELL_PROP, 'tree'],
     exits: [{ to: LAKE_PLACE, via: 'left' }, { to: 'yard', via: 'right' }, { to: 'myYard', via: 'right' }],
-    targets: { tree: 'Fortune Tree' },
+    targets: { tree: 'Fortune Tree', [WELL_PROP]: WELL_TEXT.title },
   },
   {
     id: 'yard',

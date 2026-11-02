@@ -8,7 +8,9 @@
 // click areas over props, the tree, rest, activity (the dock) and Go to
 // menus, fishing (the rod, line and bobber, the bite's "!", the catch
 // reveal card, the fish collection), the Lake's wildlife (frogs and
-// butterflies, their click areas and the ribbit), the activity bar
+// butterflies, their click areas and the ribbit), the Fortune Tree's
+// decoration (falling golden leaves, sparkles around the apple, the
+// wishing well's bubble), the activity bar
 // (what's running, with Stop), the Book of past lives, the dev settings
 // menu (dev runs only), dragging the window (in JS) and saving.
 
@@ -66,6 +68,9 @@ import { FORTUNE_TREE_PLACE, TREE_PROP } from './data/fortuneTree.js';
 import { REST_SEATS } from './data/home.js';
 import { computeLayout, createScenery, propClickRect } from './ui/scene.js';
 import { drawGoldenApple } from './ui/goldenApple.js';
+import { createTreeDecor, updateTreeDecor } from './ui/treeDecor.js';
+import { treeDecorArea, drawTreeDecor, drawAppleSparkles } from './ui/treeDecorArt.js';
+import { WELL_PROP, WELL_TEXT, WELL_BUBBLE_SECONDS } from './data/fortuneTreeDecor.js';
 import { createTreeMenu } from './ui/treeMenu.js';
 import { drawFarewellFade } from './ui/farewell.js';
 import { createSummaryCard } from './ui/lifeSummary.js';
@@ -127,6 +132,7 @@ const biteBubble = document.getElementById('bite-bubble');
 const targets = document.getElementById('targets');
 const wildlife = document.getElementById('wildlife');
 const critterBubble = document.getElementById('critter-bubble');
+const propBubble = document.getElementById('prop-bubble');
 const activityBar = document.getElementById('activity-bar');
 const activityBarText = activityBar.querySelector('.bar-text');
 
@@ -378,6 +384,8 @@ async function start() {
   // says "ribbit!" and hops, a butterfly flutters off, and either gives a
   // little happiness on a real-time cooldown (game/lakeLife.js).
   let lakeLife = null;
+  // The Fortune Tree's falling leaves (ui/treeDecor.js), while it's shown.
+  let treeDecor = null;
   let lastFishPhase = null;
   const wildlifeReward = createWildlifeReward();
   let critterBubbleUntil = 0;
@@ -547,7 +555,27 @@ async function start() {
       restMenu.toggle();
     } else if (activity) {
       activityMenu.toggle(activity.id);
+    } else if (id === WELL_PROP) {
+      showPropBubble(id, WELL_TEXT.bubble, WELL_BUBBLE_SECONDS);
     }
+  }
+
+  // A short remark just above a clicked prop (the wishing well's "Coming
+  // soon!"), kept inside the window. It goes after `seconds`, or as soon
+  // as the place changes, a trip starts or the life ends.
+  let propBubbleUntil = 0;
+  let propBubblePlace = null;
+  function showPropBubble(id, text, seconds) {
+    const rect = propClickRect(scene.layout, id);
+    if (!rect) return;
+    propBubble.textContent = text;
+    propBubble.hidden = false;
+    const { width, height } = scene.layout;
+    const left = Math.round(rect.left + rect.width / 2 - propBubble.offsetWidth / 2);
+    propBubble.style.left = `${Math.min(Math.max(left, 2), width - propBubble.offsetWidth - 2)}px`;
+    propBubble.style.top = `${Math.min(Math.max(2, rect.top - propBubble.offsetHeight - 2), height - propBubble.offsetHeight - 2)}px`;
+    propBubbleUntil = performance.now() + seconds * 1000;
+    propBubblePlace = scene.place.id;
   }
 
   // A small passing remark over the head (poke chatter). It never
@@ -932,6 +960,17 @@ async function start() {
     if (place.id === FORTUNE_TREE_PLACE && game.fortuneTree.appleReady) {
       drawGoldenApple(ctx, layout, now / 1000);
     }
+    // The Fortune Tree's golden leaves falling (and the sparkles around a
+    // ready apple), behind the character; purely visual.
+    if (place.id === FORTUNE_TREE_PLACE) {
+      treeDecor ??= createTreeDecor();
+      const area = treeDecorArea(layout);
+      if (area) updateTreeDecor(treeDecor, dt, area);
+      drawTreeDecor(ctx, layout, treeDecor);
+      if (game.fortuneTree.appleReady) drawAppleSparkles(ctx, layout, now / 1000);
+    } else {
+      treeDecor = null;
+    }
     // The Lake's frogs and butterflies, behind the character. A bobber
     // landing near a frog makes it dive.
     if (place.id === LAKE_PLACE) {
@@ -955,6 +994,8 @@ async function start() {
     const revealing = catchReveal.isOpen();
     updateWildlifeTargets(Boolean(lakeLife) && !trip && !ended);
     critterBubble.hidden = critterBubble.hidden || now >= critterBubbleUntil || !lakeLife || revealing;
+    propBubble.hidden = propBubble.hidden || now >= propBubbleUntil || place.id !== propBubblePlace
+      || Boolean(trip) || Boolean(ended);
     if (farewell) drawFarewellFade(ctx, canvas.width, canvas.height, (now - farewell.since) / 1000);
     // No pokes once the life has ended (nothing drawn: no click target).
     characterTarget.update((hitCtx) => ended || drawCharacter(hitCtx, pose, stage, game.character.appearance,

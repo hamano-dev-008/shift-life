@@ -154,6 +154,12 @@ Early development. What works so far:
   `src/data/catchReveal.js`); the activity itself (where,
   from what age, the rod) in `src/data/activities.js`, where future
   activities can be added as data.
+- The Fortune Tree's place is decorated: golden leaves now and then
+  drift down from the tree, swaying, and fade out on the grass (now and
+  then one sparkles); soft sparkles twinkle around a ready golden apple;
+  and a little stone wishing well stands left of the tree. Click the
+  well for a hint of what's to come ("A coin for luck? Coming soon!").
+  Numbers and colors are in `src/data/fortuneTreeDecor.js`.
 - The Fortune Tree: from age 6, click the tree to open its menu:
   - "Play an instrument": the character sits under the tree with a
     guitar, notes floating up. Every 8 real minutes of playing pays $10
@@ -244,6 +250,11 @@ code. Save a PNG in `assets/sprites/` named after what it replaces:
 `yard.sleepingBag.png`, `yard.tent.png`, `yard.house.png`, `home.wall.png`,
 `home.floor.png`, `home.window.png`, `home.door.png`, `home.sofa.png`,
 `lake.png` (the Lake's whole background, 107 x 80; there's one already),
+`fortuneTree.background.png` (the Fortune Tree's whole background, 107 x
+80, drawn from the bottom-left corner instead of the sky and grass;
+there's one already), `fortuneTree.well.png` (the wishing well; the
+code-drawn one with its outline is 18 x 22), `fortuneTree.leaf.png` (a
+falling leaf, 2 frames side by side),
 `lake.frog.png` (4 frames: idle, blink, croak, hop),
 `lake.butterfly.png` (2 frames: wings open, closed; drawn white, it's
 tinted for each color, or make `lake.butterfly.blue.png` and so on),

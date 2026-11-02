@@ -1,11 +1,12 @@
-// props.js — Draws the outdoor props (the Fortune Tree's tree, the
-// parents' house and the character's own house in My Yard) in code, as outlined low-res pixel art scaled onto the
+// props.js — Draws the outdoor props (the Fortune Tree's tree and
+// wishing well, the parents' house and the character's own house in My Yard) in code, as outlined low-res pixel art scaled onto the
 // scenery; ui/scene.js uses these when there's no sprite for a prop. Also
 // the shared prop painter and the house colors, which Home's room
 // (ui/room.js) matches. Sizes and positions come from the layout
 // (computeLayout() in scene.js, from data/layout.js).
 
 import { OUTLINE_COLOR } from '../data/appearance.js';
+import { WELL_PROP, WELL_COLORS } from '../data/fortuneTreeDecor.js';
 import { createLayer, fill, outline, drawLayer } from './pixel.js';
 
 // The house's colors, also used inside it (ui/room.js).
@@ -40,6 +41,45 @@ export function drawParentsHouse(ctx, layout) {
 // parents' house for now.
 export function drawHouse(ctx, layout) {
   drawProp(ctx, layout, 'yard.house', paintHouse);
+}
+
+// The well, 16 x 20 in its own pixels: a little wooden roof on two posts
+// with the winch, the rope and bucket hanging under it, and a round stone
+// base (back rim, the dark water, the front rim, mortared stones).
+function paintWell(px, w, h) {
+  const c = WELL_COLORS;
+  // Roof, a peak of planks with a darker eave.
+  px(6, 0, 4, 1, c.roofDark);
+  px(4, 1, 8, 1, c.roof);
+  px(2, 2, 12, 1, c.roof);
+  px(0, 3, w, 1, c.roof);
+  px(0, 4, w, 1, c.roofDark);
+  // The back rim, then the posts standing on it.
+  px(1, 11, w - 2, 1, c.stoneLight);
+  px(2, 5, 1, 7, c.wood);
+  px(w - 3, 5, 1, 7, c.woodDark);
+  // The winch, the rope and the bucket.
+  px(3, 6, w - 6, 1, c.woodDark);
+  px(8, 7, 1, 1, c.rope);
+  px(7, 8, 3, 3, c.bucket);
+  px(7, 9, 3, 1, c.band);
+  // The opening: water between the rims, with a glint.
+  px(0, 12, 3, 1, c.stoneLight);
+  px(3, 12, w - 6, 1, c.water);
+  px(5, 12, 1, 1, c.waterShine);
+  px(w - 3, 12, 3, 1, c.stoneLight);
+  px(0, 13, w, 1, c.stoneLight);
+  // The stones, rounded at the bottom corners, with mortar.
+  px(0, 14, w, h - 15, c.stone);
+  px(1, h - 1, w - 2, 1, c.stone);
+  px(0, 16, w, 1, c.stoneDark);
+  for (const col of [4, 10]) px(col, 14, 1, 2, c.stoneDark);
+  for (const col of [1, 7, 13]) px(col, 17, 1, 2, c.stoneDark);
+  px(1, h - 1, w - 2, 1, c.stoneDark);
+}
+
+export function drawWell(ctx, layout) {
+  drawProp(ctx, layout, WELL_PROP, paintWell);
 }
 
 // Paints prop `id` on its own layer, leaving a 1px margin for the

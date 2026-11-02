@@ -21,6 +21,21 @@
 //     goldenApple  The Fortune Tree's golden apple, shown while one is
 //             ready. Drawn at the tree's scale (or its own `scale`), its
 //             middle pixel on APPLE_SPOT in data/fortuneTree.js.
+//   The Fortune Tree (data/fortuneTreeDecor.js):
+//     fortuneTree.background  The whole background (sky and grass),
+//             107 x 80, drawn from the window's bottom-left corner like
+//             the Lake's. Without it the Fortune Tree shows sky and grass
+//             (code-drawn, or their own sprites). Keep the grass at or
+//             above the props' base line (PROP_BASE_FROM_BOTTOM rows up).
+//     fortuneTree.well  The wishing well, against the left edge, left of
+//             the tree (PROPS['fortuneTree.well'] in data/layout.js),
+//             bottom edge one row below the prop's base line; code-drawn
+//             with outline 18 x 22. Its click area follows the sprite's
+//             visible pixels; keep it clear of the tree.
+//     fortuneTree.leaf  A falling golden leaf, 2 frames (the flutter),
+//             its top-left on the leaf's position; the first frame also
+//             shows while it lies fading on the grass. The code-drawn
+//             leaf is 3 x 2, no outline.
 //     parents.house  The parents' house in the Parents' Yard, against
 //             the right edge (PROPS['parents.house'] in data/layout.js),
 //             bottom edge one row below the prop's base line. The
@@ -130,6 +145,10 @@ export const SPRITES = {
   goldenApple: { scale: 1 },
   // The Lake's background, 107 x 80: one still frame, at the scene's scale.
   lake: { frames: 1 },
+  // The Fortune Tree's background, 107 x 80, likewise; its falling leaf's
+  // 2 flutter frames (the leaf's own timing, LEAVES.flutter).
+  'fortuneTree.background': { frames: 1 },
+  'fortuneTree.leaf': { frames: 2 },
   // The Lake's wildlife: idle, blink, croak, hop; wings open, closed.
   'lake.frog': { frames: 4 },
   'lake.butterfly': { frames: 2 },

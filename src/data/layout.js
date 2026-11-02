@@ -5,6 +5,7 @@
 // when SCENE_SCALE changes.
 
 import { LAKE_ART, DOCK, DOCK_PROP, FISHING_SPOT_X } from './lake.js';
+import { WELL, WELL_PROP } from './fortuneTreeDecor.js';
 
 // Overall scene scale: screen pixels per scene pixel. Whole numbers only,
 // so pixels stay crisp. Sizes everything except the character.
@@ -35,9 +36,12 @@ export const PROP_BASE_FROM_BOTTOM = 12;
 // bottom sits (default PROP_BASE_FROM_BOTTOM; higher for things on a
 // wall). visitOffset: how far from the prop's left side the character
 // stops when visiting (the trunk, a door, the middle of the sofa or the
-// sleeping bag).
+// sleeping bag). visit: false keeps the character from wandering over to
+// it on their own (it can still be clicked).
 export const PROPS = {
   tree: { edge: 'center', margin: 0, width: 18, height: 34, visitOffset: 9 },
+  // The Fortune Tree's wishing well, left of the tree (data/fortuneTreeDecor.js).
+  [WELL_PROP]: { edge: 'left', ...WELL, visit: false },
   'parents.house': { edge: 'right', margin: 8, width: 22, height: 26, visitOffset: 11 },
   'yard.sleepingBag': { edge: 'right', margin: 16, width: 22, height: 4, base: 9, visitOffset: 11 },
   'yard.tent': { edge: 'right', margin: 12, width: 26, height: 18, visitOffset: 13 },

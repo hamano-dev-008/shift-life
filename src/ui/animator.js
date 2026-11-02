@@ -96,12 +96,13 @@ function maxTrip(anim) {
   return trip ? trip * anim.layout.scale : Infinity;
 }
 
-// Sometimes heads to a prop (not the one just visited, and not beyond the
-// gait's longest trip), otherwise to a random spot.
+// Sometimes heads to a prop (not the one just visited, not one marked
+// visit: false, and not beyond the gait's longest trip), otherwise to a
+// random spot.
 function chooseTarget(anim) {
   const { props, scale } = anim.layout;
   const minDistance = MIN_WALK_DISTANCE * scale;
-  const choices = Object.keys(props).filter((id) => id !== anim.lastVisited);
+  const choices = Object.keys(props).filter((id) => id !== anim.lastVisited && props[id].visit !== false);
   if (choices.length && Math.random() < VISIT_CHANCE) {
     const id = choices[Math.floor(Math.random() * choices.length)];
     const distance = Math.abs(props[id].visitX - anim.x);

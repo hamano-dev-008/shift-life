@@ -31,7 +31,8 @@ with **Electron and plain JavaScript**.
 > the first of the data-defined place activities; frogs on lily pads
 > and butterflies over the reeds, clickable for a little happiness),
 > the Fortune Tree
-> (busking, the golden apple), the
+> (busking, the golden apple; golden leaves falling, a wishing well
+> whose coin toss is coming soon), the
 > Parents' Yard and Home (resting on the sofa) while growing up, then
 > from 18 My Yard (sleeping bag, tent or house, bought by the player)
 > and their own Home. From 50 health fades with age; the life ends
@@ -70,6 +71,7 @@ Shift-Life/
 │   │                  label, place name, stats panel, event bubble/card,
 │   │                  bite bubble, the reveal card's click area, the
 │   │                  Lake wildlife's click areas and the ribbit, the
+│   │                  remark over a clicked prop (the wishing well), the
 │   │                  activity bar, goal, tree, rest, activity (dock),
 │   │                  Go to and dev menus, life summary
 │   │                  card, Book of past lives, text bubble, top-right
@@ -77,7 +79,8 @@ Shift-Life/
 │   ├── styles.css     Rounded frame, pixelated canvas, label,
 │   │                  place name (with the label's backing), stats
 │   │                  panel, prop and wildlife click areas, the
-│   │                  ribbit, the reveal's click area, the activity
+│   │                  ribbit and the prop remark, the reveal's click
+│   │                  area, the activity
 │   │                  bar, panels (event card, goal,
 │   │                  tree, rest, activity with the fish collection, Go
 │   │                  to and dev menus, life summary, Book; the tall
@@ -94,7 +97,9 @@ Shift-Life/
 │   │                  activity menu), fishing's drawing and bite "!",
 │   │                  the catch reveal, the fish collection, the
 │   │                  Lake's wildlife (drawn, clicked, the ribbit,
-│   │                  dove at the bobber), the activity bar (Stop),
+│   │                  dove at the bobber), the Fortune Tree's falling
+│   │                  leaves and apple sparkles, the wishing well's
+│   │                  bubble, the activity bar (Stop),
 │   │                  buying housing, the
 │   │                  goodbye (sitting, fade, farewell bubble, summary
 │   │                  card) and new lives, autosave, frame loop, text
@@ -189,9 +194,9 @@ Shift-Life/
 │   │   │                  sprite or code-drawn; still pieces cached,
 │   │   │                  animated sprites and live pieces drawn every
 │   │   │                  frame
-│   │   ├── props.js       Draws the tree and the houses (parents' and
-│   │   │                  own) in code; the shared prop painter and
-│   │   │                  house colors
+│   │   ├── props.js       Draws the tree, the wishing well and the
+│   │   │                  houses (parents' and own) in code; the shared
+│   │   │                  prop painter and house colors
 │   │   ├── housing.js     Draws the sleeping bag and the tent in code
 │   │   ├── room.js        Draws Home's living room in code: wallpaper,
 │   │   │                  wooden floor, window, front door, sofa
@@ -227,7 +232,16 @@ Shift-Life/
 │   │   │                  the text bubble, both following the head
 │   │   ├── eventCard.js   The event card: prompt and choice buttons
 │   │   ├── goalMenu.js    The goal menu: pick a goal, boost, milestones
-│   │   ├── goldenApple.js The golden apple on the tree (sprite or code)
+│   │   ├── goldenApple.js The golden apple on the tree (sprite or code),
+│   │   │                  and where it hangs (appleCenter())
+│   │   ├── treeDecor.js   The Fortune Tree's falling golden leaves and
+│   │   │                  the sparkles around a ready apple, visual only
+│   │   │                  (no DOM, so tests run it): coming now and then,
+│   │   │                  swaying down, landing, fading, the rare
+│   │   │                  sparkling one
+│   │   ├── treeDecorArt.js Draws the leaves (code or fortuneTree.leaf)
+│   │   │                  and the apple sparkles; the leaves' area from
+│   │   │                  the tree's drawn box
 │   │   ├── treeMenu.js    The Fortune Tree menu: play/stop, pick the
 │   │   │                  apple, progress and pick chance
 │   │   ├── restMenu.js    The rest menu (sofa, sleeping bag, tent):
@@ -310,13 +324,21 @@ Shift-Life/
 │       │                  session length and pay, apple timing, pick
 │       │                  chance and reward, apple spot, busking loops,
 │       │                  bar text
+│       ├── fortuneTreeDecor.js The Fortune Tree's decoration: its
+│       │                  background slot (sky and grass without it),
+│       │                  the wishing well (size, colors, click text),
+│       │                  falling leaves (how often, how many, canopy,
+│       │                  speed, sway, flutter, landing, fade, sparkle
+│       │                  chance, colors) and apple sparkles
 │       ├── traits.js      Personality trait pairs, how many a newborn gets
 │       ├── goals.js       Life goals: stat, yearly drift, activity,
 │       │                  milestones (format documented in the file)
 │       ├── layout.js      SCENE_SCALE (scene size), CHARACTER_SCALE (the
 │       │                  character's own size), ground, the usual feet
-│       │                  row, props (edges, sizes, bases, visit spots;
-│       │                  the Lake's dock from data/lake.js) for every
+│       │                  row, props (edges, sizes, bases, visit spots,
+│       │                  visit: false; the Lake's dock from
+│       │                  data/lake.js, the well from
+│       │                  data/fortuneTreeDecor.js) for every
 │       │                  place, margins, bubble size
 │       │                  and head clearance
 │       ├── characterShapes.js  Body proportions per life stage, the
@@ -344,7 +366,8 @@ Shift-Life/
 │                          names drawing code looks for
 ├── assets/
 │   └── sprites/       Pixel-art PNGs that replace code-drawn art (tree.png,
-│                      goldenApple.png, lake.png, fish.<id>.png so far)
+│                      goldenApple.png, lake.png,
+│                      fortuneTree.background.png, fish.<id>.png so far)
 │                      and a short README
 └── test/              interaction.test.mjs (rules/poses), endOfLife.test.mjs
                        (ageing, endings, summary, Book, new life),
@@ -358,7 +381,12 @@ Shift-Life/
                        rod, bites, odds, earnings, sizes, selling,
                        collection and records, saving, a data-only
                        activity, the reveal's timing and text, the
-                       activity bar, dev), stay.test.mjs (on the way:
+                       activity bar, dev), treeDecor.test.mjs (the
+                       Fortune Tree's leaves: how often, how many, the
+                       canopy, sway, landing, fading in steps, the
+                       sparkling share; apple sparkles around the apple;
+                       the well never visited, left of the tree; the
+                       scenery and sprite names), stay.test.mjs (on the way:
                        busking, resting and fishing count nothing, pay
                        nothing, get no bites and don't freeze events
                        until arrival; the bar's text; Stop on the way;
@@ -370,7 +398,9 @@ Shift-Life/
                        drags from the background, the character and
                        the tree, busking and resting started by
                        clicks, walking to the tree from the far side
-                       before busking starts, end of life flow, the Lake and its
+                       before busking starts, the wishing well's
+                       bubble and click area apart from the tree's,
+                       drags from the well, end of life flow, the Lake and its
                        wildlife, fishing, the reveal, the activity bar)
 ```
 
@@ -422,7 +452,8 @@ How it works, for anyone extending it:
     names it looks for, and where each is placed, are listed at the top
     of `data/sprites.js`: `sky`, `grass`, `tree`, `yard.house`,
     `home.wall`, `home.floor`, `home.window`, `home.door`, `home.sofa`,
-    `lake`, `lake.frog`, `lake.butterfly` (or `lake.butterfly.<color>`)
+    `lake`, `lake.frog`, `lake.butterfly` (or `lake.butterfly.<color>`),
+    `fortuneTree.background`, `fortuneTree.well`, `fortuneTree.leaf`
     (scene pixels, drawn at `SCENE_SCALE`), `goldenApple` (at the
     tree's scale) and
     `character.<body>.<animation>` with an optional `.<expression>`
@@ -687,6 +718,37 @@ How it works, for anyone extending it:
     art) and props in `PROPS` (`data/layout.js`), and its sprite names
     in `data/sprites.js`. Place-specific features check the place id
     (`FORTUNE_TREE_PLACE`) or the props it shows (`REST_SEATS`).
+- **Fortune Tree decoration** (`data/fortuneTreeDecor.js`; behavior in
+  `ui/treeDecor.js`, drawing in `ui/treeDecorArt.js` and `ui/props.js`):
+  - Background: the place's first scenery piece is
+    `fortuneTree.background`, a `background()` piece in `ui/scene.js`
+    with a `fallback`: with `assets/sprites/fortuneTree.background.png`
+    (107 x 80, at `SCENE_SCALE` from the window's bottom-left corner,
+    like the Lake's) that picture shows; without it `createScenery()`
+    draws the fallback pieces, `sky` and `grass`, as usual (sprites or
+    code).
+  - The wishing well (`fortuneTree.well`): a prop in `PROPS` against the
+    left edge (`WELL`: x 4-20, 16 x 20, base on the props' ground line),
+    code-drawn in `ui/props.js` (stone base with water, two posts, a
+    little roof, rope and bucket) or the sprite, behind the character.
+    `visit: false` keeps the animator from wandering over to it
+    (`chooseTarget()`), so walking is as before. Its click area (title
+    `WELL_TEXT.title`) shows `#prop-bubble` over it ("A coin for luck?
+    Coming soon!") for `WELL_BUBBLE_SECONDS`; a coin toss comes later.
+    Its click area stays clear of the tree's (the smoke test checks).
+  - Falling golden leaves: the renderer makes `createTreeDecor()` while
+    the Fortune Tree is shown (dropped elsewhere; nothing saved), runs
+    `updateTreeDecor()` each frame in `treeDecorArea()` (`LEAVES.canopy`
+    as fractions of the tree's drawn box, so it fits tree.png or the
+    code-drawn tree) and draws it after the scenery and the apple,
+    before the character, so bubbles and menus are always over it. A
+    leaf comes every `LEAVES.every` seconds (at most `max`), falls
+    slowly swaying side to side, flutters between 2 frames, lands on a
+    row in `landRows` on the grass and fades out in `fadeSteps` steps; a
+    `sparkleChance` share glints as it falls. Code-drawn 3 x 2, or the
+    `fortuneTree.leaf` sprite (2 frames).
+  - While the golden apple is ready, `APPLE_SPARKLES` twinkle around it
+    (`appleSparkles()`, outside the apple's edge from `appleCenter()`).
 - **Yard and Home art:** the Parents' Yard is sky, grass and the house
   (`parents.house`, the old code-drawn house, `ui/props.js`). My Yard is
   sky, grass and one housing tier: the sleeping bag (`yard.sleepingBag`)
@@ -1063,7 +1125,8 @@ How it works, for anyone extending it:
     element or stylesheet rule sets it.
 - **Click layers:** later elements in `#app` sit on top. From the bottom:
   the canvas, `#wildlife`, `#targets` (prop click areas),
-  `#character-target`, the "!" bubbles, `#reveal-close` (only over the
+  `#character-target` (`#critter-bubble` and `#prop-bubble` sit around
+  here but never take clicks), the "!" bubbles, `#reveal-close` (only over the
   card while it shows), `#activity-bar`, then the panels and the top bar.
   - **Rule:** any new overlay, bar, button layer or full-window element
     must not cover the prop click areas or the character when it isn't

@@ -2,7 +2,9 @@
 // scene scale and a place (data/places.js), and draws that place's
 // scenery: outdoors a dithered sky, grassy ground strip, the tree, the
 // parents' house or the housing tier (ui/housing.js); at Home the wall, floor, window, door and sofa (ui/room.js);
-// at the Lake its background and the water shimmer (ui/lake.js).
+// at the Lake its background and the water shimmer (ui/lake.js); at the
+// Fortune Tree its background picture (or sky and grass) and the wishing
+// well.
 // Each piece uses its sprite (ui/assets.js) when there is one, or the
 // code-drawn art. Still pieces are drawn once to offscreen canvases
 // copied in every frame; animated sprites and live pieces (the shimmer)
@@ -12,11 +14,12 @@ import {
   SCENE_SCALE, CHARACTER_SCALE, GROUND_HEIGHT, FEET_FROM_BOTTOM, PROP_BASE_FROM_BOTTOM, PROPS, WANDER_MARGIN,
 } from '../data/layout.js';
 import { createLayer, drawLayer } from './pixel.js';
-import { drawTree, drawParentsHouse, drawHouse } from './props.js';
+import { drawTree, drawParentsHouse, drawHouse, drawWell } from './props.js';
 import { drawSleepingBag, drawTent } from './housing.js';
 import { drawWall, drawFloor, drawHomeWindow, drawHomeDoor, drawSofa } from './room.js';
 import { drawLake, drawShimmer } from './lake.js';
 import { DOCK_PROP } from '../data/lake.js';
+import { TREE_BACKGROUND, TREE_BACKGROUND_FALLBACK, WELL_PROP } from '../data/fortuneTreeDecor.js';
 import { getSprite, isAnimated, frameAtTime, drawSprite } from './assets.js';
 
 const SKY_TOP = [142, 202, 230];
@@ -61,6 +64,7 @@ export function computeLayout(width, height, place) {
       width: prop.width,
       height: prop.height,
       visitX: x + prop.visitOffset * scale,
+      visit: prop.visit !== false,
     };
   }
   const walk = place.walk ?? {};
@@ -248,13 +252,16 @@ function prop(name, drawCode) {
   };
 }
 
-// A whole background in one picture (the Lake): its sprite is drawn from
-// the window's bottom-left corner.
-function background(name, drawCode) {
+// A whole background in one picture (the Lake, the Fortune Tree): its
+// sprite is drawn from the window's bottom-left corner. Without the
+// sprite, `drawCode` draws it, or (with `fallback`, a list of other
+// pieces' names) those pieces are drawn in its place, each as usual.
+function background(name, drawCode, fallback = null) {
   return {
     name,
     drawSprite: (ctx, layout, sprite, frame) => drawSprite(ctx, sprite, frame, 0, layout.height, scaleOf(layout, sprite)),
     drawCode,
+    fallback,
   };
 }
 
@@ -279,6 +286,9 @@ const SCENERY = [
   { name: 'lake.shimmer', drawLive: drawShimmer },
   // Part of the Lake's background; only its click area and visit spot.
   prop(DOCK_PROP, () => {}),
+  // The Fortune Tree's picture; sky and grass without it.
+  background(TREE_BACKGROUND, null, TREE_BACKGROUND_FALLBACK),
+  prop(WELL_PROP, drawWell),
 ];
 
 function createCanvas(layout) {
@@ -296,19 +306,23 @@ function createCanvas(layout) {
 export function createScenery(layout, place) {
   const parts = [];
   let still = null;
-  for (const name of place.scenery) {
+  const add = (name) => {
     const piece = SCENERY.find((candidate) => candidate.name === name);
-    if (!piece) continue;
+    if (!piece) return;
     if (piece.drawLive) {
       parts.push({ live: piece });
       still = null;
-      continue;
+      return;
     }
     const sprite = getSprite(piece.name);
+    if (!sprite && piece.fallback) {
+      piece.fallback.forEach(add);
+      return;
+    }
     if (sprite && isAnimated(sprite)) {
       parts.push({ piece, sprite });
       still = null;
-      continue;
+      return;
     }
     if (!still) {
       still = createCanvas(layout);
@@ -320,7 +334,8 @@ export function createScenery(layout, place) {
     } else {
       piece.drawCode(ctx, layout);
     }
-  }
+  };
+  place.scenery.forEach(add);
   return {
     // Draws the scenery as it looks `seconds` in (for animated sprites
     // and live pieces).

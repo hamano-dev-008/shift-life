@@ -1,7 +1,8 @@
 // goldenApple.js — Draws the Fortune Tree's golden apple when one is ready:
 // the goldenApple sprite if there's one (data/sprites.js), otherwise a
 // small code-drawn apple with a blinking glint. Either way it's drawn at
-// the tree's scale, centered on APPLE_SPOT (data/fortuneTree.js).
+// the tree's scale, centered on APPLE_SPOT (data/fortuneTree.js). Also
+// where it hangs, for the sparkles around it (ui/treeDecorArt.js).
 
 import { APPLE_SPOT, APPLE_GLINT, TREE_PROP } from '../data/fortuneTree.js';
 import { OUTLINE_COLOR } from '../data/appearance.js';
@@ -40,15 +41,26 @@ function appleLayer(glint) {
   return layer;
 }
 
+// Where the apple hangs, in canvas pixels: { x, y (its middle), half (half
+// its drawn size, the larger side) }, or null if the place has no tree.
+export function appleCenter(layout) {
+  const tree = propRect(layout, TREE_PROP);
+  if (!tree) return null;
+  const spot = tree.sprite ? APPLE_SPOT.sprite : APPLE_SPOT.code;
+  const sprite = getSprite('goldenApple');
+  const half = sprite
+    ? (Math.max(sprite.frameWidth, sprite.frameHeight) * (sprite.scale ?? tree.scale)) / 2
+    : (APPLE_SIZE / 2) * tree.scale;
+  return { x: tree.left + spot.col * tree.scale, y: tree.top + spot.row * tree.scale, half };
+}
+
 // Draws the apple on the tree, `seconds` in (for the glint and an animated
 // sprite). Does nothing if the place has no tree.
 export function drawGoldenApple(ctx, layout, seconds) {
   const tree = propRect(layout, TREE_PROP);
   if (!tree) return;
-  const spot = tree.sprite ? APPLE_SPOT.sprite : APPLE_SPOT.code;
+  const { x, y } = appleCenter(layout);
   const scale = tree.scale;
-  const x = tree.left + spot.col * scale;
-  const y = tree.top + spot.row * scale;
 
   const sprite = getSprite('goldenApple');
   if (sprite) {
