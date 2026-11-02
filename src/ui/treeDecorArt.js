@@ -1,17 +1,19 @@
 // treeDecorArt.js — Draws the Fortune Tree place's moving decoration:
 // the falling golden leaves (the fortuneTree.leaf sprite, or code-drawn 3 x 2
 // in two flutter frames) with a rare one's glint, and the sparkles around
-// a ready golden apple. Also the area the leaves fall in, from the tree's
+// a ready golden apple, and the apple's soft golden glow (rings of whole
+// tree-sized pixels, pulsing, flashing when it's picked). Also the area
+// the leaves fall in, from the tree's
 // drawn box. Numbers and colors are in data/fortuneTreeDecor.js; the
 // leaves' motion in ui/treeDecor.js; the wishing well in ui/props.js.
 
-import { LEAVES, LEAF_COLORS } from '../data/fortuneTreeDecor.js';
+import { LEAVES, LEAF_COLORS, APPLE_GLOW } from '../data/fortuneTreeDecor.js';
 import { TREE_PROP } from '../data/fortuneTree.js';
 import { createLayer, fill, drawLayer } from './pixel.js';
 import { getSprite, drawSprite } from './assets.js';
 import { propRect } from './scene.js';
 import { appleCenter } from './goldenApple.js';
-import { leafLook, appleSparkles } from './treeDecor.js';
+import { leafLook, appleSparkles, appleGlow } from './treeDecor.js';
 
 // Where the leaves fall, in scene pixels: { canopy ({ left, right, top,
 // bottom }: LEAVES.canopy of the tree's drawn box), rows (the window's
@@ -71,6 +73,24 @@ export function drawTreeDecor(ctx, layout, decor) {
       ctx.fillRect(left + 3 * scale, (look.row - 1) * scale, scale, scale);
     }
   }
+}
+
+// Draws the soft golden glow behind the apple, `seconds` in, brighter
+// while `flashLeft` seconds of a pick's flash are left: semi-transparent
+// rings of whole tree-sized pixels (the tree's scale), outermost first, so
+// it's strongest near the apple. Draw it before the apple.
+export function drawAppleGlow(ctx, layout, seconds, flashLeft = 0) {
+  const apple = appleCenter(layout);
+  const tree = propRect(layout, TREE_PROP);
+  if (!apple || !tree) return;
+  const size = tree.scale;
+  ctx.save();
+  ctx.fillStyle = APPLE_GLOW.color;
+  for (const ring of appleGlow(seconds, flashLeft)) {
+    ctx.globalAlpha = ring.alpha;
+    for (const [dx, dy] of ring.cells) ctx.fillRect(apple.x + dx * size, apple.y + dy * size, size, size);
+  }
+  ctx.restore();
 }
 
 // Draws the sparkles twinkling around a ready golden apple, `seconds` in.

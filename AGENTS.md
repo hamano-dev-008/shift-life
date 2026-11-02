@@ -33,8 +33,9 @@ with **Electron and plain JavaScript**.
 > the first of the data-defined place activities; frogs on lily pads
 > and butterflies over the reeds, clickable for a little happiness),
 > the Fortune Tree
-> (busking, the golden apple; golden leaves falling, a wishing well
-> whose coin toss is coming soon), the
+> (busking, the golden apple, glowing and swinging in the wind;
+> golden leaves falling and drifting in gusts, a wishing well whose
+> coin toss is coming soon), the
 > Parents' Yard and Home (resting on the sofa) while growing up, then
 > from 18 My Yard (sleeping bag, tent or house, bought by the player)
 > and their own Home. From 50 health fades with age; the life ends
@@ -101,8 +102,9 @@ Shift-Life/
 │   │                  activity menu), fishing's drawing and bite "!",
 │   │                  the catch reveal, the fish collection, the
 │   │                  Lake's wildlife (drawn, clicked, the ribbit,
-│   │                  dove at the bobber), the Fortune Tree's falling
-│   │                  leaves and apple sparkles, the wishing well's
+│   │                  dove at the bobber), the Fortune Tree's wind,
+│   │                  falling leaves, the apple's glow, swing, pick
+│   │                  flash and sparkles, the wishing well's
 │   │                  bubble, work trips (when they may leave,
 │   │                  "Off to work!", the "At work" place label
 │   │                  calling them back), the player settings, the
@@ -243,16 +245,19 @@ Shift-Life/
 │   │   │                  the text bubble, both following the head
 │   │   ├── eventCard.js   The event card: prompt and choice buttons
 │   │   ├── goalMenu.js    The goal menu: pick a goal, boost, milestones
-│   │   ├── goldenApple.js The golden apple on the tree (sprite or code),
-│   │   │                  and where it hangs (appleCenter())
-│   │   ├── treeDecor.js   The Fortune Tree's falling golden leaves and
-│   │   │                  the sparkles around a ready apple, visual only
-│   │   │                  (no DOM, so tests run it): coming now and then,
-│   │   │                  swaying down, landing, fading, the rare
-│   │   │                  sparkling one
-│   │   ├── treeDecorArt.js Draws the leaves (code or fortuneTree.leaf)
-│   │   │                  and the apple sparkles; the leaves' area from
-│   │   │                  the tree's drawn box
+│   │   ├── goldenApple.js The golden apple on the tree (sprite frame
+│   │   │                  picked by the wind, or code), and where it
+│   │   │                  hangs (appleCenter())
+│   │   ├── treeDecor.js   The Fortune Tree's falling golden leaves, its
+│   │   │                  wind and the ready apple's glow and sparkles,
+│   │   │                  visual only (no DOM, so tests run it): leaves
+│   │   │                  coming now and then, swaying down (drifting in
+│   │   │                  a gust), landing, fading, the rare sparkling
+│   │   │                  one; calm and gusts, the apple's swing frame;
+│   │   │                  the glow's rings, pulse and pick flash
+│   │   ├── treeDecorArt.js Draws the leaves (code or fortuneTree.leaf),
+│   │   │                  the apple's glow and its sparkles; the
+│   │   │                  leaves' area from the tree's drawn box
 │   │   ├── treeMenu.js    The Fortune Tree menu: play/stop, pick the
 │   │   │                  apple, progress and pick chance
 │   │   ├── restMenu.js    The rest menu (sofa, sleeping bag, tent):
@@ -342,7 +347,10 @@ Shift-Life/
 │       │                  the wishing well (size, colors, click text),
 │       │                  falling leaves (how often, how many, canopy,
 │       │                  speed, sway, flutter, landing, fade, sparkle
-│       │                  chance, colors) and apple sparkles
+│       │                  chance, colors), apple sparkles, the wind
+│       │                  (gusts, swing timing, leaf push), the apple's
+│       │                  swing frames and glow (color, rings, pulse,
+│       │                  pick flash), dev note
 │       ├── traits.js      Personality trait pairs, how many a newborn gets
 │       ├── goals.js       Life goals: stat, yearly drift, activity,
 │       │                  milestones (format documented in the file)
@@ -399,6 +407,9 @@ Shift-Life/
                        Fortune Tree's leaves: how often, how many, the
                        canopy, sway, landing, fading in steps, the
                        sparkling share; apple sparkles around the apple;
+                       the wind's gusts, the apple's swing and leaves
+                       drifting; the glow's rings, pulse and flash; the
+                       apple sprite's frames;
                        the well never visited, left of the tree; the
                        scenery and sprite names), workTrips.test.mjs
                        (the 5-8 minute cooldown, only at the end of an
@@ -424,7 +435,8 @@ Shift-Life/
                        drags from the well, end of life flow, the Lake and its
                        wildlife, fishing, the reveal, the activity bar,
                        the Work trips setting, "Off to work!" and the
-                       "At work" label calling them back)
+                       "At work" label calling them back, "Gust now" at
+                       the Fortune Tree only, its props on top in a gust)
 ```
 
 How it works, for anyone extending it:
@@ -477,8 +489,8 @@ How it works, for anyone extending it:
     `home.wall`, `home.floor`, `home.window`, `home.door`, `home.sofa`,
     `lake`, `lake.frog`, `lake.butterfly` (or `lake.butterfly.<color>`),
     `fortuneTree.background`, `fortuneTree.well`, `fortuneTree.leaf`
-    (scene pixels, drawn at `SCENE_SCALE`), `goldenApple` (at the
-    tree's scale) and
+    (scene pixels, drawn at `SCENE_SCALE`), `goldenApple` (4 frames
+    of 8 x 6, at the tree's scale) and
     `character.<body>.<animation>` with an optional `.<expression>`
     (character pixels, at `CHARACTER_SCALE`).
   - Sheets have their frames side by side in one row. `SPRITES` in
@@ -799,6 +811,28 @@ How it works, for anyone extending it:
     `fortuneTree.leaf` sprite (2 frames).
   - While the golden apple is ready, `APPLE_SPARKLES` twinkle around it
     (`appleSparkles()`, outside the apple's edge from `appleCenter()`).
+  - Wind (`WIND`; `createWind()`/`updateWind()` in `ui/treeDecor.js`, on
+    the decoration, so made fresh each time the tree is shown, never
+    saved): mostly calm, a gust every `gustEvery` (10-25) real seconds
+    after the last one ends, blowing `gustLength` (2-4) seconds from a
+    random side. During a gust the apple swings through its frames
+    (`APPLE_SWING.frames`: center, right, center, left) every
+    `swingFrame` (0.3) seconds (`appleFrame()`), then settles once back
+    on a center frame; calm shows the center frame. The code-drawn apple
+    shifts `codeShift` tree pixels instead. Falling leaves drift
+    `leafPush` scene pixels a second the wind's way (`windPush()`);
+    landed ones stay. The dev menu's "Gust now" (Tree row) starts one
+    (`startGust()`; "Only at the Fortune Tree." elsewhere).
+  - Glow (`APPLE_GLOW`, `drawAppleGlow()` in `ui/treeDecorArt.js`): while
+    the apple is ready, `rings` of `#ffe26e` discs of whole tree-sized
+    pixels (`glowDisc()`), outermost first at their `alpha`, so it's
+    strongest near the apple; drawn after the leaves and before the
+    apple. It pulses (`glowLevel()`: between `pulse.low` and
+    `pulse.high` and back every `pulse.period`, 2 s, in `pulse.steps`
+    steps). Picking the apple (won or missed) calls `flashApple()`: the
+    glow is `flash.boost` times as bright, fading in `flash.steps` over
+    `flash.seconds`, and the apple stays drawn until it's over
+    (`isFlashing()`).
 - **Yard and Home art:** the Parents' Yard is sky, grass and the house
   (`parents.house`, the old code-drawn house, `ui/props.js`). My Yard is
   sky, grass and one housing tier: the sleeping bag (`yard.sleepingBag`)
@@ -896,8 +930,9 @@ How it works, for anyone extending it:
   - The golden apple grows over `APPLE_EVERY_HOURS` real hours, one at a
     time (the timer waits while one is ready), and is drawn on the tree
     (`ui/goldenApple.js`) at `APPLE_SPOT`: the `goldenApple` sprite if
-    there is one, else a code-drawn apple with a glint, at the tree's
-    scale. Picking succeeds with `PICK_CHANCE` (base + perSession x
+    there is one (4 frames of 8 x 6, the frame picked by the wind), else
+    a code-drawn apple with a glint, at the tree's scale, centered on
+    the spot, with its glow behind (see **Fortune Tree decoration**). Picking succeeds with `PICK_CHANCE` (base + perSession x
     sessions, capped): `APPLE_REWARD` dollars, a golden bubble, and
     `sessions` back to 0. A miss shows "The apple slipped away...".
     Either way the apple is gone and the next one starts growing.
@@ -1091,7 +1126,7 @@ How it works, for anyone extending it:
     years, trigger a fitting event now (opens its card; a job offer for
     an adult without a job, even while busking), add $1,000, finish the
     busking session now (paid; "Not playing." otherwise), make a golden
-    apple ready now, rest one more real minute now ("Rest 1 min": any
+    apple ready now, a gust of wind at the tree now ("Gust now"), rest one more real minute now ("Rest 1 min": any
     health it earns; "Not resting." otherwise), jump to 18 ("To 18" in
     the Skip row: the clock moves to the 18th birthday and moving out
     follows on the next tick), set the housing tier directly (Sleeping
@@ -1274,7 +1309,6 @@ Run it before committing any change that touches UI layers (see **Click
 layers**). Before committing, at least launch
 the app with `npm.cmd start` and confirm the window opens without errors in
 the DevTools console.
-
 ## Coding conventions
 
 - **Plain JavaScript.** No TypeScript, UI frameworks, game engines, or

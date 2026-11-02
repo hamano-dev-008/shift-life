@@ -161,7 +161,10 @@ Early development. What works so far:
   activities can be added as data.
 - The Fortune Tree's place is decorated: golden leaves now and then
   drift down from the tree, swaying, and fade out on the grass (now and
-  then one sparkles); soft sparkles twinkle around a ready golden apple;
+  then one sparkles); now and then a gust of wind swings the golden
+  apple and blows the falling leaves sideways; a ready golden apple
+  glows softly, pulsing, with sparkles twinkling around it, and the glow
+  flashes bright when you pick it (win or miss);
   and a little stone wishing well stands left of the tree. Click the
   well for a hint of what's to come ("A coin for luck? Coming soon!").
   Numbers and colors are in `src/data/fortuneTreeDecor.js`.
@@ -227,6 +230,7 @@ button next to minimize opens the dev settings: start a new life, set
 the speed (normal, fast at about one year every 5 seconds, or very fast
 at one year a second), skip ahead 1 or 10 years, trigger an event, add
 $1,000, finish a busking session instantly, grow a golden apple now,
+blow a gust of wind at the Fortune Tree,
 rest a minute instantly, jump to age 18 to test moving out, set the
 housing tier (sleeping bag, tent, house), jump to any place without
 walking (the Lake included), give a fishing rod, make a fish bite
@@ -268,10 +272,10 @@ tinted for each color, or make `lake.butterfly.blue.png` and so on),
 card (`fish.boot`, `fish.carp`, `fish.perch`, `fish.trout`,
 `fish.catfish`, `fish.salmon`, `fish.pike`, `fish.goldenKoi`; there's
 one for each already),
-`goldenApple.png` (drawn at the
-tree's scale unless it has its own `scale`, as the current 40 x 40 apple
-does, its middle on the spot set by `APPLE_SPOT` in
-`src/data/fortuneTree.js`), or
+`goldenApple.png` (4 frames of 8 x 6 side by side: center, swung
+right, center, swung left; the wind picks the frame; drawn at the
+tree's scale, its middle on the spot set by `APPLE_SPOT` in
+`src/data/fortuneTree.js`; there's one already), or
 `character.<body>.<animation>.png` (for example
 `character.adult.walk.png`; bodies are baby, toddler, child, teen,
 adult, elder; animations are idle, walk, sit, crawl, read, coins, wave,

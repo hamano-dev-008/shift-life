@@ -75,9 +75,15 @@ import { FORTUNE_TREE_PLACE, TREE_PROP } from './data/fortuneTree.js';
 import { REST_SEATS } from './data/home.js';
 import { computeLayout, createScenery, propClickRect } from './ui/scene.js';
 import { drawGoldenApple } from './ui/goldenApple.js';
-import { createTreeDecor, updateTreeDecor } from './ui/treeDecor.js';
-import { treeDecorArea, drawTreeDecor, drawAppleSparkles } from './ui/treeDecorArt.js';
-import { WELL_PROP, WELL_TEXT, WELL_BUBBLE_SECONDS } from './data/fortuneTreeDecor.js';
+import {
+  createTreeDecor, updateTreeDecor, appleFrame, startGust, flashApple, isFlashing,
+} from './ui/treeDecor.js';
+import {
+  treeDecorArea, drawTreeDecor, drawAppleSparkles, drawAppleGlow,
+} from './ui/treeDecorArt.js';
+import {
+  WELL_PROP, WELL_TEXT, WELL_BUBBLE_SECONDS, TREE_DECOR_TEXT,
+} from './data/fortuneTreeDecor.js';
 import { createTreeMenu } from './ui/treeMenu.js';
 import { drawFarewellFade } from './ui/farewell.js';
 import { createSummaryCard } from './ui/lifeSummary.js';
@@ -281,6 +287,8 @@ async function start() {
       if (stopPlaying(game)) saveGame(game);
     },
     pick: () => {
+      // Won or missed, the glow flashes before the apple goes.
+      if (treeDecor && game.fortuneTree.appleReady) flashApple(treeDecor);
       const news = pickApple(game);
       if (!news) return;
       showNews(news);
@@ -843,6 +851,12 @@ async function start() {
         appleNow(game);
         saveGame(game);
       },
+      // A gust at the Fortune Tree now; a note elsewhere.
+      gustNow: () => {
+        if (!treeDecor) return TREE_DECOR_TEXT.notHere;
+        startGust(treeDecor.wind);
+        return null;
+      },
       finishRest: () => {
         if (!finishRest(game)) return false;
         saveGame(game);
@@ -1000,16 +1014,19 @@ async function start() {
     // Cleared first: sprites may have see-through pixels.
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     scene.scenery.draw(ctx, now / 1000);
-    if (place.id === FORTUNE_TREE_PLACE && game.fortuneTree.appleReady) {
-      drawGoldenApple(ctx, layout, now / 1000);
-    }
-    // The Fortune Tree's golden leaves falling (and the sparkles around a
-    // ready apple), behind the character; purely visual.
+    // The Fortune Tree's wind and golden leaves falling, then a ready
+    // apple's glow, the apple (swinging in a gust; still shown while a
+    // pick's flash lasts) and its sparkles, all behind the character;
+    // purely visual.
     if (place.id === FORTUNE_TREE_PLACE) {
       treeDecor ??= createTreeDecor();
       const area = treeDecorArea(layout);
       if (area) updateTreeDecor(treeDecor, dt, area);
       drawTreeDecor(ctx, layout, treeDecor);
+      if (game.fortuneTree.appleReady || isFlashing(treeDecor)) {
+        drawAppleGlow(ctx, layout, now / 1000, treeDecor.flashLeft);
+        drawGoldenApple(ctx, layout, now / 1000, appleFrame(treeDecor.wind));
+      }
       if (game.fortuneTree.appleReady) drawAppleSparkles(ctx, layout, now / 1000);
     } else {
       treeDecor = null;

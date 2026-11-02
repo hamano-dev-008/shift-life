@@ -34,7 +34,8 @@ function row(label, ...children) {
 // `menu` is the #dev-menu element and `gear` the #dev-btn that opens it.
 // `actions` is { newLife, setSpeed(id), skipYears(n), triggerEvent()
 // (returns whether an event started), addMoney(n), finishSession()
-// (returns whether a busking session was playing), appleNow(), finishRest()
+// (returns whether a busking session was playing), appleNow(), gustNow()
+// (returns null, or a note such as "Only at the Fortune Tree."), finishRest()
 // (returns whether they were resting), goTo(placeId), place() (current
 // place id), places() (the places that exist now, { id, name }),
 // setTier(tierId), tier() (current housing tier id), toMoveOut()
@@ -100,7 +101,11 @@ export function createDevMenu(menu, gear, actions) {
           render();
         }
       }),
-      button('Apple now', () => actions.appleNow()));
+      button('Apple now', () => actions.appleNow()),
+      button('Gust now', () => {
+        note = actions.gustNow() ?? '';
+        if (note) render(); else close();
+      }));
 
     const home = row('Home',
       button('Rest 1 min', () => {

@@ -655,9 +655,20 @@ app.whenReady().then(async () => {
     assert.equal(await js('document.querySelector("#place").textContent'), 'Home');
     assert.equal(await placeOnTop(), false);
     await point();
+    // The Fortune Tree's wind: "Gust now" only works there.
+    await js('document.querySelector("#dev-btn").click()');
+    await devClick('Gust now');
+    assert.equal(await js('document.querySelector("#dev-menu .dev-note")?.textContent'), 'Only at the Fortune Tree.');
+    await js('document.querySelector("#dev-btn").click()');
+    await dev('Fortune Tree', 'Apple now');
+    await js('document.querySelector("#dev-btn").click()');
+    await devClick('Gust now');
+    assert.equal(await js('document.querySelector("#dev-menu").hidden'), true);
+    await wait(1500);
+    assert.deepEqual(await checkProps('Fortune Tree in a gust, the apple glowing'), ['Fortune Tree', 'Wishing well']);
     assert.deepEqual(await appRegions(), []);
     assert.deepEqual(errors, []);
-    console.log('PASS: the Fortune Tree\'s wishing well (its bubble, click area apart from the tree\'s, drags from it and the background), activities start only on arrival (walking to the tree from the far side, then "Busking - 0:00"; the sofa; the dock), no -webkit-app-region anywhere, JS window drags (background, character, tree: the window follows, no poke, no menu), plain clicks on every prop in every place, native gentle/rapid clicks, spam, calming, moving hit regions, drag rejection, 25 poses, offscreen, prop/event priority, real clicks on props and menus, prop click areas on top in every place (at rest, after travel, menus closed, an event waiting, the activity bar, a catch reveal), rest/travel/busking preserved, transparent sprite, end of life, summary, Book, new life, the Lake (frogs, butterflies), fishing (rod, bite, catch, reveal, collection, activity bar, selling), work trips (the setting saved, "Off to work!", the "At work" label calling them back); no renderer errors.');
+    console.log(`PASS: the Fortune Tree's wishing well (its bubble, click area apart from the tree's, drags from it and the background), activities start only on arrival (walking to the tree from the far side, then "Busking - 0:00"; the sofa; the dock), no -webkit-app-region anywhere, JS window drags (background, character, tree: the window follows, no poke, no menu), plain clicks on every prop in every place, native gentle/rapid clicks, spam, calming, moving hit regions, drag rejection, 25 poses, offscreen, prop/event priority, real clicks on props and menus, prop click areas on top in every place (at rest, after travel, menus closed, an event waiting, the activity bar, a catch reveal), rest/travel/busking preserved, transparent sprite, end of life, summary, Book, new life, the Lake (frogs, butterflies), fishing (rod, bite, catch, reveal, collection, activity bar, selling), work trips (the setting saved, "Off to work!", the "At work" label calling them back), the Fortune Tree's wind (Gust now there only; props still on top with the apple glowing in a gust); no renderer errors.`);
   } catch (error) {
     console.error(error);
     process.exitCode = 1;

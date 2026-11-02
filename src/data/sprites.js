@@ -19,8 +19,11 @@
 //             below the prop's base line. The code-drawn tree plus its
 //             1px outline is 20 x 36.
 //     goldenApple  The Fortune Tree's golden apple, shown while one is
-//             ready. Drawn at the tree's scale (or its own `scale`), its
-//             middle pixel on APPLE_SPOT in data/fortuneTree.js.
+//             ready: 4 frames of 8 x 6 side by side (center, swung
+//             right, center, swung left), picked by the wind
+//             (data/fortuneTreeDecor.js), not by time. Drawn at the
+//             tree's scale, its middle on APPLE_SPOT in
+//             data/fortuneTree.js.
 //   The Fortune Tree (data/fortuneTreeDecor.js):
 //     fortuneTree.background  The whole background (sky and grass),
 //             107 x 80, drawn from the window's bottom-left corner like
@@ -140,9 +143,9 @@ export const SPRITES = {
   // The tree art is small for a tree; drawn bigger (5 vs the scene's 3)
   // so it stands tall in the middle of the scene.
   tree: { scale: 5 },
-  // The apple art is 40 x 40, finely drawn: at the tree's scale it would
-  // be bigger than the tree, so it's drawn 1:1.
-  goldenApple: { scale: 1 },
+  // The apple: 4 frames of 8 x 6 (center, right, center, left), drawn at
+  // the tree's scale like the tree's own pixels. The wind picks the frame.
+  goldenApple: { frames: 4, frameWidth: 8 },
   // The Lake's background, 107 x 80: one still frame, at the scene's scale.
   lake: { frames: 1 },
   // The Fortune Tree's background, 107 x 80, likewise; its falling leaf's

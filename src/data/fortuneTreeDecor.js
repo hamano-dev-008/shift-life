@@ -78,3 +78,52 @@ export const APPLE_SPARKLES = {
   shine: 0.6,
   colors: ['#fffbe0', '#f7d77f'],
 };
+
+// The wind at the Fortune Tree, purely visual (not saved). Mostly calm:
+// a gust comes every `gustEvery` real seconds (random between; the first
+// `firstGustIn` after the tree is shown) and blows `gustLength` seconds,
+// from the left or the right at random. During a gust the golden apple
+// swings through its 4 frames (center, right, center, left) every
+// `swingFrame` seconds, then settles back on a center frame; falling
+// leaves drift `leafPush` more scene pixels a second in the wind's
+// direction.
+export const WIND = {
+  gustEvery: [10, 25],
+  firstGustIn: [4, 12],
+  gustLength: [2, 4],
+  swingFrame: 0.3,
+  leafPush: 9,
+};
+
+// The golden apple's frames, in the goldenApple sprite's order: still in
+// calm air, then the swing. The code-drawn apple shifts `codeShift` tree
+// pixels sideways for each frame instead.
+export const APPLE_SWING = {
+  frames: ['center', 'right', 'center', 'left'],
+  codeShift: [0, 1, 0, -1],
+};
+
+// The soft glow behind a ready golden apple: `rings` of warm gold, each
+// a disc of whole tree-sized pixels `radius` tree pixels from the apple's
+// middle, drawn outermost first at `alpha` (they overlap, so it's
+// strongest near the apple). It pulses: the alphas are multiplied by a
+// level going between pulse.low and pulse.high and back every
+// pulse.period seconds, in pulse.steps steps (so it stays pixel art).
+// Picking the apple (won or missed) flashes it: flash.boost times as
+// bright, fading in flash.steps steps over flash.seconds, with the apple
+// still shown until it's done.
+export const APPLE_GLOW = {
+  color: '#ffe26e',
+  rings: [
+    { radius: 8, alpha: 0.1 },
+    { radius: 6.5, alpha: 0.14 },
+    { radius: 5, alpha: 0.2 },
+  ],
+  pulse: { period: 2, low: 0.65, high: 1.25, steps: 5 },
+  flash: { seconds: 0.4, boost: 3.2, steps: 3 },
+};
+
+// Dev menu notes for the decoration.
+export const TREE_DECOR_TEXT = {
+  notHere: 'Only at the Fortune Tree.',
+};
