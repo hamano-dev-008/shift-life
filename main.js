@@ -3,7 +3,7 @@
 // reads/writes the game save file, the Book of past lives and the fish
 // collection for the renderer, lists the sprite
 // PNGs in assets/sprites/, and tells it whether it's running from source
-// (for developer settings).
+// (for developer settings). Only one copy runs at a time.
 
 const { app, BrowserWindow, ipcMain, screen } = require('electron');
 const fs = require('fs');
@@ -153,5 +153,19 @@ ipcMain.on('book:write', (event, data) => writeJson(bookFile(), data));
 ipcMain.handle('collection:load', () => readJson(collectionFile()));
 ipcMain.on('collection:write', (event, data) => writeJson(collectionFile(), data));
 
-app.whenReady().then(createWindow);
+// One copy at a time: two would stack in the same spot, both always on
+// top and both writing save.json. A second launch quits at once and the
+// running copy shows and focuses its window instead.
+if (!app.requestSingleInstanceLock()) {
+  app.quit();
+} else {
+  app.on('second-instance', () => {
+    const win = BrowserWindow.getAllWindows()[0];
+    if (!win) return;
+    if (win.isMinimized()) win.restore();
+    win.show();
+    win.focus();
+  });
+  app.whenReady().then(createWindow);
+}
 app.on('window-all-closed', () => app.quit());

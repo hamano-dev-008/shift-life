@@ -56,7 +56,9 @@ Shift-Life/
 │                      restores its position, handles window, save and
 │                      Book of past lives and fish collection IPC,
 │                      lists the PNGs in
-│                      assets/sprites/, reports dev runs (!app.isPackaged)
+│                      assets/sprites/, reports dev runs (!app.isPackaged);
+│                      only one copy runs (a second launch quits and
+│                      focuses the running window)
 ├── preload.js         Exposes window.shiftLife { minimize, close, loadSave,
 │                      save, saveSync, loadBook, saveBook,
 │                      loadCollection, saveCollection, isDev,
@@ -341,9 +343,12 @@ Shift-Life/
                        rod, bites, odds, earnings, sizes, selling,
                        collection and records, saving, a data-only
                        activity, the reveal's timing and text, the
-                       activity bar, dev), smoke.cjs (Electron clicks,
-                       end of life flow, the Lake and its wildlife,
-                       fishing, the reveal, the activity bar)
+                       activity bar, dev), smoke.cjs (Electron, real
+                       mouse clicks: pokes, props and menus, every
+                       place's prop click areas on top in every
+                       situation, busking and resting started by
+                       clicks, end of life flow, the Lake and its
+                       wildlife, fishing, the reveal, the activity bar)
 ```
 
 How it works, for anyone extending it:
@@ -646,8 +651,8 @@ How it works, for anyone extending it:
       blue (5%). Code-drawn 3 x 3 (two wing frames), or
       `lake.butterfly.<color>`, or `lake.butterfly` tinted.
     - Clicking (invisible buttons in `#wildlife` over each one, with
-      `WILDLIFE_CLICK.hitPadding` around, under the character's click
-      area): a frog on a pad says "ribbit!" (`#critter-bubble`, briefly)
+      `WILDLIFE_CLICK.hitPadding` around, under the props' and the
+      character's click areas): a frog on a pad says "ribbit!" (`#critter-bubble`, briefly)
       and hops (to a free pad, or on the spot); a butterfly flutters
       away fast. Either gives +1 happiness through
       `rewardWildlifeClick()` (`game/lakeLife.js`), at most once per
@@ -975,6 +980,28 @@ How it works, for anyone extending it:
 - **Dragging:** `#app` has `-webkit-app-region: drag`, so the whole window
   background drags the window. Any element that needs clicks (buttons,
   the character) must set `-webkit-app-region: no-drag`.
+- **Click layers:** later elements in `#app` sit on top. From the bottom:
+  the canvas, `#wildlife`, `#targets` (prop click areas),
+  `#character-target`, the "!" bubbles, `#reveal-close` (only over the
+  card while it shows), `#activity-bar`, then the panels and the top bar.
+  - **Rule:** any new overlay, bar, button layer or full-window element
+    must not cover the prop click areas or the character when it isn't
+    meant to: keep it `hidden` or `pointer-events: none` when not in
+    use, size it to what it shows, and put it in the order above
+    deliberately. (Panels and the "!" bubbles over the head are meant to
+    cover things; a bar, a hint or a decoration isn't.)
+  - Any change that touches UI layers (`index.html`, `styles.css`, DOM
+    built by the renderer or `ui/`) must run `npm.cmd run test:smoke`
+    before committing. It clicks with real mouse events at screen
+    coordinates (`webContents.sendInputEvent`) and checks with
+    `document.elementFromPoint` that every place's prop click areas are
+    on top at their middle: at rest, after travelling, with a menu
+    closed, an event waiting, the activity bar up and a catch reveal
+    showing. When adding a layer or a place, add it to those checks.
+- **Single instance:** `main.js` takes `app.requestSingleInstanceLock()`.
+  A second launch quits at once, and the running copy restores, shows
+  and focuses its window (`second-instance`), so two copies never stack
+  on top of each other or both write `save.json`.
 - **Renderer ↔ main:** the renderer has no Node access. Add new
   capabilities as named IPC channels in `main.js` and expose them through
   `window.shiftLife` in `preload.js`.
@@ -1035,7 +1062,8 @@ The first `npm.cmd start` after a fresh install downloads the Electron
 binary, so it takes longer than later starts.
 
 The Electron smoke check uses in-memory saves and never changes the player save.
-Before committing, at least launch
+Run it before committing any change that touches UI layers (see **Click
+layers**). Before committing, at least launch
 the app with `npm.cmd start` and confirm the window opens without errors in
 the DevTools console.
 
@@ -1072,7 +1100,25 @@ the DevTools console.
    steps change.
 5. If a task is ambiguous or would break these rules (new framework, large
    refactor), ask the user before proceeding.
-6. **Restart the game after every completed change.** Gracefully close the
-   running Shift-Life window so its life saves, then launch `npm.cmd start`
-   again and confirm the updated game opens. Do this automatically so the
-   player can try the latest changes; avoid leaving duplicate instances.
+6. **Restart the game after every completed change**, automatically, so
+   the player can try the latest changes. A new copy must never open on
+   top of an old one:
+   1. Close every running Shift-Life Electron process gracefully (its
+      window closes and the life saves).
+   2. If any hasn't exited after a few seconds, stop it.
+   3. Only then launch `npm.cmd start`, and confirm the updated game
+      opens and exactly one Shift-Life window is running.
+
+   In PowerShell, from the project folder:
+   ```powershell
+   $exe = (Resolve-Path 'node_modules\electron\dist\electron.exe').Path
+   $old = Get-Process electron -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq $exe }
+   $old | ForEach-Object { $null = $_.CloseMainWindow() }
+   $old | Wait-Process -Timeout 5 -ErrorAction SilentlyContinue
+   Get-Process electron -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq $exe } | Stop-Process -Force
+   npm.cmd start   # in the background
+   ```
+   Matching on this project's `electron.exe` leaves other Electron apps
+   alone. Don't do it while `npm.cmd run test:smoke` is running (it uses
+   the same `electron.exe`). The single-instance lock is a backstop: a
+   second launch quits, but the old copy keeps running old code.

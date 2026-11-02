@@ -1,4 +1,9 @@
 // smoke.cjs — Electron renderer checks with in-memory saves, leaving player saves untouched.
+// Props and menus are clicked with real mouse events at screen coordinates
+// (what the mouse would actually hit), and every place's prop click areas
+// are checked to be on top at their middle: at rest, after travelling,
+// while fishing with a catch reveal, with the activity bar up, with an
+// event waiting, and after a menu closes.
 const { app, BrowserWindow, ipcMain, protocol, net, nativeImage } = require('electron');
 const path = require('node:path');
 const assert = require('node:assert/strict');
@@ -39,18 +44,102 @@ app.whenReady().then(async () => {
   win.webContents.on('console-message', (event) => {
     if (event.level === 'error') errors.push(event.message);
   });
-  const js = (source) => win.webContents.executeJavaScript(source);
-  const point = () => js(`(() => {
-    const runs = [...document.querySelectorAll('#character-target span')];
-    const run = runs.sort((a,b) => b.offsetWidth-a.offsetWidth)[0];
-    const r = run.getBoundingClientRect();
-    return { x: Math.floor(r.x+r.width/2), y: Math.floor(r.y) };
-  })()`);
+  const js = (source) => win.webContents.executeJavaScript(source).catch((error) => {
+    throw new Error(`${error.message}
+  in: ${source.slice(0, 300)}`);
+  });
+  // The middle of the character's widest painted run, once they're on
+  // screen (they may still be walking in from an edge).
+  const point = async () => {
+    for (let i = 0; i < 80; i++) {
+      const at = await js(`(() => {
+        const runs = [...document.querySelectorAll('#character-target span')];
+        const run = runs.sort((a,b) => b.offsetWidth-a.offsetWidth)[0];
+        if (!run) return null;
+        const r = run.getBoundingClientRect();
+        return { x: Math.floor(r.x+r.width/2), y: Math.floor(r.y) };
+      })()`);
+      if (at) return at;
+      await wait(100);
+    }
+    throw new Error('the character never came on screen');
+  };
   const click = async (p) => {
     win.webContents.sendInputEvent({ type: 'mouseDown', button: 'left', clickCount: 1, ...p });
     win.webContents.sendInputEvent({ type: 'mouseUp', button: 'left', clickCount: 1, ...p });
     await wait(70);
   };
+  // A real click at the middle of the element the JS expression `expr`
+  // finds: it lands on whatever is on top there, as a mouse would.
+  const press = async (expr) => {
+    const at = await js(`(() => { const el = ${expr}; if (!el) return null;
+      const r = el.getBoundingClientRect();
+      return { x: Math.floor(r.x + r.width / 2), y: Math.floor(r.y + r.height / 2), w: r.width, h: r.height }; })()`);
+    assert.ok(at && at.w > 0 && at.h > 0, `nothing to click: ${expr}`);
+    await click({ x: at.x, y: at.y });
+  };
+  const inPanel = (panel, text) => `[...document.querySelectorAll(${JSON.stringify(`${panel} button`)})]
+    .find((b) => b.textContent === ${JSON.stringify(text)})`;
+  // Where prop `title`'s click area can really be clicked: its middle if
+  // it's the topmost element there ({ ok, x, y }). The character, or the
+  // "!" over their head, may stand in front of it (that's meant to be):
+  // then { ok, covered, x, y } at another point of the area that's on
+  // top, or { covered } if none is. Anything else on top is a bug:
+  // { blocked: what }.
+  const propAt = (title) => js(`(() => {
+    const el = document.querySelector('#targets button[title=' + ${JSON.stringify(JSON.stringify(title))} + ']');
+    if (!el) return { missing: 'no click area' };
+    const r = el.getBoundingClientRect();
+    if (!r.width || !r.height) return { missing: 'hidden' };
+    const describe = (n) => !n ? 'nothing' : [n.tagName.toLowerCase(), n.id && '#' + n.id,
+      typeof n.className === 'string' && n.className && '.' + n.className, n.title && '"' + n.title + '"',
+      n.parentElement && n.parentElement.id && 'in #' + n.parentElement.id].filter(Boolean).join(' ');
+    const x = Math.floor(r.x + r.width / 2);
+    const y = Math.floor(r.y + r.height / 2);
+    const top = document.elementFromPoint(x, y);
+    if (top === el) return { ok: true, x, y };
+    if (!top || !top.matches('#character-target span, #event-bubble, #bite-bubble')) return { blocked: describe(top) };
+    for (const fx of [0.2, 0.35, 0.5, 0.65, 0.8]) {
+      for (const fy of [0.2, 0.35, 0.5, 0.65, 0.8]) {
+        const px = Math.floor(r.x + r.width * fx);
+        const py = Math.floor(r.y + r.height * fy);
+        if (document.elementFromPoint(px, py) === el) return { ok: true, covered: describe(top), x: px, y: py };
+      }
+    }
+    return { covered: describe(top) };
+  })()`);
+  // A point to click prop `title` at; gives the character a few seconds to
+  // wander out of the way first.
+  async function propPoint(title, when) {
+    let at;
+    for (let i = 0; i < 40; i++) {
+      at = await propAt(title);
+      assert.ok(!at.blocked, `${title} (${when}): its click area is covered by ${at.blocked}`);
+      if (at.ok && !at.covered) return at;
+      await wait(100);
+    }
+    assert.ok(at.ok, `${title} (${when}): no clickable point (${at.covered ?? at.missing})`);
+    return at;
+  }
+  // Every prop click area here is on top at its middle.
+  async function checkProps(when) {
+    assert.equal(await js('document.querySelector("#targets").hidden'), false, `prop click areas hidden (${when})`);
+    const titles = await js('[...document.querySelectorAll("#targets button")].map((b) => b.title)');
+    assert.ok(titles.length > 0, `no prop click areas (${when})`);
+    for (const title of titles) await propPoint(title, when);
+    return titles;
+  }
+  const pressProp = async (title) => click(await propPoint(title, `clicking ${title}`));
+  // Waits for a trip to end at place `name`.
+  async function arrive(name) {
+    for (let i = 0; i < 600; i++) {
+      const done = await js(`!document.querySelector("#go-btn").disabled
+        && document.querySelector("#place").textContent === ${JSON.stringify(name)}`);
+      if (done) return;
+      await wait(100);
+    }
+    assert.fail(`never arrived at ${name}`);
+  }
   try {
     await win.loadFile(path.resolve(__dirname, '../src/index.html'));
     await wait(700);
@@ -102,39 +191,55 @@ app.whenReady().then(async () => {
       return true;
     })()`);
     assert.equal(poseChecks, true);
-    // Existing prop targets still open menus, and an event supersedes poke chatter.
-    await js(`document.querySelector('#targets button[title="Sofa"]').click()`);
+    // Every prop's click area is on top at its middle, and real mouse
+    // clicks open menus; an event supersedes poke chatter.
+    await checkProps("the Parents' Home at rest");
+    await pressProp('Sofa');
     assert.equal(await js('document.querySelector("#rest-menu").hidden'), false);
-    await js(`document.querySelector('#rest-menu .panel-close').click();
-      window.dispatchEvent(new KeyboardEvent('keydown',{ctrlKey:true,shiftKey:true,code:'KeyE'}));`);
+    await press('document.querySelector("#rest-menu .panel-close")');
+    assert.equal(await js('document.querySelector("#rest-menu").hidden'), true);
+    await checkProps('after closing a menu');
+    await js(`window.dispatchEvent(new KeyboardEvent('keydown',{ctrlKey:true,shiftKey:true,code:'KeyE'}));`);
     await wait(100);
     assert.equal(await js('document.querySelector("#event-bubble").hidden'), false);
-    await js('document.querySelector("#event-bubble").click()');
+    await checkProps('with an event waiting');
+    await press('document.querySelector("#event-bubble")');
     assert.equal(await js('document.querySelector("#event-card").hidden'), false);
-    // Resting stays active while the character reacts.
-    await js('document.querySelector("#event-card .panel-close").click()');
-    await js(`document.querySelector('#targets button[title="Sofa"]').click()`);
-    await js('[...document.querySelectorAll("#rest-menu button")].find(b=>b.textContent==="Rest").click()');
-    await js('document.querySelector("#rest-menu .panel-close").click()');
+    // Resting (real clicks on the sofa and "Rest") stays active while the
+    // character reacts.
+    await press('document.querySelector("#event-card .panel-close")');
+    assert.equal(await js('document.querySelector("#event-card").hidden'), true);
+    await pressProp('Sofa');
+    await press(inPanel('#rest-menu', 'Rest'));
+    assert.equal(await js('document.querySelector("#rest-menu").hidden'), true);
     await wait(1500);
     await click(await point());
     assert.equal(saved.home.resting, true);
+    assert.match(await js('document.querySelector("#activity-bar .bar-text").textContent'), /^Resting/);
+    await checkProps('resting, with the activity bar up');
     // Travel keeps walking after a poke; resting ends only because of travel.
-    await js(`document.querySelector('#targets button[title="Go outside"]').click()`);
+    await pressProp('Go outside');
     await wait(100);
     await click(await point());
     assert.equal(await js('document.querySelector("#go-btn").disabled'), true);
     assert.equal(saved.home.resting, false);
-    await js('document.querySelector("#dev-btn").click()');
-    await wait(60);
-    await js('[...document.querySelectorAll("#dev-menu button")].find(b=>b.textContent==="Fortune Tree").click()');
-    await wait(60);
-    await js(`document.querySelector('#targets button[title="Fortune Tree"]').click()`);
-    await wait(60);
-    await js('[...document.querySelectorAll("#tree-menu button")].find(b=>b.textContent==="Play an instrument").click()');
+    await arrive("Parents' Yard");
+    await checkProps("the Parents' Yard after travelling there");
+    // Go to the Fortune Tree with real clicks on the Go to menu, then busk
+    // with real clicks on the tree and "Play an instrument".
+    await press('document.querySelector("#go-btn")');
+    await press(inPanel('#go-menu', 'Fortune Tree'));
+    await arrive('Fortune Tree');
+    assert.equal(saved.place, 'fortuneTree');
+    await checkProps('the Fortune Tree after travelling there');
+    await pressProp('Fortune Tree');
+    assert.equal(await js('document.querySelector("#tree-menu").hidden'), false);
+    await press(inPanel('#tree-menu', 'Play an instrument'));
     await wait(100);
     await click(await point());
     assert.equal(saved.fortuneTree.playing, true);
+    assert.match(await js('document.querySelector("#activity-bar .bar-text").textContent'), /^Busking/);
+    await checkProps('busking, with the activity bar up');
     // Load a synthetic transparent sprite to exercise the PNG drawing path.
     spriteFiles = ['character.child.idle.png'];
     assert.equal(await js(`(async () => {
@@ -189,6 +294,7 @@ app.whenReady().then(async () => {
     await wait(150);
     assert.equal(saved.place, 'lake');
     assert.equal(await js('document.querySelector("#place").textContent'), 'Lake');
+    await checkProps('the Lake at rest');
     const feet = await js(`Math.max(...[...document.querySelectorAll('#character-target span')]
       .map((run) => run.getBoundingClientRect().bottom))`);
     assert.ok(feet > 190 && feet <= 206, `feet at ${feet}`);
@@ -217,11 +323,13 @@ app.whenReady().then(async () => {
     await wait(1200);
     assert.ok(await js('document.querySelectorAll("#wildlife button[title=Butterfly]").length') >= 1);
     // The dock opens its menu; a baby is too young to fish.
-    await js(`document.querySelector('#targets button[title="Dock"]').click()`);
+    await checkProps('the Lake with butterflies about');
+    await pressProp('Dock');
     await wait(60);
     assert.equal(await js('document.querySelector("#activity-menu").hidden'), false);
     assert.match(await js('document.querySelector("#activity-menu").textContent'), /Dock.*Come back at age 6/s);
-    await js('document.querySelector("#activity-menu .panel-close").click()');
+    await press('document.querySelector("#activity-menu .panel-close")');
+    await checkProps('the Lake after closing a menu');
     // Fishing at 10: the rod, a bite clicked in time, the catch in the
     // bucket and the collection, then selling it.
     await js('document.querySelector("#dev-btn").click()');
@@ -229,11 +337,12 @@ app.whenReady().then(async () => {
     await devClick('Give rod');
     await js('document.querySelector("#dev-btn").click()');
     await wait(300);
-    await js(`document.querySelector('#targets button[title="Dock"]').click()`);
+    await pressProp('Dock');
     await wait(60);
-    await js('[...document.querySelectorAll("#activity-menu button")].find(b=>b.textContent==="Start fishing").click()');
+    await press(inPanel('#activity-menu', 'Start fishing'));
     await wait(100);
     assert.equal(saved.activities.current.id, 'fishing');
+    await checkProps('fishing, with the activity bar up');
     // The activity bar shows fishing and the empty bucket.
     assert.equal(await js('document.querySelector("#activity-bar").hidden'), false);
     assert.equal(await js('document.querySelector("#activity-bar .bar-text").textContent'), 'Fishing - 0 fish - $0');
@@ -243,7 +352,7 @@ app.whenReady().then(async () => {
     await devClick('Bite now');
     await wait(100);
     assert.equal(await js('document.querySelector("#bite-bubble").hidden'), false);
-    await js('document.querySelector("#bite-bubble").click()');
+    await press('document.querySelector("#bite-bubble")');
     await wait(3600);
     assert.equal(saved.activities.current.fishing.bucket.length, 1);
     assert.equal(Object.keys(savedCollection.fish).length, 1);
@@ -255,13 +364,15 @@ app.whenReady().then(async () => {
     assert.equal(await revealShown(), true);
     assert.match(await js('document.querySelector("#activity-bar .bar-text").textContent'),
       new RegExp(`^Fishing - 1 fish - \\$${value}$`));
-    await js('document.querySelector("#reveal-close").click()');
+    await checkProps('fishing, during a catch reveal');
+    await press('document.querySelector("#reveal-close")');
     await wait(800);
     assert.equal(await revealShown(), false);
-    await js(`document.querySelector('#targets button[title="Dock"]').click()`);
+    await checkProps('fishing, after a catch reveal');
+    await pressProp('Dock');
     await wait(60);
     assert.match(await js('document.querySelector("#activity-menu").textContent'), /Bucket: .*Worth/s);
-    await js('[...document.querySelectorAll("#activity-menu button")].find(b=>b.textContent==="Fish collection").click()');
+    await press(inPanel('#activity-menu', 'Fish collection'));
     await wait(60);
     assert.match(await js('document.querySelector("#activity-menu").textContent'), /Fish collection \(1\/8\).*age 10/s);
     if (size) {
@@ -269,11 +380,11 @@ app.whenReady().then(async () => {
         new RegExp(`Biggest: ${size} cm`));
     }
     assert.equal(await js('document.querySelectorAll("#activity-menu canvas.fish-icon").length'), 8);
-    await js('[...document.querySelectorAll("#activity-menu button")].find(b=>b.textContent==="Back").click()');
+    await press(inPanel('#activity-menu', 'Back'));
     await wait(60);
-    await js('document.querySelector("#activity-menu .panel-close").click()');
+    await press('document.querySelector("#activity-menu .panel-close")');
     // Stop on the activity bar sells the bucket, like the menu's.
-    await js('document.querySelector("#activity-bar .bar-stop").click()');
+    await press('document.querySelector("#activity-bar .bar-stop")');
     await wait(200);
     assert.equal(saved.activities.current, null);
     assert.equal(saved.character.stats.money, money + value);
@@ -285,8 +396,44 @@ app.whenReady().then(async () => {
     for (let i = 0; i < 20 && !(await revealShown()); i++) await wait(100);
     assert.equal(await revealShown(), true);
     assert.equal(saved.character.stats.money, money + value);
+    await press('document.querySelector("#reveal-close")');
+    await wait(800);
+    // Grown up: My Yard with each housing tier, resting in the sleeping
+    // bag (the activity bar up), and the own Home's sofa.
+    const dev = async (...labels) => {
+      await js('document.querySelector("#dev-btn").click()');
+      for (const label of labels) await devClick(label);
+      await js('if (!document.querySelector("#dev-menu").hidden) document.querySelector("#dev-btn").click()');
+      await wait(300);
+    };
+    await dev('To 18');
+    await wait(600);
+    assert.equal(saved.housing.movedOut, true);
+    await dev('My Yard');
+    assert.equal(saved.place, 'myYard');
+    assert.deepEqual(await checkProps('My Yard (sleeping bag)'), ['Sleeping bag']);
+    await pressProp('Sleeping bag');
+    await press(inPanel('#rest-menu', 'Rest'));
+    assert.equal(await js('document.querySelector("#rest-menu").hidden'), true);
+    await wait(1500);
+    assert.equal(saved.home.resting, true);
+    await checkProps('resting in the sleeping bag, with the activity bar up');
+    await dev('Tent');
+    assert.deepEqual(await checkProps('My Yard (tent)'), ['Tent']);
+    await dev('House');
+    assert.deepEqual(await checkProps('My Yard (house)'), ['Go inside']);
+    await pressProp('Go inside');
+    await arrive('Home');
+    assert.equal(saved.place, 'myHome');
+    await checkProps('Home after travelling there');
+    await pressProp('Sofa');
+    await press(inPanel('#rest-menu', 'Rest'));
+    assert.equal(await js('document.querySelector("#rest-menu").hidden'), true);
+    await wait(1500);
+    assert.equal(saved.home.resting, true);
+    await checkProps('Home, resting with the activity bar up');
     assert.deepEqual(errors, []);
-    console.log('PASS: native gentle/rapid clicks, spam, calming, moving hit regions, drag rejection, 25 poses, offscreen, prop/event priority, rest/travel/busking preserved, transparent sprite, end of life, summary, Book, new life, the Lake (frogs, butterflies), fishing (rod, bite, catch, reveal, collection, activity bar, selling); no renderer errors.');
+    console.log('PASS: native gentle/rapid clicks, spam, calming, moving hit regions, drag rejection, 25 poses, offscreen, prop/event priority, real clicks on props and menus, prop click areas on top in every place (at rest, after travel, menus closed, an event waiting, the activity bar, a catch reveal), rest/travel/busking preserved, transparent sprite, end of life, summary, Book, new life, the Lake (frogs, butterflies), fishing (rod, bite, catch, reveal, collection, activity bar, selling); no renderer errors.');
   } catch (error) {
     console.error(error);
     process.exitCode = 1;

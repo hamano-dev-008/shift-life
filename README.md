@@ -291,12 +291,17 @@ In Git Bash, plain `npm` works. The first start downloads Electron, so it
 takes a little longer. Run `npm.cmd test` for interaction rules, pose
 checks, end-of-life logic, the Lake, its wildlife and fishing (Node
 22.7+), and
-`npm.cmd run test:smoke` for isolated Electron click/renderer checks,
-including a whole goodbye, a new life, a visit to the Lake (a frog's
+`npm.cmd run test:smoke` for isolated Electron click/renderer checks
+with real mouse clicks (every place's clickable things are checked to
+be on top, and busking and resting are started by clicking the tree and
+the sofa), including a whole goodbye, a new life, a visit to the Lake (a frog's
 ribbit), a catch
 with its reveal card, and the activity bar's Stop.
 The smoke check uses in-memory saves, leaving your life, Book and
 collection untouched.
+
+Only one copy of the game runs at a time: launching it again just
+brings the running window to the front.
 
 ## Project layout
 
