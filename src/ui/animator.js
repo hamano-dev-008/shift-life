@@ -507,7 +507,7 @@ export function updateAnimator(anim, dt, stage, gait, {
     return;
   }
   stopStay(anim);
-  const headingToWork = anim.mode === 'walking' && anim.destination === 'work';
+  const headingToWork = ['walking', 'turning'].includes(anim.mode) && anim.destination === 'work';
   if (headingToWork && (needed || !employed)) {
     // Turn back: work can wait.
     setOff(anim, { x: randomSpot(anim), destination: null });
