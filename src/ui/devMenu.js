@@ -10,6 +10,7 @@ import { RARITIES } from '../data/fishing.js';
 import { BUTTERFLIES } from '../data/lakeLife.js';
 import { WORK_TRIP_TEXT } from '../data/animation.js';
 import { REST_DEV_TEXT } from '../data/home.js';
+import { AUTONOMY_TEXT } from '../data/autonomy.js';
 
 function button(text, onClick, className = '') {
   const node = document.createElement('button');
@@ -47,8 +48,10 @@ function row(label, ...children) {
 // fishing."), showReveal(rarityId) (previews a reveal card),
 // spawnButterfly(colorId or null), frogCroak() and frogHop() (each
 // returns null, or a note such as "Only at the Lake."), workTrips()
-// (whether the "Work trips" setting is on), setWorkTrips(on), readout()
-// (returns { stats, traits, goal, job, tree, place, life, fishing }),
+// (whether the "Work trips" setting is on), setWorkTrips(on), ownPlans()
+// and setOwnPlans(on) (the "Let them choose" setting), planNow() (they
+// choose something to do now; returns null or a note), readout()
+// (returns { stats, traits, goal, job, tree, place, life, fishing, plan }),
 // speed() (current speed id), onOpen() }.
 export function createDevMenu(menu, gear, actions) {
   const body = menu.querySelector('.dev-body');
@@ -177,8 +180,16 @@ export function createDevMenu(menu, gear, actions) {
       button(on ? WORK_TRIP_TEXT.on : WORK_TRIP_TEXT.off, () => { actions.setWorkTrips(on); render(); },
         actions.workTrips() === on ? 'active' : '')));
 
+    const ownPlans = row(AUTONOMY_TEXT.setting, ...[true, false].map((on) =>
+      button(on ? AUTONOMY_TEXT.on : AUTONOMY_TEXT.off, () => { actions.setOwnPlans(on); render(); },
+        actions.ownPlans() === on ? 'active' : '')),
+    button(AUTONOMY_TEXT.devNow, () => {
+      note = actions.planNow() ?? '';
+      if (note) render(); else close();
+    }));
+
     const children = [newLife, speeds, skips, extras, tree, home, housing, places, fish, catches, reveals,
-      wild, workTrips, life, health];
+      wild, workTrips, ownPlans, life, health];
     if (note) {
       const message = document.createElement('p');
       message.className = 'dev-note';
@@ -208,9 +219,9 @@ export function createDevMenu(menu, gear, actions) {
       if (menu.hidden) return;
       if (placesKey() !== shownPlaces) render();
       const {
-        stats, traits, goal, job, tree, place, life, fishing,
+        stats, traits, goal, job, tree, place, life, fishing, plan,
       } = actions.readout();
-      const lines = [stats, traits, goal, job, tree, place, fishing, life];
+      const lines = [stats, traits, goal, job, tree, place, fishing, plan, life];
       const key = lines.join('|');
       if (key === shown) return;
       shown = key;

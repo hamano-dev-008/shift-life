@@ -26,7 +26,9 @@ with **Electron and plain JavaScript**.
 > speech bubbles, pursues a life goal the player picks, works jobs from
 > 18 (pay, promotions, work events; now and then off to work, at most
 > once every few real minutes, or never with the Work trips setting
-> off) and retires at 65, and walks
+> off) and retires at 65, left alone now and then chooses something to
+> do by themselves (fishing, busking, resting or visiting a place, by
+> goal and traits; the "Let them choose" setting), and walks
 > between places: the Lake (fishing from the dock: a rod to buy, bites,
 > catches of random sizes revealed on a card and sold from the bucket,
 > a fish collection with the biggest of each kind, kept across lives;
@@ -105,7 +107,9 @@ Shift-Life/
 │   │                  dove at the bobber), the Fortune Tree's wind,
 │   │                  falling leaves, the apple's glow, swing, pick
 │   │                  flash and sparkles, the wishing well's
-│   │                  bubble, work trips (when they may leave,
+│   │                  bubble, own plans (when they choose, the
+│   │                  bubble, the trip, the player taking over),
+│   │                  work trips (when they may leave,
 │   │                  "Off to work!", the "At work" place label
 │   │                  calling them back), the player settings, the
 │   │                  activity bar (Stop), buying housing, the
@@ -118,7 +122,14 @@ Shift-Life/
 │   │   │                  cooldown (5-8 minutes), the quiet spell after
 │   │   │                  a click, busy, the setting (unsaved)
 │   │   ├── settings.js    Player settings: restoring with defaults,
-│   │   │                  the data to save, turning work trips on/off
+│   │   │                  the data to save, turning work trips and own
+│   │   │                  plans on/off
+│   │   ├── autonomy.js    The character's own plans: when they may
+│   │   │                  choose (cooldown, quiet spell after a click;
+│   │   │                  unsaved), what they can choose and its weight
+│   │   │                  (goal, traits, whim), the plan (saved): going,
+│   │   │                  starting in its place, counting once arrived,
+│   │   │                  stopping by themselves, calling it off
 │   │   ├── lakeLife.js    Clicking the Lake's wildlife: +1 happiness on
 │   │   │                  a real-time cooldown (unsaved)
 │   │   ├── clock.js       Real-time clock: in-game years, speed, stopped
@@ -320,7 +331,12 @@ Shift-Life/
 │       ├── stats.js       Starting stats, stat names and short tags
 │       ├── dev.js         Dev menu amounts (skip-ahead years, money,
 │       │                  set-health values)
-│       ├── settings.js    Player settings' defaults (work trips on)
+│       ├── settings.js    Player settings' defaults (work trips and
+│       │                  own plans on)
+│       ├── autonomy.js    The character's own plans: the quiet minutes,
+│       │                  how often, how long, the choices (minimum age,
+│       │                  resting's health thresholds), goal and trait
+│       │                  weights, whim, bubble and setting text
 │       ├── endOfLife.js   Ageing loss by home, when a life ends (ages,
 │       │                  chances), goodbye timing, life title rules
 │       │                  (trait adjectives, nouns), Book size, text
@@ -443,7 +459,16 @@ Shift-Life/
                        them home, 20-40 s away, calling back; nothing
                        but work trips and travel walks past the window
                        edges in any place, age or activity, poked or
-                       not), lying.test.mjs (the sleeping pose: head
+                       not), autonomy.test.mjs (own plans: the
+                       20-60 minute cooldown, 5 quiet minutes after a
+                       click, only when idle, the setting on by
+                       default and saved; what they can choose by age,
+                       rod and health; goal and trait weights; a plan
+                       walking there, starting in its place, counting
+                       once arrived, stopping by itself and selling the
+                       bucket; a visit ending on arrival; the player's
+                       stop, calling it off, the setting off; events
+                       still frozen; saving), lying.test.mjs (the sleeping pose: head
                        on the pillow at the left end, the shirt only at
                        the shoulders, the blanket chest to past the feet
                        with their bump, breathing 1 pixel, the mouth's
@@ -469,7 +494,10 @@ Shift-Life/
                        "At work" label calling them back, "Gust now" at
                        the Fortune Tree only, its props on top in a gust,
                        the dev "Rest now" lying them down (wide and
-                       low, outlined on hover) and up again,
+                       low, outlined on hover) and up again, the "Let
+                       them choose" setting (On by default, next to
+                       Work trips, saved) and the dev "Choose now"
+                       (its bubble, the read-out, Off ending it),
                        the hover outline on the tree, the character,
                        the sofa and the dock: shown while hovering (the
                        canvas's data-hover and white pixels drawn),
@@ -693,6 +721,8 @@ How it works, for anyone extending it:
       now; `settings.json`, see **Saved state**): Off means they never
       leave, and anyone away or heading out comes back. The renderer
       passes `employed` only with a job and the setting on.
+    - No work trips during the character's own plans (see **Own
+      plans**): the plan counts as busy.
     - Nothing else walks them past the window's edges: wandering, prop
       visits, goal activities (jogging), toddler plops and pokes stay
       inside the walking limits; only work trips and travel between
@@ -1181,6 +1211,54 @@ How it works, for anyone extending it:
     the character walks to the spot again and it resumes, with its saved
     progress, on arrival. The dev actions (finish a session, rest a
     minute, a bite, a catch) still work on the way.
+- **Own plans** (`data/autonomy.js`, `game/autonomy.js`, wired in the
+  renderer): left alone, the character now and then chooses something to
+  do by themselves.
+  - When: `mayChoose()` on the frame loop: the "Let them choose" setting
+    is on, `AUTONOMY_EVERY_MINUTES` (20-60, random) real minutes have
+    passed since launch or the last plan, nobody has clicked the game
+    (`#app` pointerdown) for `AUTONOMY_QUIET_MINUTES` (5), and they're
+    idle: nothing running (busking, resting, an activity, the dev Rest
+    now), no event waiting, nothing showing (the same "busy" as work
+    trips: a panel, card, bubble, the stats, a catch reveal, the
+    activity bar), not travelling, away at work or saying goodbye. This
+    timing (`createChoosing()`) is unsaved, like work trips.
+  - What: `possibleChoices()`: fishing (with the rod, from the
+    activity's age; at the Lake), busking (from `TREE_MIN_AGE`; at the
+    Fortune Tree), resting (only below `healthBelow` (70) health, or
+    `lazyHealthBelow` (90) when lazy; at the nearest place with a rest
+    spot, here first) and visiting another place that exists (from 3),
+    each from its `minAge`, only if there's a way there. `choosePlan()`
+    weights each by `AUTONOMY_CHOICES` weight, the active goal's
+    multipliers (`AUTONOMY_GOALS`: Fortune fishing and busking, Healthy
+    resting and walking about...), each trait's (`AUTONOMY_TRAITS`: lazy
+    rests, social busks, curious visits...), and a whim (each times 1
+    to 1 + `whim`; Free spirit varies most).
+  - How: `beginOwnPlan()` (renderer) says `AUTONOMY_TEXT.going` (passing
+    chatter, like "Off to work!"), stores the plan (`startPlan()`:
+    `game.autonomy.plan = { kind, place, stage: 'going', leftMs }`,
+    saved) and starts a normal trip if it's elsewhere. On the life tick
+    `updateAutonomy()`: once in the place and not travelling it starts
+    the thing the normal way (`startActivity()`, `startPlaying()`,
+    `startResting()`; a visit is then over), stage `'doing'`; it only
+    counts once they've arrived at the spot (**On the way**), then
+    `leftMs` (`AUTONOMY_DURATION_MINUTES`, 10-40 real minutes) runs down
+    and they stop by themselves (fishing sells the bucket; busking and
+    resting say `AUTONOMY_TEXT.done`). The activity bar shows it like
+    any other and Stop works; events stay frozen while it runs, as
+    always. After a reload the plan carries on (a trip doesn't: a plan
+    still going elsewhere is dropped).
+  - The player first: anything the player starts or stops (the tree,
+    rest and activity menus, the bar's Stop, Go to, a door or edge
+    trip, the dev Go to) calls the plan off (`playerTookOver()` ->
+    `cancelPlan()`), leaving things as the player made them, and the
+    next plan waits a fresh spell. A plan whose thing stopped, whose
+    trip ended somewhere else or whose life ended is dropped.
+  - The "Let them choose" setting (On/Off, default On, in the dev menu
+    next to Work trips; `ownPlans` in `settings.json`): Off means they
+    never choose, and ends a plan under way (`endPlanNow()`, stopping
+    its thing). The dev menu's "Choose now" picks one at once (skipping
+    the wait), and the read-out shows the plan or the wait for the next.
 - **Hover outline** (`data/hover.js`, `ui/hoverOutline.js`; visual
   only): while the pointer is over an interactable thing, a white
   (`HOVER_OUTLINE.color`) outline traces its silhouette just outside its
@@ -1245,11 +1323,13 @@ How it works, for anyone extending it:
     add a butterfly or a rare blue one, make a frog croak or hop
     ("Wildlife" row; "Only at the Lake." elsewhere), the player's
     "Work trips" setting (On/Off, saved; here until there's a player
-    settings menu), End
+    settings menu), the "Let them choose" setting (On/Off, saved) with
+    "Choose now" (they pick something to do at once), End
     life now (adults only, otherwise a note; plays the goodbye), set
     health (0, 10, 50, 100; 0 ends an adult's life on the next tick), and
     a read-out of stats, traits, goal, job, the tree, the place and
-    housing, fishing (the wait, the bucket, fish caught), and the yearly
+    housing, fishing (the wait, the bucket, fish caught), their own plan
+    (or the wait for the next), and the yearly
     ageing and the next birthday's chance (or how
     the life ended). The dev New life doesn't add the old life to the
     Book. Skipping years does nothing once the life has ended. The menu
@@ -1353,16 +1433,16 @@ How it works, for anyone extending it:
     would put the window off every connected screen.
   - `save.json` holds the life: `{ version, clock: { years }, character,
     events, goals, jobs, place, fortuneTree, home, housing, endOfLife,
-    activities }`.
+    activities, autonomy }`.
     `character` includes
     `stats` and `traits`; `events`
     holds `nextAt`, the `pending` event, how often each was `seen`,
     `lastId`, and `frozenAt` (while busking or resting); `goals` holds the `active` goal, `since` and `nextDriftAt`,
     `pastYears` per goal, and reached `milestones` ({ goal, id, age });
     `jobs` is described under **Jobs** above; `place`, `fortuneTree`,
-    `home`, `housing`, `endOfLife` and `activities` under **Places**,
-    **Fortune Tree**, **Resting**, **Housing**, **End of life** and
-    **Activities and fishing**.
+    `home`, `housing`, `endOfLife`, `activities` and `autonomy` under
+    **Places**, **Fortune Tree**, **Resting**, **Housing**, **End of
+    life**, **Activities and fishing** and **Own plans**.
     The renderer autosaves every 10s and saves synchronously on
     `beforeunload`, so every way of closing is covered. `main.js` writes
     via a temp file and rename.
@@ -1380,8 +1460,8 @@ How it works, for anyone extending it:
     <fish id>: { name, age, on, best: { size, name, age } } } }`,
     written the same way and kept across lives (entries from before
     sizes have no `best`).
-  - `settings.json` holds the player settings: `{ version, workTrips
-    }` (`data/settings.js` has the defaults; `restoreSettings()` keeps
+  - `settings.json` holds the player settings: `{ version, workTrips,
+    ownPlans }` (`data/settings.js` has the defaults; `restoreSettings()` keeps
     only known ones of the right type), via `settings:load`/
     `settings:write`, written the same way and kept across lives.
   - The bucket in `activities.current.fishing` keeps each catch as `{

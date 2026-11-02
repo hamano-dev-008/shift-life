@@ -20,6 +20,7 @@ import { createHomeState } from './home.js';
 import { createHousingState, currentTier } from './housing.js';
 import { leavePlace } from './places.js';
 import { createActivityState } from './activities.js';
+import { createAutonomyState } from './autonomy.js';
 import { collectionCount } from './fishing.js';
 
 const BOOK_VERSION = 1;
@@ -118,6 +119,7 @@ export function updateEndOfLife(game, random = Math.random) {
 export function endLife(game, cause = 'age', now = new Date()) {
   if (isEnded(game)) return null;
   leavePlace(game);
+  if (game.autonomy) game.autonomy.plan = null;
   game.events.pending = null;
   game.clock.stopped = true;
   const summary = lifeSummary(game);
@@ -314,6 +316,7 @@ export function startNewLife(game, options = {}) {
   game.housing = createHousingState();
   game.endOfLife = createEndOfLifeState();
   game.activities = createActivityState();
+  game.autonomy = createAutonomyState();
   return game;
 }
 

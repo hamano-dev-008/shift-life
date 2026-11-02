@@ -59,7 +59,12 @@ import {
   loadGame, saveGame, saveGameNow, loadBook, saveBook, loadCollection, saveCollection,
   loadSettings, saveSettings,
 } from './game/save.js';
-import { setWorkTrips } from './game/settings.js';
+import { setWorkTrips, setOwnPlans } from './game/settings.js';
+import {
+  createChoosing, noteClick as noteOwnPlansClick, mayChoose, restartChoosing, choosePlan, startPlan,
+  cancelPlan, endPlanNow, currentPlan, updateAutonomy, autonomyText,
+} from './game/autonomy.js';
+import { AUTONOMY_TEXT } from './data/autonomy.js';
 import {
   createWorkTrips, noteClick, mayGoToWork, workTripStarted,
 } from './game/workTrips.js';
@@ -182,7 +187,21 @@ async function start() {
   // When the character may next walk off to work (unsaved): a real-time
   // cooldown, and a quiet spell after any click on the game.
   const workTrips = createWorkTrips(performance.now());
-  document.getElementById('app').addEventListener('pointerdown', () => noteClick(workTrips, performance.now()), true);
+  // When the character may next choose something to do by themselves
+  // (unsaved, the same way): a cooldown, and a quiet spell after a click.
+  const choosing = createChoosing(performance.now());
+  document.getElementById('app').addEventListener('pointerdown', () => {
+    noteClick(workTrips, performance.now());
+    noteOwnPlansClick(choosing, performance.now());
+  }, true);
+  // The player started or stopped something, or went somewhere: their
+  // own plan, if any, is called off (whatever is running stays as the
+  // player left it), and the next one waits a fresh spell.
+  function playerTookOver() {
+    if (!cancelPlan(game)) return;
+    restartChoosing(choosing, performance.now());
+    saveGame(game);
+  }
   startClock(game.clock);
   setInterval(() => saveGame(game), AUTOSAVE_MS);
   // Fires however the window closes (button, Alt+F4, taskbar).
@@ -289,9 +308,11 @@ async function start() {
   // Clicking the Fortune Tree opens its menu: busking and the golden apple.
   const treeMenu = createTreeMenu(document.getElementById('tree-menu'), {
     play: () => {
+      playerTookOver();
       if (startPlaying(game)) saveGame(game);
     },
     stop: () => {
+      playerTookOver();
       if (stopPlaying(game)) saveGame(game);
     },
     pick: () => {
@@ -310,12 +331,15 @@ async function start() {
   // once (the frame loop rebuilds the scene).
   const restMenu = createRestMenu(document.getElementById('rest-menu'), {
     rest: () => {
+      playerTookOver();
       if (startResting(game)) saveGame(game);
     },
     getUp: () => {
+      playerTookOver();
       if (stopResting(game)) saveGame(game);
     },
     upgrade: () => {
+      playerTookOver();
       const wasResting = stopResting(game);
       const news = buyUpgrade(game);
       if (!news) {
@@ -339,9 +363,11 @@ async function start() {
       saveGame(game);
     },
     start: (id) => {
+      playerTookOver();
       if (startActivity(game, id)) saveGame(game);
     },
     stop: () => {
+      playerTookOver();
       if (!isDoingActivity(game)) return;
       // Called off on the way with nothing caught: no bubble.
       const news = stopActivity(game);
@@ -360,6 +386,7 @@ async function start() {
   // The activity bar's Stop: stops fishing (selling the bucket), busking
   // or resting, as their own menus do.
   activityBar.querySelector('.bar-stop').addEventListener('click', () => {
+    playerTookOver();
     const { stopped, news } = stopFromBar(game);
     if (news) showNews(news);
     if (stopped) saveGame(game);
@@ -378,7 +405,10 @@ async function start() {
 
   // The place button opens Go to; picking a place starts the trip there.
   const goMenu = createGoMenu(document.getElementById('go-menu'), document.getElementById('go-btn'), {
-    go: (id) => startTrip(id),
+    go: (id) => {
+      playerTookOver();
+      startTrip(id);
+    },
     onOpen: () => closePanels('go'),
   });
   // After a life ends: its summary card (with "Start a new life"), and the
@@ -535,6 +565,8 @@ async function start() {
   // tree's and resting's timers stand still. The frame loop plays the
   // goodbye.
   let lastTick = performance.now();
+  // Set once `trip` (below) exists, for the tick's own-plan update.
+  let tripReady = false;
   setInterval(() => {
     const tickNow = performance.now();
     const realMs = Math.min(tickNow - lastTick, MAX_TICK_MS);
@@ -562,10 +594,15 @@ async function start() {
     if (activityNews.some((news) => news.collected)) saveCollection(game.collection);
     const moved = updatePlaces(game);
     if (moved) showNews(moved);
+    // Their own plan: started once they're in its place, stopped by
+    // themselves when its time is up (game/autonomy.js).
+    const own = updateAutonomy(game, realMs, { travelling: tripReady && Boolean(trip) });
+    if (own.news) showNews(own.news);
+    if (own.ended) restartChoosing(choosing, tickNow);
     checkFirstSteps();
     const aged = game.character.stats.health !== health;
     if (result || reached.length || jobNews.length || treeNews.length || rested || moved || aged
-      || activityNews.length) {
+      || activityNews.length || own.changed) {
       saveGame(game);
     }
   }, LIFE_TICK_MS);
@@ -621,6 +658,7 @@ async function start() {
     const exit = scene.place.exits.find((candidate) => candidate.via === id);
     const activity = activityAt(scene.place.id, id);
     if (exit) {
+      playerTookOver();
       startTrip(exit.to);
     } else if (id === TREE_PROP && scene.place.id === FORTUNE_TREE_PLACE) {
       treeMenu.toggle();
@@ -725,6 +763,21 @@ async function start() {
   // places still to enter. Only the place reached is saved; a trip cut
   // short by closing the app ends there.
   let trip = null;
+  tripReady = true;
+
+  // They choose something to do by themselves now (game/autonomy.js):
+  // say so, and walk there if it's elsewhere (it starts on arrival).
+  // Returns whether there was anything to choose.
+  function beginOwnPlan(now) {
+    restartChoosing(choosing, now);
+    const plan = choosePlan(game);
+    if (!plan) return false;
+    startPlan(game, plan);
+    saveGame(game);
+    chatter(plan.text, AUTONOMY_TEXT.bubbleSeconds, now, true);
+    if (plan.place !== game.place) startTrip(plan.place);
+    return true;
+  }
 
   // Canvas x of the way out through `exit`: past the window edge, or at
   // the door.
@@ -951,6 +1004,7 @@ async function start() {
       restingNow: () => Boolean(restPreview),
       goTo: (id) => {
         if (game.endOfLife.ended) return;
+        playerTookOver();
         trip = null;
         stopActivityToLeave();
         goToPlace(game, id);
@@ -1020,7 +1074,28 @@ async function start() {
       setWorkTrips: (on) => {
         if (setWorkTrips(settings, on)) saveSettings(settings);
       },
-      readout: () => devReadout(game),
+      // The "Let them choose" player setting (saved too). Off ends a
+      // plan under way.
+      ownPlans: () => settings.ownPlans,
+      setOwnPlans: (on) => {
+        if (!setOwnPlans(settings, on)) return;
+        saveSettings(settings);
+        if (on) return;
+        const news = endPlanNow(game);
+        if (news) showNews(news);
+        restartChoosing(choosing, performance.now());
+        saveGame(game);
+      },
+      // They choose something to do now, skipping the wait.
+      planNow: () => {
+        if (game.endOfLife.ended || trip || currentPlan(game) || isPlaying(game) || isResting(game)
+          || isDoingActivity(game)) {
+          return AUTONOMY_TEXT.notNow;
+        }
+        restPreview = null;
+        return beginOwnPlan(performance.now()) ? null : AUTONOMY_TEXT.nothing;
+      },
+      readout: () => ({ ...devReadout(game), plan: autonomyText(game, choosing, performance.now()) }),
       onOpen: () => closePanels('dev'),
     });
   }
@@ -1068,7 +1143,13 @@ async function start() {
     const working = isEmployed(game) && settings.workTrips;
     const busy = needed || now < speechUntil || catchReveal.isOpen() || !activityBar.hidden
       || !critterBubble.hidden || !propBubble.hidden || !document.getElementById('stats').hidden
-      || Boolean(document.querySelector('#app .panel:not([hidden])')) || Boolean(trip) || Boolean(ended);
+      || Boolean(document.querySelector('#app .panel:not([hidden])')) || Boolean(trip) || Boolean(ended)
+      || Boolean(currentPlan(game));
+    // Their own plans: left alone long enough (nothing running, nothing
+    // showing, not away), now and then they choose something to do.
+    const running = isPlaying(game) || isResting(game) || isDoingActivity(game);
+    const idle = !busy && !running && !restPreview && !farewell && !isAtWork(animator);
+    if (mayChoose(choosing, now, { enabled: settings.ownPlans, idle })) beginOwnPlan(now);
     updateAnimator(animator, dt, stage, gaitOf(age), {
       activity: activeActivity(game),
       employed: working,

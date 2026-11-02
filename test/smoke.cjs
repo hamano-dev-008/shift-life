@@ -773,9 +773,34 @@ app.whenReady().then(async () => {
       await wait(50);
     }
     assert.ok(up.height > up.width, `Rest now again: still lying (${JSON.stringify(up)})`);
+    // Their own plans: the "Let them choose" setting (On by default, next
+    // to Work trips, saved); the dev "Choose now" picks something, says so
+    // and shows in the read-out; Off ends it.
+    const ownRow = `[...document.querySelectorAll("#dev-menu .dev-row")].find((r) => r.querySelector(".dev-label")?.textContent === "Let them choose")`;
+    await js('document.querySelector("#dev-btn").click()');
+    assert.equal(await js(`${ownRow}.querySelector(".active")?.textContent`), 'On', 'Let them choose: not On by default');
+    assert.equal(await js(`${ownRow}.previousElementSibling.querySelector(".dev-label").textContent`), 'Work trips');
+    await devClick('Choose now');
+    assert.equal(await js('document.querySelector("#dev-menu").hidden'), true, 'Choose now left the dev menu open');
+    await wait(150);
+    const said = await js('document.querySelector("#speech").hidden ? "" : document.querySelector("#speech").textContent');
+    assert.ok(['Going fishing!', 'Time to play some music!', 'I could use a nap...', 'Time for a little walk!']
+      .some((text) => said.includes(text)), `Choose now said "${said}"`);
+    await js('document.querySelector("#dev-btn").click()');
+    await wait(100);
+    assert.match(await js('document.querySelector("#dev-menu .dev-readout").textContent'),
+      /Own plan: (fish|busk|rest|visit) at/);
+    await js(`[...${ownRow}.querySelectorAll("button")].find((b) => b.textContent === "Off").click()`);
+    await wait(100);
+    assert.equal(savedSettings.ownPlans, false, 'Let them choose Off not saved');
+    assert.match(await js('document.querySelector("#dev-menu .dev-readout").textContent'), /Own plan: none/);
+    await js(`[...${ownRow}.querySelectorAll("button")].find((b) => b.textContent === "On").click()`);
+    await wait(100);
+    assert.equal(savedSettings.ownPlans, true);
+    await js('if (!document.querySelector("#dev-menu").hidden) document.querySelector("#dev-btn").click()');
     assert.deepEqual(await appRegions(), []);
     assert.deepEqual(errors, []);
-    console.log(`PASS: the Fortune Tree's wishing well (its bubble, click area apart from the tree's, drags from it and the background), activities start only on arrival (walking to the tree from the far side, then "Busking - 0:00"; the sofa; the dock), no -webkit-app-region anywhere, JS window drags (background, character, tree: the window follows, no poke, no menu), plain clicks on every prop in every place, native gentle/rapid clicks, spam, calming, moving hit regions, drag rejection, 25 poses, offscreen, prop/event priority, real clicks on props and menus, prop click areas on top in every place (at rest, after travel, menus closed, an event waiting, the activity bar, a catch reveal), rest/travel/busking preserved, transparent sprite, end of life, summary, Book, new life, the Lake (frogs, butterflies), fishing (rod, bite, catch, reveal, collection, activity bar, selling), work trips (the setting saved, "Off to work!", the "At work" label calling them back), the Fortune Tree's wind (Gust now there only; props still on top with the apple glowing in a gust), the hover outline (tree, character, sofa, dock: shown while hovering, gone on leaving, none with a menu open, clicks unchanged, no native tooltips), the dev Rest now (lying down asleep where they are, outlined on hover, up again); no renderer errors.`);
+    console.log(`PASS: the Fortune Tree's wishing well (its bubble, click area apart from the tree's, drags from it and the background), activities start only on arrival (walking to the tree from the far side, then "Busking - 0:00"; the sofa; the dock), no -webkit-app-region anywhere, JS window drags (background, character, tree: the window follows, no poke, no menu), plain clicks on every prop in every place, native gentle/rapid clicks, spam, calming, moving hit regions, drag rejection, 25 poses, offscreen, prop/event priority, real clicks on props and menus, prop click areas on top in every place (at rest, after travel, menus closed, an event waiting, the activity bar, a catch reveal), rest/travel/busking preserved, transparent sprite, end of life, summary, Book, new life, the Lake (frogs, butterflies), fishing (rod, bite, catch, reveal, collection, activity bar, selling), work trips (the setting saved, "Off to work!", the "At work" label calling them back), the Fortune Tree's wind (Gust now there only; props still on top with the apple glowing in a gust), the hover outline (tree, character, sofa, dock: shown while hovering, gone on leaving, none with a menu open, clicks unchanged, no native tooltips), the dev Rest now (lying down asleep where they are, outlined on hover, up again), their own plans (Let them choose On by default next to Work trips, saved; Choose now says what and shows in the read-out; Off ends it); no renderer errors.`);
   } catch (error) {
     console.error(error);
     process.exitCode = 1;

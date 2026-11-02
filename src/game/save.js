@@ -14,6 +14,7 @@ import { restoreHomeState } from './home.js';
 import { restoreHousingState } from './housing.js';
 import { restoreEndOfLifeState, restoreBook, bookSaveData } from './endOfLife.js';
 import { restoreActivityState } from './activities.js';
+import { restoreAutonomyState } from './autonomy.js';
 import { restoreCollection, collectionSaveData } from './fishing.js';
 import { restoreSettings, settingsSaveData } from './settings.js';
 
@@ -33,13 +34,15 @@ function toSaveData(game) {
     housing: game.housing,
     endOfLife: game.endOfLife,
     activities: game.activities,
+    autonomy: game.autonomy,
   };
 }
 
 // Returns the saved { clock, character, events, goals, jobs, place,
-// fortuneTree, home, housing, endOfLife, activities }, or null if there's
-// no usable save. Saves from before events, goals, jobs, places, the
-// Fortune Tree, Home, housing, the end of life or activities existed get
+// fortuneTree, home, housing, endOfLife, activities, autonomy }, or null
+// if there's no usable save. Saves from before events, goals, jobs,
+// places, the Fortune Tree, Home, housing, the end of life, activities or
+// the character's own plans existed get
 // fresh state for them (and
 // start at DEFAULT_PLACE; adults from before housing have moved out, and
 // leave the parents' house for My Yard; ageing counts from their age
@@ -61,6 +64,7 @@ export async function loadGame() {
     housing: restoreHousingState(data.housing, ageOf(character, data.clock.years)),
     endOfLife: restoreEndOfLifeState(data.endOfLife, ageOf(character, data.clock.years)),
     activities: restoreActivityState(data.activities),
+    autonomy: restoreAutonomyState(data.autonomy),
   };
   game.clock.stopped = Boolean(game.endOfLife.ended);
   settlePlace(game);

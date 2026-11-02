@@ -25,3 +25,11 @@ export function setWorkTrips(settings, on) {
   settings.workTrips = Boolean(on);
   return true;
 }
+
+// Turns the character's own plans ("Let them choose") on or off. Returns
+// whether it changed.
+export function setOwnPlans(settings, on) {
+  if (settings.ownPlans === Boolean(on)) return false;
+  settings.ownPlans = Boolean(on);
+  return true;
+}

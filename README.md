@@ -62,9 +62,24 @@ Early development. What works so far:
   work!" and walk out the side of the window, coming back 20-40 seconds
   later. While they're away the place label says "At work"; click it
   to call them back at once. The "Work trips" setting (On/Off, in the
-  dev menu for now, saved between launches) can turn this off. At 65 they retire with
+  dev menu for now, saved between launches) can turn this off. Work
+  trips never happen while they're busy with their own plans (below). At 65 they retire with
   a small yearly pension. Hover the name label to see job, level, pay and
   money. Job data is in `src/data/jobs.js`.
+- Own plans: left alone (no clicks on the game for 5 minutes, nothing
+  going on), now and then (every 20-60 real minutes) the character
+  picks something to do by themselves: fishing (with a rod), busking,
+  a nap when their health is low (sooner if lazy), or a walk to
+  another place. Their goal and traits tip the choice (Fortune fishes
+  and busks, Healthy rests and walks, a lazy one naps, a social one
+  busks, a curious one wanders; a Free spirit is the least
+  predictable). A short bubble says what they've decided ("Going
+  fishing!"), they walk there, it starts on arrival like any other,
+  shows in the activity bar, and after 10-40 real minutes they stop by
+  themselves (selling the bucket). Anything you start or stop, or
+  sending them somewhere, overrides their plan. The "Let them choose"
+  setting (On/Off, in the dev menu next to Work trips for now, saved)
+  turns this off. Everything is tunable in `src/data/autonomy.js`.
 - Places: the current one's name shows under the name label.
   - Growing up, there are three: the Fortune Tree, the Parents' Yard
     beside it (walking off the tree's right edge leads there, and back)
@@ -246,7 +261,8 @@ housing tier (sleeping bag, tent, house), jump to any place without
 walking (the Lake included), give a fishing rod, make a fish bite
 now, catch a fish of a chosen rarity now, preview the catch reveal
 card for each rarity, add a butterfly (or a blue one) or make a frog
-croak or hop at the Lake, turn work trips on or off, end the life now (adults only), set health (0, 10, 50 or 100;
+croak or hop at the Lake, turn work trips on or off, turn "Let them
+choose" on or off or have them choose something now, end the life now (adults only), set health (0, 10, 50 or 100;
 0 ends an adult's life), and see the character's stats, traits, goal,
 job, tree progress, place, housing, yearly ageing and the chance of the
 life ending on the next birthday, and how fishing is going.
