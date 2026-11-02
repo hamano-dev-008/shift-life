@@ -4,6 +4,8 @@
 // below are in scene pixels, measured from the window edges, so they adapt
 // when SCENE_SCALE changes.
 
+import { LAKE_ART, DOCK, DOCK_PROP, FISHING_SPOT_X } from './lake.js';
+
 // Overall scene scale: screen pixels per scene pixel. Whole numbers only,
 // so pixels stay crisp. Sizes everything except the character.
 export const SCENE_SCALE = 3;
@@ -21,6 +23,7 @@ export const GROUND_HEIGHT = 16;
 
 // Rows above the window bottom where the character's feet rest, and where
 // the props stand (further back, so the character walks in front of them).
+// A place can set its own feet row (feetFromBottom in data/places.js).
 export const FEET_FROM_BOTTOM = 7;
 export const PROP_BASE_FROM_BOTTOM = 12;
 
@@ -42,6 +45,18 @@ export const PROPS = {
   'home.window': { edge: 'center', margin: 0, width: 22, height: 17, base: 36, visitOffset: 11 },
   'home.door': { edge: 'left', margin: 4, width: 14, height: 27, base: 15, visitOffset: 7 },
   'home.sofa': { edge: 'right', margin: 6, width: 32, height: 13, visitOffset: 16 },
+  // The Lake's dock is part of the background picture: this is its click
+  // area (DOCK in data/lake.js, in the picture's pixels) and the fishing
+  // spot. A code-drawn prop's click area is the prop plus a 1px outline
+  // all round, hence the 1s.
+  [DOCK_PROP]: {
+    edge: 'left',
+    margin: DOCK.left + 1,
+    width: DOCK.right - DOCK.left - 1,
+    height: DOCK.bottom - DOCK.top - 1,
+    base: LAKE_ART.height - DOCK.bottom,
+    visitOffset: FISHING_SPOT_X - DOCK.left - 1,
+  },
 };
 
 // How close to the window edges the character's center may wander.

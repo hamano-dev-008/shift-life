@@ -67,10 +67,18 @@ Early development. What works so far:
   - The Parents' Home is a cozy living room: wallpaper, a wooden floor,
     a window with a bit of sky, the front door and a sofa. Click the
     front door to walk back out into the yard.
+  - The Lake is to the left of the Fortune Tree (walking off the tree's
+    left edge leads there, and back): a sunset lake with a wooden dock
+    and a grassy shore. The character walks on the dock and the shore,
+    never past the dock's tip, and the water shimmers softly. Anyone can
+    visit, babies included. Clicking the dock says "Fishing coming
+    soon!" (fishing is for a later version). Work trips leave by the
+    shore side. The Lake's numbers (where they walk, the dock, the
+    shimmer) are in `src/data/lake.js`.
   - The place button (the map pin in the top bar) opens "Go to", listing
     the other places. Pick one and the character walks there, through
-    any places in between (the Fortune Tree to the living room goes
-    through the yard and in the front door). Babies crawl the whole way.
+    any places in between (the Lake to the living room goes past the
+    Fortune Tree, through the yard and in the front door). Babies crawl the whole way.
     The button is disabled while they're on the way, and travelling
     stops busking or resting.
   - A new life starts in the Parents' Home; a save from before places
@@ -156,7 +164,7 @@ at one year a second), skip ahead 1 or 10 years, trigger an event, add
 $1,000, finish a busking session instantly, grow a golden apple now,
 rest a minute instantly, jump to age 18 to test moving out, set the
 housing tier (sleeping bag, tent, house), jump to any place without
-walking, end the life now (adults only), set health (0, 10, 50 or 100;
+walking (the Lake included), end the life now (adults only), set health (0, 10, 50 or 100;
 0 ends an adult's life), and see the character's stats, traits, goal,
 job, tree progress, place, housing, yearly ageing and the chance of the
 life ending on the next birthday.
@@ -177,6 +185,7 @@ code. Save a PNG in `assets/sprites/` named after what it replaces:
 `sky.png`, `grass.png`, `tree.png`, `parents.house.png`,
 `yard.sleepingBag.png`, `yard.tent.png`, `yard.house.png`, `home.wall.png`,
 `home.floor.png`, `home.window.png`, `home.door.png`, `home.sofa.png`,
+`lake.png` (the Lake's whole background, 107 x 80; there's one already),
 `goldenApple.png` (drawn at the
 tree's scale unless it has its own `scale`, as the current 40 x 40 apple
 does, its middle on the spot set by `APPLE_SPOT` in
@@ -219,9 +228,9 @@ npm.cmd start        # launch the game
 
 In Git Bash, plain `npm` works. The first start downloads Electron, so it
 takes a little longer. Run `npm.cmd test` for interaction rules, pose
-checks and end-of-life logic (Node 22.7+), and `npm.cmd run test:smoke`
-for isolated Electron click/renderer checks, including a whole goodbye
-and new life. The smoke check uses in-memory saves, leaving your life
+checks, end-of-life logic and the Lake (Node 22.7+), and `npm.cmd run
+test:smoke` for isolated Electron click/renderer checks, including a
+whole goodbye, a new life and a visit to the Lake. The smoke check uses in-memory saves, leaving your life
 and Book untouched.
 
 ## Project layout

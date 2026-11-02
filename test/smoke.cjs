@@ -177,8 +177,24 @@ app.whenReady().then(async () => {
     assert.match(await js('document.querySelector("#book-menu").textContent'), /Book of past lives.*Poke Test, 0-18/s);
     await js('document.querySelector("#book-menu .book-list button").click()');
     assert.match(await js('document.querySelector("#book-menu").textContent'), /Golden apples.*Back/s);
+    // The Lake: a baby can visit; its own feet row (the dock, 12 rows up)
+    // and the dock's bubble.
+    await js('document.querySelector("#book-menu .panel-close").click()');
+    await js('document.querySelector("#dev-btn").click()');
+    await devClick('Lake');
+    await js('document.querySelector("#dev-btn").click()');
+    await wait(150);
+    assert.equal(saved.place, 'lake');
+    assert.equal(await js('document.querySelector("#place").textContent'), 'Lake');
+    const feet = await js(`Math.max(...[...document.querySelectorAll('#character-target span')]
+      .map((run) => run.getBoundingClientRect().bottom))`);
+    assert.ok(feet > 190 && feet <= 206, `feet at ${feet}`);
+    await js(`document.querySelector('#targets button[title="Dock"]').click()`);
+    await wait(60);
+    assert.equal(await js('document.querySelector("#speech").hidden'), false);
+    assert.match(await js('document.querySelector("#speech").textContent'), /Fishing coming soon!/);
     assert.deepEqual(errors, []);
-    console.log('PASS: native gentle/rapid clicks, spam, calming, moving hit regions, drag rejection, 25 poses, offscreen, prop/event priority, rest/travel/busking preserved, transparent sprite, end of life, summary, Book, new life; no renderer errors.');
+    console.log('PASS: native gentle/rapid clicks, spam, calming, moving hit regions, drag rejection, 25 poses, offscreen, prop/event priority, rest/travel/busking preserved, transparent sprite, end of life, summary, Book, new life, the Lake and its dock; no renderer errors.');
   } catch (error) {
     console.error(error);
     process.exitCode = 1;

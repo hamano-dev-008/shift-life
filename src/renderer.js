@@ -4,8 +4,9 @@
 // frame (rebuilt when the housing changes it), walks the character between
 // places, plays the gentle goodbye when a life ends (sitting down, the
 // fade, the farewell bubble, the summary card), and wires up controls, the
-// click areas over props, the tree, rest and Go to menus, the Book of past
-// lives, the dev settings menu (dev runs only) and saving.
+// click areas over props (the Lake's dock says fishing is coming), the
+// tree, rest and Go to menus, the Book of past lives, the dev settings
+// menu (dev runs only) and saving.
 
 import { POKE } from './data/interaction.js';
 import { createInteraction, calmInteraction, pokeCharacter } from './game/interaction.js';
@@ -47,6 +48,7 @@ import { TRAVEL, PLACE_TEXT } from './data/places.js';
 import { FAREWELL, END_TEXT } from './data/endOfLife.js';
 import { FORTUNE_TREE_PLACE, TREE_PROP } from './data/fortuneTree.js';
 import { REST_SEATS } from './data/home.js';
+import { LAKE_PLACE, DOCK_PROP, DOCK_BUBBLE } from './data/lake.js';
 import { computeLayout, createScenery, propClickRect } from './ui/scene.js';
 import { drawGoldenApple } from './ui/goldenApple.js';
 import { createTreeMenu } from './ui/treeMenu.js';
@@ -373,7 +375,8 @@ async function start() {
   let animator = createAnimator(scene.layout);
 
   // Clicking a prop: through a door (an exit) walks there; the tree opens
-  // its menu, and anything to rest on the rest menu.
+  // its menu, anything to rest on the rest menu, and the Lake's dock says
+  // fishing is coming.
   function clickProp(id) {
     const exit = scene.place.exits.find((candidate) => candidate.via === id);
     if (exit) {
@@ -382,7 +385,19 @@ async function start() {
       treeMenu.toggle();
     } else if (id in REST_SEATS) {
       restMenu.toggle();
+    } else if (id === DOCK_PROP && scene.place.id === LAKE_PLACE) {
+      chatter(DOCK_BUBBLE.text, DOCK_BUBBLE.seconds, performance.now(), true);
     }
+  }
+
+  // A small passing remark over the head (a poke, the dock). It never
+  // queues or covers an event or news, gives way to them at once, and
+  // only replaces another remark if `interrupt` says so.
+  function chatter(text, seconds, now, interrupt = false) {
+    if (bubbles.length || game.events.pending || eventCard.isOpen()) return;
+    if (now < speechUntil && !(pokeSpeech && interrupt)) return;
+    showBubble({ text, seconds }, now);
+    pokeSpeech = true;
   }
 
   // Switches the screen to the current place as it is now: its scene,
@@ -408,11 +423,7 @@ async function start() {
       const result = pokeCharacter(game.character, interaction, now);
       if (Object.keys(result.deltas).length) saveGame(game);
       // Optional chatter never queues or covers an event or important news.
-      if (result.text && !bubbles.length && !game.events.pending && !eventCard.isOpen()
-        && (now >= speechUntil || (pokeSpeech && result.annoyed))) {
-        showBubble({ text: result.text, seconds: POKE.bubbleSeconds }, now);
-        pokeSpeech = true;
-      }
+      if (result.text) chatter(result.text, POKE.bubbleSeconds, now, result.annoyed);
     });
 
   // When the map changes under the character (moving out, a new housing

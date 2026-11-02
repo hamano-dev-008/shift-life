@@ -26,6 +26,13 @@
 //             bottom edge one row below the prop's base line. The
 //             code-drawn house plus its 1px outline is 24 x 28; its door
 //             is in the middle.
+//   The Lake (data/lake.js):
+//     lake    The whole background (sky, water, the dock and the shore),
+//             drawn from the window's bottom-left corner. Positions in
+//             data/lake.js (the dock, the feet row, where the character
+//             may walk, the water for the shimmer) are in its pixels.
+//             The water shimmer and the dock's click area are drawn and
+//             placed in code over it.
 //   My Yard shows one housing tier (data/housing.js) at a time:
 //     yard.sleepingBag  On the grass near the right edge
 //             (PROPS['yard.sleepingBag']); code-drawn with outline 24 x 6,
@@ -99,4 +106,6 @@ export const SPRITES = {
   // The apple art is 40 x 40, finely drawn: at the tree's scale it would
   // be bigger than the tree, so it's drawn 1:1.
   goldenApple: { scale: 1 },
+  // The Lake's background, 107 x 80: one still frame, at the scene's scale.
+  lake: { frames: 1 },
 };

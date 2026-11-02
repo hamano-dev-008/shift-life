@@ -1,10 +1,12 @@
 // scene.js — Works out where everything goes for the window's size, the
 // scene scale and a place (data/places.js), and draws that place's
 // scenery: outdoors a dithered sky, grassy ground strip, the tree, the
-// parents' house or the housing tier (ui/housing.js); at Home the wall, floor, window, door and sofa (ui/room.js).
+// parents' house or the housing tier (ui/housing.js); at Home the wall, floor, window, door and sofa (ui/room.js);
+// at the Lake its background and the water shimmer (ui/lake.js).
 // Each piece uses its sprite (ui/assets.js) when there is one, or the
 // code-drawn art. Still pieces are drawn once to offscreen canvases
-// copied in every frame; animated sprites are drawn every frame.
+// copied in every frame; animated sprites and live pieces (the shimmer)
+// are drawn every frame.
 
 import {
   SCENE_SCALE, CHARACTER_SCALE, GROUND_HEIGHT, FEET_FROM_BOTTOM, PROP_BASE_FROM_BOTTOM, PROPS, WANDER_MARGIN,
@@ -13,6 +15,8 @@ import { createLayer, drawLayer } from './pixel.js';
 import { drawTree, drawParentsHouse, drawHouse } from './props.js';
 import { drawSleepingBag, drawTent } from './housing.js';
 import { drawWall, drawFloor, drawHomeWindow, drawHomeDoor, drawSofa } from './room.js';
+import { drawLake, drawShimmer } from './lake.js';
+import { DOCK_PROP } from '../data/lake.js';
 import { getSprite, isAnimated, frameAtTime, drawSprite } from './assets.js';
 
 const SKY_TOP = [142, 202, 230];
@@ -32,8 +36,9 @@ const BAYER = [
 
 // Converts data/layout.js (scene pixels from the window edges) into canvas
 // pixels for a canvas of the given size, with the props in `place`'s
-// scenery. Everything that places things in the scene reads this instead
-// of the raw data.
+// scenery, its feet row and where the character may walk (`walk`: a side
+// with a limit is closed, see openSides). Everything that places things
+// in the scene reads this instead of the raw data.
 export function computeLayout(width, height, place) {
   const scale = SCENE_SCALE;
   const fromBottom = (rows) => height - rows * scale;
@@ -58,16 +63,19 @@ export function computeLayout(width, height, place) {
       visitX: x + prop.visitOffset * scale,
     };
   }
+  const walk = place.walk ?? {};
   return {
     width,
     height,
     scale,
     characterScale: CHARACTER_SCALE,
-    feetY: fromBottom(FEET_FROM_BOTTOM),
+    feetY: fromBottom(place.feetFromBottom ?? FEET_FROM_BOTTOM),
     groundY: fromBottom(GROUND_HEIGHT),
     props,
-    wanderMinX: WANDER_MARGIN * scale,
-    wanderMaxX: width - WANDER_MARGIN * scale,
+    wanderMinX: (walk.minX ?? WANDER_MARGIN) * scale,
+    wanderMaxX: walk.maxX == null ? width - WANDER_MARGIN * scale : walk.maxX * scale,
+    // Which window edges the character can walk out of (work trips).
+    openSides: { left: walk.minX == null, right: walk.maxX == null },
   };
 }
 
@@ -240,9 +248,20 @@ function prop(name, drawCode) {
   };
 }
 
+// A whole background in one picture (the Lake): its sprite is drawn from
+// the window's bottom-left corner.
+function background(name, drawCode) {
+  return {
+    name,
+    drawSprite: (ctx, layout, sprite, frame) => drawSprite(ctx, sprite, frame, 0, layout.height, scaleOf(layout, sprite)),
+    drawCode,
+  };
+}
+
 // Every scenery piece a place can show (data/places.js lists which, back
 // to front). Each has its sprite name (see data/sprites.js), how to draw
-// that sprite's frame, and the code-drawn fallback.
+// that sprite's frame, and the code-drawn fallback; or, for a live piece,
+// drawLive(ctx, layout, seconds), drawn in code every frame.
 const SCENERY = [
   backdrop('sky', drawSky),
   ground('grass', drawGround),
@@ -256,6 +275,10 @@ const SCENERY = [
   prop('home.window', drawHomeWindow),
   prop('home.door', drawHomeDoor),
   prop('home.sofa', drawSofa),
+  background('lake', drawLake),
+  { name: 'lake.shimmer', drawLive: drawShimmer },
+  // Part of the Lake's background; only its click area and visit spot.
+  prop(DOCK_PROP, () => {}),
 ];
 
 function createCanvas(layout) {
@@ -267,14 +290,20 @@ function createCanvas(layout) {
 
 // Prepares `place`'s scenery for drawing every frame. Still pieces next
 // to each other (code-drawn, or one-frame sprites) are drawn once onto a
-// shared offscreen canvas; an animated sprite is drawn live between them,
-// so the order back to front stays the same. Call after loadSprites().
+// shared offscreen canvas; an animated sprite or a live piece is drawn
+// every frame between them, so the order back to front stays the same.
+// Call after loadSprites().
 export function createScenery(layout, place) {
   const parts = [];
   let still = null;
   for (const name of place.scenery) {
     const piece = SCENERY.find((candidate) => candidate.name === name);
     if (!piece) continue;
+    if (piece.drawLive) {
+      parts.push({ live: piece });
+      still = null;
+      continue;
+    }
     const sprite = getSprite(piece.name);
     if (sprite && isAnimated(sprite)) {
       parts.push({ piece, sprite });
@@ -293,11 +322,14 @@ export function createScenery(layout, place) {
     }
   }
   return {
-    // Draws the scenery as it looks `seconds` in (for animated sprites).
+    // Draws the scenery as it looks `seconds` in (for animated sprites
+    // and live pieces).
     draw(ctx, seconds) {
       for (const part of parts) {
         if (part.canvas) {
           ctx.drawImage(part.canvas, 0, 0);
+        } else if (part.live) {
+          part.live.drawLive(ctx, layout, seconds);
         } else {
           part.piece.drawSprite(ctx, layout, part.sprite, frameAtTime(part.sprite, seconds));
         }

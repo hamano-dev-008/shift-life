@@ -25,7 +25,8 @@ with **Electron and plain JavaScript**.
 > traits, wanders the window, ages in real time, meets life events as
 > speech bubbles, pursues a life goal the player picks, works jobs from
 > 18 (pay, promotions, work events) and retires at 65, and walks
-> between places: the Fortune Tree (busking, the golden apple), the
+> between places: the Lake (a dock and shimmering water; fishing is
+> still to come), the Fortune Tree (busking, the golden apple), the
 > Parents' Yard and Home (resting on the sofa) while growing up, then
 > from 18 My Yard (sleeping bag, tent or house, bought by the player)
 > and their own Home. From 50 health fades with age; the life ends
@@ -68,7 +69,8 @@ Shift-Life/
 │   │                  clock, ageing and the end of life, events, goals,
 │   │                  jobs, the Fortune Tree, resting and moving out
 │   │                  (real-time tick), trips between places, following
-│   │                  map changes, prop clicks, buying housing, the
+│   │                  map changes, prop clicks (the Lake's dock bubble),
+│   │                  buying housing, the
 │   │                  goodbye (sitting, fade, farewell bubble, summary
 │   │                  card) and new lives, autosave, frame loop, text
 │   │                  bubble queue, menu wiring, dev shortcuts
@@ -121,21 +123,28 @@ Shift-Life/
 │   │   ├── assets.js      Sprite loader (PNGs from assets/sprites/ at
 │   │   │                  startup), frame picking, crisp sprite drawing
 │   │   ├── scene.js       computeLayout() (data → canvas pixels, for a
-│   │   │                  place), where props are drawn and clicked
-│   │   │                  (propRect, propClickRect), and the place's
-│   │   │                  scenery (sky, grass, tree, houses, sleeping
-│   │   │                  bag, tent; Home's wall, floor, window, door,
-│   │   │                  sofa), each a
+│   │   │                  place: its props, feet row, walking limits
+│   │   │                  and open sides), where props are drawn and
+│   │   │                  clicked (propRect, propClickRect), and the
+│   │   │                  place's scenery (sky, grass, tree, houses,
+│   │   │                  sleeping bag, tent; Home's wall, floor,
+│   │   │                  window, door, sofa; the Lake's background and
+│   │   │                  shimmer), each a
 │   │   │                  sprite or code-drawn; still pieces cached,
-│   │   │                  animated sprites drawn every frame
+│   │   │                  animated sprites and live pieces drawn every
+│   │   │                  frame
 │   │   ├── props.js       Draws the tree and the houses (parents' and
 │   │   │                  own) in code; the shared prop painter and
 │   │   │                  house colors
 │   │   ├── housing.js     Draws the sleeping bag and the tent in code
 │   │   ├── room.js        Draws Home's living room in code: wallpaper,
 │   │   │                  wooden floor, window, front door, sofa
+│   │   ├── lake.js        Draws the Lake: the code-drawn background
+│   │   │                  (when lake.png is missing) and the water
+│   │   │                  shimmer (sparkles that twinkle and drift)
 │   │   ├── animator.js    Wandering, prop visits, goal activities,
-│   │   │                  trips off-screen to work and back, staying put
+│   │   │                  trips off-screen to work and back (by an open
+│   │                  side), staying put
 │   │   │                  to busk or rest, sitting for good (eyes
 │   │   │                  closing) when a life ends, walking out of a
 │   │   │                  place and into the next,
@@ -183,8 +192,13 @@ Shift-Life/
 │       │                  (trait adjectives, nouns), Book size, text
 │       ├── places.js      Places (id, name, requirement, where to go
 │       │                  when gone, scenery pieces, exits, clickable
-│       │                  props), where a new life starts, the default
-│       │                  place, travel distances, Go to text
+│       │                  props, own feet row and walking limits),
+│       │                  where a new life starts, the default place,
+│       │                  travel distances, Go to text
+│       ├── lake.js        The Lake's numbers and text: its feet row,
+│       │                  walking limits, the dock's click area and
+│       │                  fishing spot, the water shimmer (area,
+│       │                  sparkles, colors, timing), the dock bubble
 │       ├── home.js        Resting numbers and text: what can be rested
 │       │                  on and its seat height, rest health gain, z's,
 │       │                  rest menu
@@ -198,8 +212,9 @@ Shift-Life/
 │       ├── goals.js       Life goals: stat, yearly drift, activity,
 │       │                  milestones (format documented in the file)
 │       ├── layout.js      SCENE_SCALE (scene size), CHARACTER_SCALE (the
-│       │                  character's own size), ground, feet row, props
-│       │                  (edges, sizes, bases, visit spots) for every
+│       │                  character's own size), ground, the usual feet
+│       │                  row, props (edges, sizes, bases, visit spots;
+│       │                  the Lake's dock from data/lake.js) for every
 │       │                  place, margins, bubble size
 │       │                  and head clearance
 │       ├── characterShapes.js  Body proportions per life stage, the
@@ -227,10 +242,12 @@ Shift-Life/
 │                          names drawing code looks for
 ├── assets/
 │   └── sprites/       Pixel-art PNGs that replace code-drawn art (tree.png,
-│                      goldenApple.png so far) and a short README
+│                      goldenApple.png, lake.png so far) and a short README
 └── test/              interaction.test.mjs (rules/poses), endOfLife.test.mjs
                        (ageing, endings, summary, Book, new life),
-                       smoke.cjs (Electron clicks, end of life flow)
+                       lake.test.mjs (the Lake: routes, feet row, walking
+                       limits, dock, work trips, shimmer), smoke.cjs
+                       (Electron clicks, end of life flow, the Lake)
 ```
 
 How it works, for anyone extending it:
@@ -260,9 +277,10 @@ How it works, for anyone extending it:
   - The scenery comes from `createScenery(layout, place)` in
     `ui/scene.js`: the place's `scenery` pieces (data/places.js), back
     to front. Still pieces next to each other
-    are drawn once onto a cached canvas; an animated sprite is drawn live
-    every frame in its place in the order. The canvas is cleared each
-    frame before the scenery is drawn.
+    are drawn once onto a cached canvas; an animated sprite, or a live
+    piece drawn in code (`drawLive`, the Lake's shimmer), is drawn every
+    frame in its place in the order. The canvas is cleared each frame
+    before the scenery is drawn.
   - The character is redrawn every frame from `poseOf()` (animator) and
     `drawCharacter()` (sprite), painted facing right and mirrored when
     facing left. Its position is snapped to whole character pixels, so it
@@ -279,9 +297,9 @@ How it works, for anyone extending it:
     `getSprite(name)` and falls back to its code-drawn art on null. The
     names it looks for, and where each is placed, are listed at the top
     of `data/sprites.js`: `sky`, `grass`, `tree`, `yard.house`,
-    `home.wall`, `home.floor`, `home.window`, `home.door`, `home.sofa`
-    (scene pixels, drawn at `SCENE_SCALE`), `goldenApple` (at the tree's
-    scale) and
+    `home.wall`, `home.floor`, `home.window`, `home.door`, `home.sofa`,
+    `lake` (scene pixels, drawn at `SCENE_SCALE`), `goldenApple` (at the
+    tree's scale) and
     `character.<body>.<animation>` with an optional `.<expression>`
     (character pixels, at `CHARACTER_SCALE`).
   - Sheets have their frames side by side in one row. `SPRITES` in
@@ -429,12 +447,22 @@ How it works, for anyone extending it:
 - **Places:** the scene is a place (`data/places.js`: id, name, the
   `scenery` pieces it shows back to front, `exits`, and clickable
   `targets`, plus `requires` and `gone`, see **Housing**). Growing up
-  there are three: the Fortune Tree and the Parents' Yard (`yard`) side
-  by side (walking off the tree's right edge comes into the yard from
+  there are four: the Lake (`lake`), the Fortune Tree and the Parents'
+  Yard (`yard`) side by side (walking off the tree's left edge comes
+  into the Lake from its right, off its right edge into the yard from
   its left, and back), and the Parents' Home (`home`), the living room,
   entered through the house's front door. From 18 the parents' places
   are gone and My Yard (`myYard`) is beside the tree, with Home
-  (`myHome`, the own living room) once they own the house.
+  (`myHome`, the own living room) once they own the house. The Lake is
+  there at every age.
+  - A place can have its own feet row (`feetFromBottom`, rows above the
+    window bottom; default `FEET_FROM_BOTTOM`) and walking limits
+    (`walk: { minX, maxX }`, scene pixels; null keeps `WANDER_MARGIN`).
+    `computeLayout()` turns them into `feetY`, `wanderMinX`/`wanderMaxX`
+    and `openSides`; the character, shadow, bubbles, the poke hit mask
+    and resting all use the layout, so they follow. A side with a limit
+    is closed: work trips leave by the other one (`goToWork()` in the
+    animator).
   - `game.place` holds the current place's id (saved; a save without one
     or with an unknown one goes to `DEFAULT_PLACE`, the Fortune Tree). A
     new life starts at `NEW_LIFE_PLACE` (the Parents' Home).
@@ -474,8 +502,27 @@ How it works, for anyone extending it:
   - Click areas: the renderer puts an invisible no-drag button in
     `#targets` over each of the place's `targets` (the prop's visible
     pixels, `propClickRect()`). Clicking an exit's prop (a house, the
-    front door) travels through it; the tree opens its menu and anything
-    in `REST_SEATS` (sofa, sleeping bag, tent) the rest menu.
+    front door) travels through it; the tree opens its menu, anything
+    in `REST_SEATS` (sofa, sleeping bag, tent) the rest menu, and the
+    Lake's dock its bubble.
+  - The Lake (`data/lake.js`, `ui/lake.js`): its scenery is `lake`, one
+    picture (`assets/sprites/lake.png`, 107 x 80) drawn from the
+    window's bottom-left corner instead of sky and grass (code-drawn if
+    it's missing); `lake.shimmer`, a live piece; and `lake.dock`, a prop
+    with no art of its own (it's in the picture), only the click area
+    and the fishing spot as its visit spot. Its numbers are in the
+    picture's pixels (x from the left, rows from the top): `DOCK` (the
+    click area, x 25-80 around row 68), `FISHING_SPOT_X` (27), the feet
+    row (`LAKE_FEET_FROM_BOTTOM`, 12: the dock top and shore, row 68),
+    `LAKE_WALK` (from the dock tip, x 25, to the right edge) and
+    `SHIMMER`. The shimmer (`shimmerSparkles(seconds)`) is a few
+    highlight pixels on the water area, off the dock: each twinkles up
+    through its colors and back once per cycle while drifting sideways,
+    then shows up somewhere else; positions come from deterministic
+    noise, so it's the same every run. Clicking the dock shows "Fishing
+    coming soon!" as a small remark (`chatter()` in the renderer, like
+    poke chatter: it never covers events or news). The dock's fishing
+    spot is where fishing will start.
   - Work trips work the same everywhere (out the nearest side and back).
   - A new place needs an entry in `PLACES` (with exits both ways), any
     new scenery pieces in `SCENERY` (`ui/scene.js`, with code-drawn
@@ -639,7 +686,8 @@ How it works, for anyone extending it:
     follows on the next tick), set the housing tier directly (Sleeping
     bag, Tent, House; ends resting, leaves Home if the house goes; a
     child stays with their parents), Go to any place that exists
-    instantly (no walking; ends busking or resting and any trip), End
+    instantly (no walking, the Lake included; ends busking or resting
+    and any trip), End
     life now (adults only, otherwise a note; plays the goodbye), set
     health (0, 10, 50, 100; 0 ends an adult's life on the next tick), and
     a read-out of stats, traits, goal, job, the tree, the place and

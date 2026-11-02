@@ -255,10 +255,13 @@ function updateFidgets(anim, dt) {
   anim.fidgetIn = randomIn(BABY_FIDGET_INTERVAL);
 }
 
-// Walks out the nearest side of the window, WORK_EXIT past the edge.
+// Walks out the nearest side of the window that's open (not the Lake's
+// water), WORK_EXIT past the edge.
 function goToWork(anim) {
   const { width, scale } = anim.layout;
-  const x = anim.x < width / 2 ? -WORK_EXIT * scale : width + WORK_EXIT * scale;
+  const open = anim.layout.openSides ?? { left: true, right: true };
+  const left = open.left && (anim.x < width / 2 || !open.right);
+  const x = left ? -WORK_EXIT * scale : width + WORK_EXIT * scale;
   anim.activity = null;
   setOff(anim, { x, destination: 'work' });
 }

@@ -3,6 +3,8 @@
 // name and scenery. Pure data: game/places.js, ui/scene.js and the
 // renderer read it.
 
+import { LAKE_PLACE, LAKE_FEET_FROM_BOTTOM, LAKE_WALK, DOCK_PROP } from './lake.js';
+
 // Each place has:
 //   id        Unique and saved; don't rename one once it has shipped.
 //   name      Shown small under the name label and in the Go to menu (16
@@ -27,13 +29,35 @@
 //   targets   Props that can be clicked, with the hover title: { propId:
 //             title }. Clicking a prop that's an exit's `via` walks the
 //             character through it; resting props (REST_SEATS in
-//             data/home.js) open the rest menu; the tree opens its menu.
+//             data/home.js) open the rest menu; the tree opens its menu;
+//             the Lake's dock shows its bubble (data/lake.js).
+//   feetFromBottom  Optional: rows above the window bottom where the
+//             character's feet rest here (default FEET_FROM_BOTTOM in
+//             data/layout.js). Bubbles, pokes and the shadow follow it.
+//   walk      Optional: { minX, maxX }, scene pixels from the window's
+//             left edge the character's center may walk between here;
+//             null or missing keeps the usual WANDER_MARGIN on that side.
+//             A side with a limit is closed: work trips use the other.
+//
+// The row outdoors, left to right: Lake, Fortune Tree, then the Parents'
+// Yard (or My Yard). The Go to menu lists places in this order.
 export const PLACES = [
+  {
+    id: LAKE_PLACE,
+    name: 'Lake',
+    // The background picture, the water shimmer over it, and the dock
+    // (part of the picture; only its click area and fishing spot).
+    scenery: ['lake', 'lake.shimmer', DOCK_PROP],
+    feetFromBottom: LAKE_FEET_FROM_BOTTOM,
+    walk: LAKE_WALK,
+    exits: [{ to: 'fortuneTree', via: 'right' }],
+    targets: { [DOCK_PROP]: 'Dock' },
+  },
   {
     id: 'fortuneTree',
     name: 'Fortune Tree',
     scenery: ['sky', 'grass', 'tree'],
-    exits: [{ to: 'yard', via: 'right' }, { to: 'myYard', via: 'right' }],
+    exits: [{ to: LAKE_PLACE, via: 'left' }, { to: 'yard', via: 'right' }, { to: 'myYard', via: 'right' }],
     targets: { tree: 'Fortune Tree' },
   },
   {
