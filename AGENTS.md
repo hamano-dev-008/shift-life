@@ -1112,10 +1112,11 @@ the DevTools console.
    In PowerShell, from the project folder:
    ```powershell
    $exe = (Resolve-Path 'node_modules\electron\dist\electron.exe').Path
-   $old = Get-Process electron -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq $exe }
-   $old | ForEach-Object { $null = $_.CloseMainWindow() }
-   $old | Wait-Process -Timeout 5 -ErrorAction SilentlyContinue
-   Get-Process electron -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq $exe } | Stop-Process -Force
+   $running = { Get-Process electron -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq $exe } }
+   & $running | ForEach-Object { $null = $_.CloseMainWindow() }
+   $until = (Get-Date).AddSeconds(5)
+   while ((& $running) -and (Get-Date) -lt $until) { Start-Sleep -Milliseconds 250 }
+   & $running | Stop-Process -Force
    npm.cmd start   # in the background
    ```
    Matching on this project's `electron.exe` leaves other Electron apps
