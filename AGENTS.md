@@ -28,7 +28,9 @@ with **Electron and plain JavaScript**.
 > between places: the Lake (fishing from the dock: a rod to buy, bites,
 > catches of random sizes revealed on a card and sold from the bucket,
 > a fish collection with the biggest of each kind, kept across lives;
-> the first of the data-defined place activities), the Fortune Tree
+> the first of the data-defined place activities; frogs on lily pads
+> and butterflies over the reeds, clickable for a little happiness),
+> the Fortune Tree
 > (busking, the golden apple), the
 > Parents' Yard and Home (resting on the sofa) while growing up, then
 > from 18 My Yard (sleeping bag, tent or house, bought by the player)
@@ -63,14 +65,16 @@ Shift-Life/
 │   ├── index.html     Renderer page: scene canvas, prop click areas,
 │   │                  label, place name, stats panel, event bubble/card,
 │   │                  bite bubble, the reveal card's click area, the
+│   │                  Lake wildlife's click areas and the ribbit, the
 │   │                  activity bar, goal, tree, rest, activity (dock),
 │   │                  Go to and dev menus, life summary
 │   │                  card, Book of past lives, text bubble, top-right
 │   │                  buttons (goal, book, place, gear, -, x)
 │   ├── styles.css     Rounded frame, drag region, pixelated canvas, label,
 │   │                  place name (with the label's backing), stats
-│   │                  panel, prop click areas, the reveal's click
-│   │                  area, the activity bar, panels (event card, goal,
+│   │                  panel, prop and wildlife click areas, the
+│   │                  ribbit, the reveal's click area, the activity
+│   │                  bar, panels (event card, goal,
 │   │                  tree, rest, activity with the fish collection, Go
 │   │                  to and dev menus, life summary, Book; the tall
 │   │                  ones scroll),
@@ -85,12 +89,16 @@ Shift-Life/
 │   │                  map changes, prop clicks (the dock opens the
 │   │                  activity menu), fishing's drawing and bite "!",
 │   │                  the catch reveal, the fish collection, the
-│   │                  activity bar (Stop), buying housing, the
+│   │                  Lake's wildlife (drawn, clicked, the ribbit,
+│   │                  dove at the bobber), the activity bar (Stop),
+│   │                  buying housing, the
 │   │                  goodbye (sitting, fade, farewell bubble, summary
 │   │                  card) and new lives, autosave, frame loop, text
 │   │                  bubble queue, menu wiring, dev shortcuts
 │   ├── game/          Game logic only (no hard-coded content)
 │   │   ├── interaction.js Unsaved real-time poke rules and happiness changes
+│   │   ├── lakeLife.js    Clicking the Lake's wildlife: +1 happiness on
+│   │   │                  a real-time cooldown (unsaved)
 │   │   ├── clock.js       Real-time clock: in-game years, speed, stopped
 │   │   │                  once the life has ended
 │   │   ├── character.js   Birth (random name/look/traits), stats,
@@ -180,6 +188,14 @@ Shift-Life/
 │   │   ├── lake.js        Draws the Lake: the code-drawn background
 │   │   │                  (when lake.png is missing) and the water
 │   │   │                  shimmer (sparkles that twinkle and drift)
+│   │   ├── lakeLife.js    The Lake's wildlife, visual only (no DOM, so
+│   │   │                  tests run it): frogs on the lily pads (blink,
+│   │   │                  croak, hop, plop, dive at the bobber),
+│   │   │                  butterflies (drift in, loop, rest on reeds,
+│   │   │                  leave), click reactions, click boxes
+│   │   ├── lakeLifeArt.js Draws the wildlife (code or lake.frog /
+│   │   │                  lake.butterfly sprites, tinted per color),
+│   │   │                  ripples and splashes; click boxes to canvas
 │   │   ├── animator.js    Wandering, prop visits, goal activities,
 │   │   │                  trips off-screen to work and back (by an open
 │   │                  side), staying put
@@ -264,6 +280,10 @@ Shift-Life/
 │       │                  fishing spot, where the bobber lands, the
 │       │                  water shimmer (area,
 │       │                  sparkles, colors, timing), the dock bubble
+│       ├── lakeLife.js    The Lake's wildlife: lily pads, frog and
+│       │                  butterfly counts, timing, speeds, area, reeds,
+│       │                  colors (the rare blue), the click reward and
+│       │                  its cooldown, hit padding, ribbit text
 │       ├── home.js        Resting numbers and text: what can be rested
 │       │                  on and its seat height, rest health gain, z's,
 │       │                  rest menu
@@ -313,13 +333,17 @@ Shift-Life/
                        (ageing, endings, summary, Book, new life),
                        lake.test.mjs (the Lake: routes, feet row, walking
                        limits, dock, work trips, shimmer),
+                       lakeLife.test.mjs (wildlife: the click cooldown,
+                       pads and reeds, frogs hopping, plopping and
+                       diving, butterflies' count, area and reeds,
+                       clicks, dev),
                        activities.test.mjs (activities and fishing:
                        rod, bites, odds, earnings, sizes, selling,
                        collection and records, saving, a data-only
                        activity, the reveal's timing and text, the
                        activity bar, dev), smoke.cjs (Electron clicks,
-                       end of life flow, the Lake, fishing, the reveal,
-                       the activity bar)
+                       end of life flow, the Lake and its wildlife,
+                       fishing, the reveal, the activity bar)
 ```
 
 How it works, for anyone extending it:
@@ -370,7 +394,8 @@ How it works, for anyone extending it:
     names it looks for, and where each is placed, are listed at the top
     of `data/sprites.js`: `sky`, `grass`, `tree`, `yard.house`,
     `home.wall`, `home.floor`, `home.window`, `home.door`, `home.sofa`,
-    `lake` (scene pixels, drawn at `SCENE_SCALE`), `goldenApple` (at the
+    `lake`, `lake.frog`, `lake.butterfly` (or `lake.butterfly.<color>`)
+    (scene pixels, drawn at `SCENE_SCALE`), `goldenApple` (at the
     tree's scale) and
     `character.<body>.<animation>` with an optional `.<expression>`
     (character pixels, at `CHARACTER_SCALE`).
@@ -595,6 +620,39 @@ How it works, for anyone extending it:
     noise, so it's the same every run. The dock is where fishing
     happens (see **Activities and fishing**); `BOBBER_SPOT` is where
     the bobber lands, to the left in the open water.
+  - Wildlife (`data/lakeLife.js`; behavior in `ui/lakeLife.js`, drawing
+    in `ui/lakeLifeArt.js`): purely visual and never saved; the renderer
+    makes it fresh each time the Lake is shown (`createLakeLife()`),
+    runs it on the frame loop and drops it elsewhere. It's drawn after
+    the scenery and before the character, so it never covers the
+    character, bubbles, the reveal card or menus.
+    - Frogs (`FROGS.count`, 1-2) sit on `LILY_PADS` (in the picture: x
+      3-5 row 70, x 72-77 row 75), each on its own pad: they blink,
+      croak now and then (a throat puff, three frames), and every
+      `moveEvery` seconds hop in an arc to a free pad (`hopShare`) or
+      plop under water (a ripple ring) and come up on a free pad
+      `underwater` seconds later. When the bobber lands (the cast
+      ending) within `FROGS.scare` pixels of a frog, it dives with a
+      splash (the left pad is in range of `BOBBER_SPOT`). Code-drawn
+      4 x 3 with an outline, or the `lake.frog` sprite (idle, blink,
+      croak, hop).
+    - Butterflies (up to `BUTTERFLIES.max`, 3; a few already there)
+      drift in from either side every `spawnEvery`, wander the `area`
+      (x 70-107, rows 45-75) turning slowly toward one spot after
+      another (soft loops) with a little bob, sometimes settle on a free
+      reed top (`reeds`) for `landFor` seconds with slow wing beats,
+      then fly on or leave; after `stay` seconds they leave off the
+      nearest side. Colors by weight: white, yellow, orange, and a rare
+      blue (5%). Code-drawn 3 x 3 (two wing frames), or
+      `lake.butterfly.<color>`, or `lake.butterfly` tinted.
+    - Clicking (invisible buttons in `#wildlife` over each one, with
+      `WILDLIFE_CLICK.hitPadding` around, under the character's click
+      area): a frog on a pad says "ribbit!" (`#critter-bubble`, briefly)
+      and hops (to a free pad, or on the spot); a butterfly flutters
+      away fast. Either gives +1 happiness through
+      `rewardWildlifeClick()` (`game/lakeLife.js`), at most once per
+      `cooldownMs` of real time (30s, shared by all), like the pokes.
+      No clicks while travelling or once the life has ended.
   - Work trips work the same everywhere (out the nearest side and back).
   - A new place needs an entry in `PLACES` (with exits both ways), any
     new scenery pieces in `SCENERY` (`ui/scene.js`, with code-drawn
@@ -866,7 +924,9 @@ How it works, for anyone extending it:
     fishing (selling the bucket) and any trip), give a fishing rod, a
     bite now and catch a fish of a chosen rarity now ("Not fishing."
     unless fishing), preview a rarity's reveal card ("Reveal" row: a
-    made-up catch from `previewCatch()`, nothing changes), End
+    made-up catch from `previewCatch()`, nothing changes), at the Lake
+    add a butterfly or a rare blue one, make a frog croak or hop
+    ("Wildlife" row; "Only at the Lake." elsewhere), End
     life now (adults only, otherwise a note; plays the goodbye), set
     health (0, 10, 50, 100; 0 ends an adult's life on the next tick), and
     a read-out of stats, traits, goal, job, the tree, the place and

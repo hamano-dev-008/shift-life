@@ -33,6 +33,17 @@
 //             may walk, the water for the shimmer) are in its pixels.
 //             The water shimmer and the dock's click area are drawn and
 //             placed in code over it.
+//     lake.frog  A frog (data/lakeLife.js), 4 frames side by side: idle,
+//             blink, croak (throat puffed), hop. Its bottom edge sits on
+//             the lily pad's row (LILY_PADS), column `anchorX` on the
+//             frog's middle. The code-drawn frog plus its outline is
+//             6 x 5 (6 x 6 hopping).
+//     lake.butterfly  A butterfly, 2 frames: wings open, wings closed.
+//             Drawn white or gray, it's tinted with each butterfly's
+//             color (BUTTERFLIES.colors); or give a color its own art as
+//             lake.butterfly.<color> (white, yellow, orange, blue), used
+//             as is. Bottom edge on the butterfly's row, `anchorX` on its
+//             middle. The code-drawn one is 3 x 3, no outline.
 //   My Yard shows one housing tier (data/housing.js) at a time:
 //     yard.sleepingBag  On the grass near the right edge
 //             (PROPS['yard.sleepingBag']); code-drawn with outline 24 x 6,
@@ -119,4 +130,11 @@ export const SPRITES = {
   goldenApple: { scale: 1 },
   // The Lake's background, 107 x 80: one still frame, at the scene's scale.
   lake: { frames: 1 },
+  // The Lake's wildlife: idle, blink, croak, hop; wings open, closed.
+  'lake.frog': { frames: 4 },
+  'lake.butterfly': { frames: 2 },
+  'lake.butterfly.white': { frames: 2 },
+  'lake.butterfly.yellow': { frames: 2 },
+  'lake.butterfly.orange': { frames: 2 },
+  'lake.butterfly.blue': { frames: 2 },
 };

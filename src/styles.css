@@ -1,6 +1,7 @@
 /* styles.css — Look of the companion window: rounded frame, pixel-crisp
    scene canvas, name/age label, place name and stats panel, event bubble
-   and card, click areas over props, the catch reveal's click area, the
+   and card, click areas over props and the Lake's wildlife, the frog's
+   ribbit, the catch reveal's click area, the
    activity bar, the tree, rest, activity (with the
    fish collection) and Go to menus, goal,
    book and place buttons, goal menu, the farewell bubble, life summary
@@ -83,6 +84,33 @@ body {
 
 #targets button:focus {
   outline: none;
+}
+
+/* The same over the Lake's frogs and butterflies (canvas art). */
+#wildlife button {
+  position: absolute;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+}
+
+#wildlife button:focus {
+  outline: none;
+}
+
+/* A frog's tiny "ribbit!" over its head. */
+#critter-bubble {
+  position: absolute;
+  padding: 1px 3px;
+  border: 2px solid #3d3a4b;
+  border-radius: 3px;
+  font: 8px/8px 'Press Start 2P', monospace;
+  white-space: nowrap;
+  color: #3d3a4b;
+  background: #ffffff;
+  pointer-events: none;
 }
 
 #controls {

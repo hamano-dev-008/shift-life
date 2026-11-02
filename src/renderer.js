@@ -7,9 +7,10 @@
 // fade, the farewell bubble, the summary card), and wires up controls, the
 // click areas over props, the tree, rest, activity (the dock) and Go to
 // menus, fishing (the rod, line and bobber, the bite's "!", the catch
-// reveal card, the fish collection), the activity bar (what's running,
-// with Stop), the Book of past lives, the dev settings menu (dev runs
-// only) and saving.
+// reveal card, the fish collection), the Lake's wildlife (frogs and
+// butterflies, their click areas and the ribbit), the activity bar
+// (what's running, with Stop), the Book of past lives, the dev settings
+// menu (dev runs only) and saving.
 
 import { POKE } from './data/interaction.js';
 import { createInteraction, calmInteraction, pokeCharacter } from './game/interaction.js';
@@ -42,6 +43,7 @@ import {
 } from './game/activities.js';
 import { reelIn, fishingLook, collectionView } from './game/fishing.js';
 import { activityBarView, stopFromBar } from './game/activityBar.js';
+import { createWildlifeReward, rewardWildlifeClick } from './game/lakeLife.js';
 import {
   updateEndOfLife, startNewLife, recordLife, bookView, farewellText,
 } from './game/endOfLife.js';
@@ -70,6 +72,12 @@ import { createRestMenu } from './ui/restMenu.js';
 import { createActivityMenu } from './ui/activityMenu.js';
 import { drawFishing } from './ui/fishing.js';
 import { createCatchReveal } from './ui/catchReveal.js';
+import {
+  createLakeLife, updateLakeLife, bobberLanded, clickCritter, critterBoxes, addButterfly, croakNow, hopNow,
+} from './ui/lakeLife.js';
+import { drawLakeLife, boxToRect } from './ui/lakeLifeArt.js';
+import { LAKE_PLACE, BOBBER_SPOT } from './data/lake.js';
+import { WILDLIFE_CLICK, LAKE_LIFE_TEXT } from './data/lakeLife.js';
 import { createGoMenu } from './ui/goMenu.js';
 import { loadSprites } from './ui/assets.js';
 import {
@@ -115,6 +123,8 @@ const speech = document.getElementById('speech');
 const placeLabel = document.getElementById('place');
 const biteBubble = document.getElementById('bite-bubble');
 const targets = document.getElementById('targets');
+const wildlife = document.getElementById('wildlife');
+const critterBubble = document.getElementById('critter-bubble');
 const activityBar = document.getElementById('activity-bar');
 const activityBarText = activityBar.querySelector('.bar-text');
 
@@ -359,6 +369,64 @@ async function start() {
     const fishing = game.activities.current?.fishing;
     if (fishing && reelIn(fishing)) saveGame(game);
   });
+
+  // The Lake's frogs and butterflies, made each time the Lake is shown
+  // (purely visual, never saved). Clicking one is a small treat: a frog
+  // says "ribbit!" and hops, a butterfly flutters off, and either gives a
+  // little happiness on a real-time cooldown (game/lakeLife.js).
+  let lakeLife = null;
+  let lastFishPhase = null;
+  const wildlifeReward = createWildlifeReward();
+  let critterBubbleUntil = 0;
+  function clickWildlife(id) {
+    if (!lakeLife || game.endOfLife.ended) return;
+    const reaction = clickCritter(lakeLife, id);
+    if (!reaction) return;
+    const now = performance.now();
+    const deltas = rewardWildlifeClick(game.character, wildlifeReward, now);
+    if (Object.keys(deltas).length) saveGame(game);
+    if (reaction.text) showCritterBubble(reaction, now);
+  }
+  // The tiny "ribbit!" just above the frog that said it.
+  function showCritterBubble(reaction, now) {
+    critterBubble.textContent = reaction.text;
+    critterBubble.hidden = false;
+    const { layout } = scene;
+    const rect = boxToRect(layout, { left: reaction.x, right: reaction.x, top: reaction.row - 4, bottom: reaction.row });
+    const width = critterBubble.offsetWidth;
+    const left = Math.min(Math.max(rect.left - Math.round(width / 2), 2), layout.width - width - 2);
+    critterBubble.style.left = `${left}px`;
+    critterBubble.style.top = `${Math.max(2, rect.top - critterBubble.offsetHeight)}px`;
+    critterBubbleUntil = now + WILDLIFE_CLICK.bubbleSeconds * 1000;
+  }
+  // One invisible button over each frog and butterfly (generous areas),
+  // reused by id; none while travelling, after the life ends, or away
+  // from the Lake.
+  function updateWildlifeTargets(active) {
+    wildlife.hidden = !active;
+    if (!active) {
+      if (wildlife.childElementCount) wildlife.replaceChildren();
+      return;
+    }
+    const boxes = critterBoxes(lakeLife);
+    const keep = new Set(boxes.map((box) => String(box.id)));
+    for (const button of [...wildlife.children]) {
+      if (!keep.has(button.dataset.id)) button.remove();
+    }
+    for (const box of boxes) {
+      let button = wildlife.querySelector(`[data-id="${box.id}"]`);
+      if (!button) {
+        button = document.createElement('button');
+        button.dataset.id = String(box.id);
+        const title = box.kind === 'frog' ? WILDLIFE_CLICK.frogLabel : WILDLIFE_CLICK.butterflyLabel;
+        button.title = title;
+        button.setAttribute('aria-label', title);
+        button.addEventListener('click', () => clickWildlife(box.id));
+        wildlife.append(button);
+      }
+      placeOver(button, boxToRect(scene.layout, box));
+    }
+  }
 
   // Celebrates first steps when the character reaches the toddling age
   // while the app runs (not when a save is loaded or years are skipped
@@ -780,6 +848,20 @@ async function start() {
         const caught = revealPreview(game, rarity);
         if (caught) catchReveal.show(caught);
       },
+      // The Lake's wildlife (only while the Lake is shown). Each returns
+      // a note when it can't, else null.
+      spawnButterfly: (color) => {
+        if (!lakeLife) return LAKE_LIFE_TEXT.notHere;
+        return addButterfly(lakeLife, Math.random, color) ? null : LAKE_LIFE_TEXT.full;
+      },
+      frogCroak: () => {
+        if (!lakeLife) return LAKE_LIFE_TEXT.notHere;
+        return croakNow(lakeLife) ? null : LAKE_LIFE_TEXT.noFrog;
+      },
+      frogHop: () => {
+        if (!lakeLife) return LAKE_LIFE_TEXT.notHere;
+        return hopNow(lakeLife) ? null : LAKE_LIFE_TEXT.noFrog;
+      },
       readout: () => devReadout(game),
       onOpen: () => closePanels('dev'),
     });
@@ -839,6 +921,19 @@ async function start() {
     if (place.id === FORTUNE_TREE_PLACE && game.fortuneTree.appleReady) {
       drawGoldenApple(ctx, layout, now / 1000);
     }
+    // The Lake's frogs and butterflies, behind the character. A bobber
+    // landing near a frog makes it dive.
+    if (place.id === LAKE_PLACE) {
+      lakeLife ??= createLakeLife();
+      const phase = look?.phase ?? null;
+      if (lastFishPhase === 'cast' && phase === 'wait') bobberLanded(lakeLife, BOBBER_SPOT.x);
+      lastFishPhase = phase;
+      updateLakeLife(lakeLife, dt);
+      drawLakeLife(ctx, layout, lakeLife);
+    } else {
+      lakeLife = null;
+      lastFishPhase = null;
+    }
     drawCharacter(ctx, pose, stage, game.character.appearance,
       expression, layout.feetY, layout.characterScale, jobItem(game));
     if (pose.activity === 'fish' && look) {
@@ -847,6 +942,8 @@ async function start() {
     // A catch's reveal card over the scene (fishing carries on behind).
     catchReveal.draw(ctx, now);
     const revealing = catchReveal.isOpen();
+    updateWildlifeTargets(Boolean(lakeLife) && !trip && !ended);
+    critterBubble.hidden = critterBubble.hidden || now >= critterBubbleUntil || !lakeLife || revealing;
     if (farewell) drawFarewellFade(ctx, canvas.width, canvas.height, (now - farewell.since) / 1000);
     // No pokes once the life has ended (nothing drawn: no click target).
     characterTarget.update((hitCtx) => ended || drawCharacter(hitCtx, pose, stage, game.character.appearance,

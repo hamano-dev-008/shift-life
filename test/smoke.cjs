@@ -192,6 +192,30 @@ app.whenReady().then(async () => {
     const feet = await js(`Math.max(...[...document.querySelectorAll('#character-target span')]
       .map((run) => run.getBoundingClientRect().bottom))`);
     assert.ok(feet > 190 && feet <= 206, `feet at ${feet}`);
+    // The Lake's wildlife: clicking a frog says ribbit and gives +1
+    // happiness (once per cooldown); the dev menu makes one croak and adds
+    // a butterfly.
+    await wait(300);
+    const frogs = await js('document.querySelectorAll("#wildlife button[title=Frog]").length');
+    assert.ok(frogs >= 1 && frogs <= 2, `${frogs} frogs`);
+    const happy = saved.character.stats.happiness;
+    await js('document.querySelector("#wildlife button[title=Frog]").click()');
+    await wait(60);
+    assert.equal(await js('document.querySelector("#critter-bubble").hidden'), false);
+    assert.equal(await js('document.querySelector("#critter-bubble").textContent'), 'ribbit!');
+    assert.equal(saved.character.stats.happiness, happy + 1);
+    await js('document.querySelector("#wildlife button[title=Frog]")?.click()');
+    await wait(60);
+    assert.equal(saved.character.stats.happiness, happy + 1);
+    // Once the hop is over, a frog croaks for the dev menu.
+    await wait(1800);
+    await js('document.querySelector("#dev-btn").click()');
+    await devClick('Croak');
+    assert.equal(await js('document.querySelector("#dev-menu").hidden'), true);
+    await js('document.querySelector("#dev-btn").click()');
+    await devClick('Blue one');
+    await wait(1200);
+    assert.ok(await js('document.querySelectorAll("#wildlife button[title=Butterfly]").length') >= 1);
     // The dock opens its menu; a baby is too young to fish.
     await js(`document.querySelector('#targets button[title="Dock"]').click()`);
     await wait(60);
@@ -262,7 +286,7 @@ app.whenReady().then(async () => {
     assert.equal(await revealShown(), true);
     assert.equal(saved.character.stats.money, money + value);
     assert.deepEqual(errors, []);
-    console.log('PASS: native gentle/rapid clicks, spam, calming, moving hit regions, drag rejection, 25 poses, offscreen, prop/event priority, rest/travel/busking preserved, transparent sprite, end of life, summary, Book, new life, the Lake, fishing (rod, bite, catch, reveal, collection, activity bar, selling); no renderer errors.');
+    console.log('PASS: native gentle/rapid clicks, spam, calming, moving hit regions, drag rejection, 25 poses, offscreen, prop/event priority, rest/travel/busking preserved, transparent sprite, end of life, summary, Book, new life, the Lake (frogs, butterflies), fishing (rod, bite, catch, reveal, collection, activity bar, selling); no renderer errors.');
   } catch (error) {
     console.error(error);
     process.exitCode = 1;

@@ -7,6 +7,7 @@ import { SPEEDS } from '../data/balance.js';
 import { DEV_SKIP_YEARS, DEV_MONEY, DEV_HEALTH } from '../data/dev.js';
 import { HOUSING_TIERS, MOVE_OUT_AGE } from '../data/housing.js';
 import { RARITIES } from '../data/fishing.js';
+import { BUTTERFLIES } from '../data/lakeLife.js';
 
 function button(text, onClick, className = '') {
   const node = document.createElement('button');
@@ -39,7 +40,9 @@ function row(label, ...children) {
 // (returns whether the clock moved), endLife() (returns null, or a note
 // on why the life can't end now), setHealth(n), giveRod(), biteNow() and
 // catchRarity(rarityId) (each returns null, or a note such as "Not
-// fishing."), showReveal(rarityId) (previews a reveal card), readout()
+// fishing."), showReveal(rarityId) (previews a reveal card),
+// spawnButterfly(colorId or null), frogCroak() and frogHop() (each
+// returns null, or a note such as "Only at the Lake."), readout()
 // (returns { stats, traits, goal, job, tree, place, life, fishing }),
 // speed() (current speed id), onOpen() }.
 export function createDevMenu(menu, gear, actions) {
@@ -145,8 +148,19 @@ export function createDevMenu(menu, gear, actions) {
     const reveals = row('Reveal', ...RARITIES.map((rarity) =>
       button(rarity.name, () => { actions.showReveal(rarity.id); close(); })));
 
+    const lakeAction = (action) => () => {
+      note = action() ?? '';
+      if (note) render(); else close();
+    };
+    const rare = BUTTERFLIES.colors.reduce((least, color) => (color.weight < least.weight ? color : least));
+    const wild = row('Wildlife',
+      button('Butterfly', lakeAction(() => actions.spawnButterfly(null))),
+      button(`${rare.id[0].toUpperCase()}${rare.id.slice(1)} one`, lakeAction(() => actions.spawnButterfly(rare.id))),
+      button('Croak', lakeAction(actions.frogCroak)),
+      button('Frog hop', lakeAction(actions.frogHop)));
+
     const children = [newLife, speeds, skips, extras, tree, home, housing, places, fish, catches, reveals,
-      life, health];
+      wild, life, health];
     if (note) {
       const message = document.createElement('p');
       message.className = 'dev-note';

@@ -74,6 +74,15 @@ Early development. What works so far:
     visit, babies included. Work trips leave by the shore side. The
     Lake's numbers (where they walk, the dock, the shimmer) are in
     `src/data/lake.js`.
+  - Wildlife lives at the Lake: one or two frogs on the lily pads blink,
+    croak, now and then hop to the other pad or plop into the water and
+    come back later, and dive with a splash if the bobber lands next to
+    them. Up to three butterflies (white, yellow, orange, and now and
+    then a rare blue one) drift in over the shore and reeds, rest on a
+    reed for a while, and drift off again. Click a frog and it says
+    "ribbit!" and hops; click a butterfly and it flutters away. Either
+    cheers the character up a little (+1 happiness, at most once every
+    30 seconds). It's all in `src/data/lakeLife.js`.
   - The place button (the map pin in the top bar) opens "Go to", listing
     the other places. Pick one and the character walks there, through
     any places in between (the Lake to the living room goes past the
@@ -206,7 +215,8 @@ rest a minute instantly, jump to age 18 to test moving out, set the
 housing tier (sleeping bag, tent, house), jump to any place without
 walking (the Lake included), give a fishing rod, make a fish bite
 now, catch a fish of a chosen rarity now, preview the catch reveal
-card for each rarity, end the life now (adults only), set health (0, 10, 50 or 100;
+card for each rarity, add a butterfly (or a blue one) or make a frog
+croak or hop at the Lake, end the life now (adults only), set health (0, 10, 50 or 100;
 0 ends an adult's life), and see the character's stats, traits, goal,
 job, tree progress, place, housing, yearly ageing and the chance of the
 life ending on the next birthday, and how fishing is going.
@@ -229,6 +239,9 @@ code. Save a PNG in `assets/sprites/` named after what it replaces:
 `yard.sleepingBag.png`, `yard.tent.png`, `yard.house.png`, `home.wall.png`,
 `home.floor.png`, `home.window.png`, `home.door.png`, `home.sofa.png`,
 `lake.png` (the Lake's whole background, 107 x 80; there's one already),
+`lake.frog.png` (4 frames: idle, blink, croak, hop),
+`lake.butterfly.png` (2 frames: wings open, closed; drawn white, it's
+tinted for each color, or make `lake.butterfly.blue.png` and so on),
 `fish.<id>.png` for the fish icons, also drawn big on the catch reveal
 card (`fish.boot`, `fish.carp`, `fish.perch`, `fish.trout`,
 `fish.catfish`, `fish.salmon`, `fish.pike`, `fish.goldenKoi`; there's
@@ -276,9 +289,11 @@ npm.cmd start        # launch the game
 
 In Git Bash, plain `npm` works. The first start downloads Electron, so it
 takes a little longer. Run `npm.cmd test` for interaction rules, pose
-checks, end-of-life logic, the Lake and fishing (Node 22.7+), and
+checks, end-of-life logic, the Lake, its wildlife and fishing (Node
+22.7+), and
 `npm.cmd run test:smoke` for isolated Electron click/renderer checks,
-including a whole goodbye, a new life, a visit to the Lake, a catch
+including a whole goodbye, a new life, a visit to the Lake (a frog's
+ribbit), a catch
 with its reveal card, and the activity bar's Stop.
 The smoke check uses in-memory saves, leaving your life, Book and
 collection untouched.
