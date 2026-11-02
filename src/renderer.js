@@ -10,9 +10,11 @@
 // reveal card, the fish collection), the Lake's wildlife (frogs and
 // butterflies, their click areas and the ribbit), the Fortune Tree's
 // decoration (falling golden leaves, sparkles around the apple, the
-// wishing well's bubble), the activity bar
-// (what's running, with Stop), the Book of past lives, the dev settings
-// menu (dev runs only), dragging the window (in JS) and saving.
+// wishing well's bubble), work trips (when they may leave, "Off to
+// work!", the "At work" place label that calls them back), the activity bar
+// (what's running, with Stop), the Book of past lives, the player settings
+// (work trips), the dev settings menu (dev runs only), dragging the window
+// (in JS) and saving.
 
 import { POKE } from './data/interaction.js';
 import { createInteraction, calmInteraction, pokeCharacter } from './game/interaction.js';
@@ -53,13 +55,18 @@ import {
 } from './game/endOfLife.js';
 import {
   loadGame, saveGame, saveGameNow, loadBook, saveBook, loadCollection, saveCollection,
+  loadSettings, saveSettings,
 } from './game/save.js';
+import { setWorkTrips } from './game/settings.js';
+import {
+  createWorkTrips, noteClick, mayGoToWork, workTripStarted,
+} from './game/workTrips.js';
 import {
   newLife, setSpeed, toggleFastForward, skipYears, triggerEvent, addMoney, finishBuskingSession,
   appleNow, finishRest, goToPlace, setHousingTier, jumpToMoveOut, endLifeNow, setHealth, devReadout,
   giveFishingRod, fishBiteNow, catchRarityNow, revealPreview,
 } from './game/dev.js';
-import { RESULT_BUBBLE_SECONDS, MILESTONE_BUBBLE_SECONDS } from './data/animation.js';
+import { RESULT_BUBBLE_SECONDS, MILESTONE_BUBBLE_SECONDS, WORK_TRIP_TEXT } from './data/animation.js';
 import { SPEEDS } from './data/balance.js';
 import { CRAWL_UNTIL_AGE, FIRST_STEPS } from './data/infant.js';
 import { TRAVEL, PLACE_TEXT } from './data/places.js';
@@ -90,6 +97,7 @@ import { loadSprites } from './ui/assets.js';
 import {
   createAnimator, updateAnimator, poseOf, startActivityNow, goToWorkNow, gaitOf,
   travelTo, hasExited, enterScene, placeIn, setLayout, stopTravelling, hasSettled,
+  takeLeftForWork, isAtWork, callBackFromWork,
 } from './ui/animator.js';
 import { drawCharacter, figureHeight, fishingHand } from './ui/sprite.js';
 import {
@@ -155,6 +163,12 @@ async function start() {
   // The fish collection, in its own file too: kept on the game while it
   // runs (not in the life's save), and carried into each new life.
   game.collection = await loadCollection();
+  // Player settings (work trips), in their own file too.
+  const settings = await loadSettings();
+  // When the character may next walk off to work (unsaved): a real-time
+  // cooldown, and a quiet spell after any click on the game.
+  const workTrips = createWorkTrips(performance.now());
+  document.getElementById('app').addEventListener('pointerdown', () => noteClick(workTrips, performance.now()), true);
   startClock(game.clock);
   setInterval(() => saveGame(game), AUTOSAVE_MS);
   // Fires however the window closes (button, Alt+F4, taskbar).
@@ -540,6 +554,11 @@ async function start() {
   let scene = sceneFor(currentPlace(game));
   let shownView = '';
   let animator = createAnimator(scene.layout);
+  // While they're at work the place label says so; clicking it calls them
+  // back at once.
+  placeLabel.addEventListener('click', () => {
+    if (!game.endOfLife.ended) callBackFromWork(animator);
+  });
 
   // Clicking a prop: through a door (an exit) walks there; the tree opens
   // its menu, anything to rest on the rest menu, and an activity's prop
@@ -895,6 +914,11 @@ async function start() {
         if (!lakeLife) return LAKE_LIFE_TEXT.notHere;
         return hopNow(lakeLife) ? null : LAKE_LIFE_TEXT.noFrog;
       },
+      // The "Work trips" player setting (saved in settings.json).
+      workTrips: () => settings.workTrips,
+      setWorkTrips: (on) => {
+        if (setWorkTrips(settings, on)) saveSettings(settings);
+      },
       readout: () => devReadout(game),
       onOpen: () => closePanels('dev'),
     });
@@ -915,7 +939,7 @@ async function start() {
       startEvent(game);
     } else if (event.code === 'KeyA') {
       startActivityNow(animator, activeActivity(game));
-    } else if (event.code === 'KeyW' && isEmployed(game)) {
+    } else if (event.code === 'KeyW' && isEmployed(game) && settings.workTrips) {
       goToWorkNow(animator);
     }
   });
@@ -936,9 +960,28 @@ async function start() {
     const { ended } = game.endOfLife;
     if (ended && !farewell) startFarewell(now);
     const stay = stayOf();
+    // Work trips: only with a job and the setting on, at most one per
+    // cooldown, never soon after a click, and not while anything is
+    // showing (a menu, card, the stats, a bubble, a catch reveal, the
+    // activity bar).
+    const working = isEmployed(game) && settings.workTrips;
+    const busy = needed || now < speechUntil || catchReveal.isOpen() || !activityBar.hidden
+      || !critterBubble.hidden || !propBubble.hidden || !document.getElementById('stats').hidden
+      || Boolean(document.querySelector('#app .panel:not([hidden])')) || Boolean(trip) || Boolean(ended);
     updateAnimator(animator, dt, stage, gaitOf(age), {
-      activity: activeActivity(game), employed: isEmployed(game), needed, stay,
+      activity: activeActivity(game),
+      employed: working,
+      mayGoToWork: mayGoToWork(workTrips, now, { enabled: settings.workTrips, employed: working, busy }),
+      needed,
+      stay,
     });
+    // Setting off (or the Ctrl+Shift+W shortcut): a short "Off to work!"
+    // as they go (passing chatter, so it doesn't call them back), and the
+    // cooldown starts over.
+    if (takeLeftForWork(animator)) {
+      workTripStarted(workTrips, now);
+      chatter(WORK_TRIP_TEXT.leaving, WORK_TRIP_TEXT.bubbleSeconds, now, true);
+    }
     // Busking, resting or an activity only counts once the character has
     // walked to its spot and settled in (game/stay.js; not saved, so after
     // a load they walk there again).
@@ -1002,9 +1045,14 @@ async function start() {
       expression, layout.feetY, layout.characterScale, jobItem(game), true));
     const { mark } = SPEEDS[game.clock.speed];
     setText(label, `${game.character.name} · ${age}y${mark ? ` ${mark}` : ''}`);
+    const atWork = !trip && !ended && isAtWork(animator);
     setText(placeLabel, trip
       ? PLACE_TEXT.travelling.replaceAll('{place}', place.name).replaceAll('{to}', placeById(trip.to).name)
-      : place.name);
+      : atWork ? WORK_TRIP_TEXT.atWork.replaceAll('{place}', place.name) : place.name);
+    if (placeLabel.classList.contains('at-work') !== atWork) {
+      placeLabel.classList.toggle('at-work', atWork);
+      placeLabel.title = atWork ? WORK_TRIP_TEXT.callBack.replaceAll('{name}', game.character.name) : '';
+    }
     targets.hidden = Boolean(trip) || Boolean(ended);
 
     // Bubbles follow the character's head. Text bubbles take the spot

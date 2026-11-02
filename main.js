@@ -1,8 +1,8 @@
 // main.js — Electron main process: creates the floating, frameless,
 // always-on-top companion window, moves it while the renderer drags it
 // (no OS drag regions), remembers where the player left it,
-// reads/writes the game save file, the Book of past lives and the fish
-// collection for the renderer, lists the sprite
+// reads/writes the game save file, the Book of past lives, the fish
+// collection and the player settings for the renderer, lists the sprite
 // PNGs in assets/sprites/, and tells it whether it's running from source
 // (for developer settings). Only one copy runs at a time.
 
@@ -29,6 +29,11 @@ function bookFile() {
 // The fish collection: its own file too, kept across lives.
 function collectionFile() {
   return path.join(app.getPath('userData'), 'collection.json');
+}
+
+// Player settings (work trips...): their own file, kept across lives.
+function settingsFile() {
+  return path.join(app.getPath('userData'), 'settings.json');
 }
 
 // Returns the saved { x, y }, or {} to let Electron center the window.
@@ -177,6 +182,10 @@ ipcMain.on('book:write', (event, data) => writeJson(bookFile(), data));
 // The fish collection: the first catch of each kind, across lives.
 ipcMain.handle('collection:load', () => readJson(collectionFile()));
 ipcMain.on('collection:write', (event, data) => writeJson(collectionFile(), data));
+
+// Player settings.
+ipcMain.handle('settings:load', () => readJson(settingsFile()));
+ipcMain.on('settings:write', (event, data) => writeJson(settingsFile(), data));
 
 // One copy at a time: two would stack in the same spot, both always on
 // top and both writing save.json. A second launch quits at once and the

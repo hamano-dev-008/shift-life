@@ -16,7 +16,7 @@
 import {
   WALK_SPEED, STRIDE, IDLE_PAUSE, VISIT_PAUSE, TURN_BEAT, VISIT_CHANCE,
   MIN_WALK_DISTANCE, BLINK_INTERVAL, BLINK_DURATION, BREATH_CYCLE,
-  ACTIVITY_CHANCE, ACTIVITIES, WORK_TRIP_CHANCE, WORK_AWAY, WORK_EXIT,
+  ACTIVITY_CHANCE, ACTIVITIES, WORK_AWAY, WORK_EXIT,
 } from '../data/animation.js';
 import {
   CRAWL_UNTIL_AGE, WALK_FROM_AGE, CRAWL, TODDLE, PLOP_CHANCE, PLOP_DURATION,
@@ -70,6 +70,7 @@ export function createAnimator(layout) {
     activityLeft: 0,
     activityTime: 0, // seconds into the current activity
     jogging: false, // running to a spot while jogging
+    leftForWork: false, // just set off to work (takeLeftForWork() clears it)
     targetX: 0,
     destination: null, // prop id, 'work', 'stay' or 'exit' being walked to, or null
     travelling: false, // walking out of the place (travelTo())
@@ -267,7 +268,36 @@ function goToWork(anim) {
   const left = open.left && (anim.x < width / 2 || !open.right);
   const x = left ? -WORK_EXIT * scale : width + WORK_EXIT * scale;
   anim.activity = null;
+  anim.leftForWork = true;
   setOff(anim, { x, destination: 'work' });
+}
+
+// Whether the character just set off to work since the last call (for the
+// renderer's "Off to work!" bubble and the trip cooldown); clears it.
+export function takeLeftForWork(anim) {
+  const left = anim.leftForWork;
+  anim.leftForWork = false;
+  return left;
+}
+
+// At work: off past the window's edge until they come back.
+export function isAtWork(anim) {
+  return anim.mode === 'away';
+}
+
+// Calls them back from work at once (clicking the place label): walks
+// back in if away, turns back if on the way out. Returns whether they
+// were at or heading to work.
+export function callBackFromWork(anim) {
+  if (anim.mode === 'away') {
+    comeBack(anim);
+    return true;
+  }
+  if (anim.destination === 'work' && !anim.travelling) {
+    setOff(anim, { x: randomSpot(anim), destination: null });
+    return true;
+  }
+  return false;
 }
 
 // Back from work (or called back early): walks in from the side they left
@@ -447,7 +477,11 @@ export function placeIn(anim, layout) {
 
 // `gait` is gaitOf(age). `activity` is the goal's activity id (ACTIVITIES
 // in data/animation.js), or null; it's only used when deciding what to do
-// next. `employed`: the character has a job, so they sometimes go to work.
+// next. `employed`: the character has a job and work trips are on; false
+// brings them back from work. `mayGoToWork`: a work trip may start now
+// (game/workTrips.js: the real-time cooldown, the quiet spell after a
+// click, nothing showing); it's only taken when an idle pause ends, and
+// is the only way they leave the window other than travelling.
 // `needed`: something wants them on screen (an event, a bubble), so they
 // don't leave, and come back if they're out. `stay`: while busking or
 // resting, { x, mode, lift, activity, facing }: they go to canvas x `x`
@@ -458,7 +492,7 @@ export function placeIn(anim, layout) {
 // face once there.
 // Null otherwise. Travelling (travelTo()) comes before all of this.
 export function updateAnimator(anim, dt, stage, gait, {
-  activity = null, employed = false, needed = false, stay = null,
+  activity = null, employed = false, mayGoToWork = false, needed = false, stay = null,
 } = {}) {
   anim.time += dt;
   anim.gait = gait;
@@ -480,7 +514,7 @@ export function updateAnimator(anim, dt, stage, gait, {
   }
 
   if (anim.mode === 'away') {
-    if ((anim.pauseLeft -= dt) <= 0 || needed) comeBack(anim);
+    if ((anim.pauseLeft -= dt) <= 0 || needed || !employed) comeBack(anim);
   } else if (anim.mode === 'walking') {
     if (walk(anim, dt, stage)) {
       arrive(anim);
@@ -494,7 +528,7 @@ export function updateAnimator(anim, dt, stage, gait, {
   } else if ((anim.pauseLeft -= dt) <= 0) {
     if (anim.mode === 'turning' || anim.mode === 'plopped') {
       startWalking(anim);
-    } else if (employed && !needed && Math.random() < WORK_TRIP_CHANCE) {
+    } else if (employed && !needed && mayGoToWork) {
       goToWork(anim);
     } else if (ACTIVITIES[activity] && Math.random() < ACTIVITY_CHANCE) {
       beginActivity(anim, activity);

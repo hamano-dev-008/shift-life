@@ -24,7 +24,9 @@ with **Electron and plain JavaScript**.
 > **Status:** a pixel character is born with stats and personality
 > traits, wanders the window, ages in real time, meets life events as
 > speech bubbles, pursues a life goal the player picks, works jobs from
-> 18 (pay, promotions, work events) and retires at 65, and walks
+> 18 (pay, promotions, work events; now and then off to work, at most
+> once every few real minutes, or never with the Work trips setting
+> off) and retires at 65, and walks
 > between places: the Lake (fishing from the dock: a rod to buy, bites,
 > catches of random sizes revealed on a card and sold from the bucket,
 > a fish collection with the biggest of each kind, kept across lives;
@@ -55,8 +57,9 @@ Shift-Life/
 ├── main.js            Electron main process: creates the frameless,
 │                      transparent, always-on-top 320x240 window, saves and
 │                      restores its position, moves it while the
-│                      renderer drags it, handles window, save and
-│                      Book of past lives and fish collection IPC,
+│                      renderer drags it, handles window, save,
+│                      Book of past lives, fish collection and
+│                      settings IPC,
 │                      lists the PNGs in
 │                      assets/sprites/, reports dev runs (!app.isPackaged);
 │                      only one copy runs (a second launch quits and
@@ -64,7 +67,8 @@ Shift-Life/
 ├── preload.js         Exposes window.shiftLife { minimize, close,
 │                      getPosition, setPosition, endDrag, loadSave,
 │                      save, saveSync, loadBook, saveBook,
-│                      loadCollection, saveCollection, isDev,
+│                      loadCollection, saveCollection,
+│                      loadSettings, saveSettings, isDev,
 │                      listSprites } to the renderer via contextBridge
 ├── src/
 │   ├── index.html     Renderer page: scene canvas, prop click areas,
@@ -99,13 +103,20 @@ Shift-Life/
 │   │                  Lake's wildlife (drawn, clicked, the ribbit,
 │   │                  dove at the bobber), the Fortune Tree's falling
 │   │                  leaves and apple sparkles, the wishing well's
-│   │                  bubble, the activity bar (Stop),
-│   │                  buying housing, the
+│   │                  bubble, work trips (when they may leave,
+│   │                  "Off to work!", the "At work" place label
+│   │                  calling them back), the player settings, the
+│   │                  activity bar (Stop), buying housing, the
 │   │                  goodbye (sitting, fade, farewell bubble, summary
 │   │                  card) and new lives, autosave, frame loop, text
 │   │                  bubble queue, menu wiring, dev shortcuts
 │   ├── game/          Game logic only (no hard-coded content)
 │   │   ├── interaction.js Unsaved real-time poke rules and happiness changes
+│   │   ├── workTrips.js   When a work trip may start: the real-time
+│   │   │                  cooldown (5-8 minutes), the quiet spell after
+│   │   │                  a click, busy, the setting (unsaved)
+│   │   ├── settings.js    Player settings: restoring with defaults,
+│   │   │                  the data to save, turning work trips on/off
 │   │   ├── lakeLife.js    Clicking the Lake's wildlife: +1 happiness on
 │   │   │                  a real-time cooldown (unsaved)
 │   │   ├── clock.js       Real-time clock: in-game years, speed, stopped
@@ -176,8 +187,8 @@ Shift-Life/
 │   │   │                  rarity's reveal card, read-out (job,
 │   │   │                  tree, place, housing, fishing, life)
 │   │   └── save.js        Save format (versioned) and load/save calls,
-│   │                      for the life, the Book of past lives and the
-│   │                      fish collection
+│   │                      for the life, the Book of past lives, the
+│   │                      fish collection and the player settings
 │   ├── ui/            Drawing and visual-only behavior
 │   │   ├── interaction.js Pixel-shaped click targets and reaction poses
 │   │   ├── pixel.js       Low-res layer helpers: paint, outline, scaled draw
@@ -213,7 +224,7 @@ Shift-Life/
 │   │   │                  ripples and splashes; click boxes to canvas
 │   │   ├── animator.js    Wandering, prop visits, goal activities,
 │   │   │                  trips off-screen to work and back (by an open
-│   │   │                  side), staying put
+│   │   │                  side, only when allowed; called back), staying put
 │   │   │                  to busk or rest (and saying when they've
 │   │   │                  settled there), sitting for good (eyes
 │   │   │                  closing) when a life ends, walking out of a
@@ -269,7 +280,8 @@ Shift-Life/
 │   │   │                  the summary rows the Book reuses
 │   │   ├── pastLives.js   The Book of past lives (book button): the list
 │   │   │                  of finished lives and each one's summary
-│   │   ├── devMenu.js     The dev settings menu (gear; dev runs only)
+│   │   ├── devMenu.js     The dev settings menu (gear; dev runs only),
+│   │   │                  with the Work trips setting for now
 │   │   ├── statsPanel.js  Stats, job and traits panel under the name label
 │   │   └── windowDrag.js  Dragging the window in JS (no OS drag
 │   │                      regions): the threshold, pointer capture,
@@ -283,6 +295,7 @@ Shift-Life/
 │       ├── stats.js       Starting stats, stat names and short tags
 │       ├── dev.js         Dev menu amounts (skip-ahead years, money,
 │       │                  set-health values)
+│       ├── settings.js    Player settings' defaults (work trips on)
 │       ├── endOfLife.js   Ageing loss by home, when a life ends (ages,
 │       │                  chances), goodbye timing, life title rules
 │       │                  (trait adjectives, nouns), Book size, text
@@ -350,7 +363,8 @@ Shift-Life/
 │       │                  pause/turn/blink timing,
 │       │                  visit chance, bubble bob and times, goal
 │       │                  activities (chance, place, duration, loops),
-│       │                  work trips (chance, time away, exit distance)
+│       │                  work trips (how often, the quiet spell after
+│       │                  a click, time away, exit distance, text)
 │       ├── lifeStages.js  Life stages and the age each one starts at
 │       ├── names.js       Names a newborn can get
 │       ├── appearance.js  Skin, hair, hair style, shirt palettes; fixed
@@ -386,7 +400,14 @@ Shift-Life/
                        canopy, sway, landing, fading in steps, the
                        sparkling share; apple sparkles around the apple;
                        the well never visited, left of the tree; the
-                       scenery and sprite names), stay.test.mjs (on the way:
+                       scenery and sprite names), workTrips.test.mjs
+                       (the 5-8 minute cooldown, only at the end of an
+                       idle pause, the quiet minute after a click, busy,
+                       the setting on by default, saved, off keeping
+                       them home, 20-40 s away, calling back; nothing
+                       but work trips and travel walks past the window
+                       edges in any place, age or activity, poked or
+                       not), stay.test.mjs (on the way:
                        busking, resting and fishing count nothing, pay
                        nothing, get no bites and don't freeze events
                        until arrival; the bar's text; Stop on the way;
@@ -401,7 +422,9 @@ Shift-Life/
                        before busking starts, the wishing well's
                        bubble and click area apart from the tree's,
                        drags from the well, end of life flow, the Lake and its
-                       wildlife, fishing, the reveal, the activity bar)
+                       wildlife, fishing, the reveal, the activity bar,
+                       the Work trips setting, "Off to work!" and the
+                       "At work" label calling them back)
 ```
 
 How it works, for anyone extending it:
@@ -593,11 +616,38 @@ How it works, for anyone extending it:
   - Paydays, promotions and retirement show as text bubbles (promotions
     and retirement golden).
   - While employed, the character wears or carries the job's `item`
-    (drawn in `ui/sprite.js`, standing and walking only). Now and then
-    (`WORK_TRIP_CHANCE`) they walk out the nearest side "to work" and
-    come back `WORK_AWAY` seconds later. They don't leave while
-    something needs them on screen (an event, a bubble, the card open),
-    and come back early if it does. Purely visual.
+    (drawn in `ui/sprite.js`, standing and walking only).
+  - Work trips (numbers and text in `data/animation.js`; when in
+    `game/workTrips.js`, the walking in `ui/animator.js`; unsaved and
+    purely visual): now and then they walk out the nearest open side
+    "to work" and come back `WORK_AWAY` (20-40) seconds later.
+    - At most one trip every `WORK_TRIP_EVERY_MINUTES` (5-8, random,
+      drawn again after each trip) real minutes from launch, and only
+      when an idle pause ends: the renderer passes `mayGoToWork`
+      (`mayGoToWork()`: the cooldown is up, no click on the game
+      (`#app` pointerdown, `noteClick()`) in the last
+      `WORK_QUIET_SECONDS` (60), and nothing busy) and the animator
+      takes it at the end of a pause. Busy is anything showing: an
+      event or its card, a text or poke bubble, a panel, the stats,
+      the catch reveal, the activity bar, the ribbit or prop remark,
+      a trip, or the end of a life.
+    - Leaving (`takeLeftForWork()`) shows a short "Off to work!"
+      (`WORK_TRIP_TEXT.leaving`, passing chatter, so it doesn't call
+      them back) and restarts the cooldown. While away the place label
+      says "Fortune Tree - At work" (`WORK_TRIP_TEXT.atWork`); it then
+      takes clicks (`#place.at-work`, title "Call {name} back from
+      work"), and clicking it calls them back at once
+      (`callBackFromWork()`). They also come back early when something
+      needs them on screen (an event, a bubble, the card open).
+    - The "Work trips" setting (On/Off, default On, in the dev menu for
+      now; `settings.json`, see **Saved state**): Off means they never
+      leave, and anyone away or heading out comes back. The renderer
+      passes `employed` only with a job and the setting on.
+    - Nothing else walks them past the window's edges: wandering, prop
+      visits, goal activities (jogging), toddler plops and pokes stay
+      inside the walking limits; only work trips and travel between
+      places leave (`test/workTrips.test.mjs` checks every place, age
+      and activity).
   - The life summary (see **End of life**) lists the jobs held from
     `history` and `current`, and the highest title reached.
 - **Places:** the scene is a place (`data/places.js`: id, name, the
@@ -1053,7 +1103,9 @@ How it works, for anyone extending it:
     unless fishing), preview a rarity's reveal card ("Reveal" row: a
     made-up catch from `previewCatch()`, nothing changes), at the Lake
     add a butterfly or a rare blue one, make a frog croak or hop
-    ("Wildlife" row; "Only at the Lake." elsewhere), End
+    ("Wildlife" row; "Only at the Lake." elsewhere), the player's
+    "Work trips" setting (On/Off, saved; here until there's a player
+    settings menu), End
     life now (adults only, otherwise a note; plays the goodbye), set
     health (0, 10, 50, 100; 0 ends an adult's life on the next tick), and
     a read-out of stats, traits, goal, job, the tree, the place and
@@ -1079,7 +1131,8 @@ How it works, for anyone extending it:
     frown).
   - Ctrl+Shift+E starts a fitting event now (if none is waiting).
   - Ctrl+Shift+A starts the active goal's idle activity now.
-  - Ctrl+Shift+W sends the character off to work now (with a job).
+  - Ctrl+Shift+W sends the character off to work now (with a job and
+    work trips on), skipping the cooldown.
 - **Game vs. visuals:** wandering, blinking, etc. in `ui/animator.js` are
   cosmetic and never saved. Anything that affects the life belongs in
   `game/` and the save.
@@ -1107,7 +1160,7 @@ How it works, for anyone extending it:
   window drags.
   - Capture-phase pointer listeners on `#app`: a left press anywhere but
     a panel, the top bar (`#controls`), the name label and stats, the
-    activity bar, the "!" bubbles, `#reveal-close` or a clickable
+    "At work" place label, the activity bar, the "!" bubbles, `#reveal-close` or a clickable
     farewell bubble remembers the pointer's screen position and asks
     main for the window's (`window:get-position`). Once the pointer has
     moved more than `WINDOW_DRAG.threshold` (4) screen pixels
@@ -1127,7 +1180,9 @@ How it works, for anyone extending it:
   the canvas, `#wildlife`, `#targets` (prop click areas),
   `#character-target` (`#critter-bubble` and `#prop-bubble` sit around
   here but never take clicks), the "!" bubbles, `#reveal-close` (only over the
-  card while it shows), `#activity-bar`, then the panels and the top bar.
+  card while it shows), `#activity-bar`, then the panels, the name and
+  place labels (the place label only takes clicks while the character
+  is at work) and the top bar.
   - **Rule:** any new overlay, bar, button layer or full-window element
     must not cover the prop click areas or the character when it isn't
     meant to: keep it `hidden` or `pointer-events: none` when not in
@@ -1153,7 +1208,7 @@ How it works, for anyone extending it:
 - **Renderer ↔ main:** the renderer has no Node access. Add new
   capabilities as named IPC channels in `main.js` and expose them through
   `window.shiftLife` in `preload.js`.
-- **Saved state:** all four files live in `%APPDATA%\shift-life\`.
+- **Saved state:** all five files live in `%APPDATA%\shift-life\`.
   - `window-state.json` holds the window position. It's ignored if it
     would put the window off every connected screen.
   - `save.json` holds the life: `{ version, clock: { years }, character,
@@ -1185,11 +1240,16 @@ How it works, for anyone extending it:
     <fish id>: { name, age, on, best: { size, name, age } } } }`,
     written the same way and kept across lives (entries from before
     sizes have no `best`).
+  - `settings.json` holds the player settings: `{ version, workTrips
+    }` (`data/settings.js` has the defaults; `restoreSettings()` keeps
+    only known ones of the right type), via `settings:load`/
+    `settings:write`, written the same way and kept across lives.
   - The bucket in `activities.current.fishing` keeps each catch as `{
     id, value, size }` (size null for junk and for catches from before
     sizes).
-  - Delete `save.json` to start a new life (the Book and the collection
-    stay; delete `past-lives.json` or `collection.json` to clear them).
+  - Delete `save.json` to start a new life (the Book, the collection and
+    the settings stay; delete `past-lives.json`, `collection.json` or
+    `settings.json` to clear them).
 
 ## Install, run, and test
 

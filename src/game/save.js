@@ -1,7 +1,7 @@
 // save.js — Converts game state to and from the save format, and asks the
 // main process (via window.shiftLife) to read and write the save file, the
-// Book of past lives and the fish collection (their own files, so they
-// outlast each life).
+// Book of past lives, the fish collection and the player settings (their
+// own files, so they outlast each life).
 
 import { createClock } from './clock.js';
 import { restoreCharacter, ageOf } from './character.js';
@@ -15,6 +15,7 @@ import { restoreHousingState } from './housing.js';
 import { restoreEndOfLifeState, restoreBook, bookSaveData } from './endOfLife.js';
 import { restoreActivityState } from './activities.js';
 import { restoreCollection, collectionSaveData } from './fishing.js';
+import { restoreSettings, settingsSaveData } from './settings.js';
 
 const SAVE_VERSION = 1;
 
@@ -94,4 +95,14 @@ export async function loadCollection() {
 
 export function saveCollection(collection) {
   window.shiftLife.saveCollection(collectionSaveData(collection));
+}
+
+// The player settings (data/settings.js), the defaults if there's no file
+// yet or it can't be read.
+export async function loadSettings() {
+  return restoreSettings(await window.shiftLife.loadSettings());
+}
+
+export function saveSettings(settings) {
+  window.shiftLife.saveSettings(settingsSaveData(settings));
 }

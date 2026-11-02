@@ -8,7 +8,7 @@
 import { WINDOW_DRAG } from '../data/interaction.js';
 
 // Presses inside these stay ordinary clicks: they never drag the window.
-const NO_DRAG = '.panel, #controls, #label, #stats, #activity-bar, #event-bubble, #bite-bubble, '
+const NO_DRAG = '.panel, #controls, #label, #place.at-work, #stats, #activity-bar, #event-bubble, #bite-bubble, '
   + '#reveal-close, #speech.clickable';
 
 // api: { getPosition() -> Promise<{ x, y }>, setPosition(x, y), endDrag() }

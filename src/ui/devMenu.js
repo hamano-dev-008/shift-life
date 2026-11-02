@@ -8,6 +8,7 @@ import { DEV_SKIP_YEARS, DEV_MONEY, DEV_HEALTH } from '../data/dev.js';
 import { HOUSING_TIERS, MOVE_OUT_AGE } from '../data/housing.js';
 import { RARITIES } from '../data/fishing.js';
 import { BUTTERFLIES } from '../data/lakeLife.js';
+import { WORK_TRIP_TEXT } from '../data/animation.js';
 
 function button(text, onClick, className = '') {
   const node = document.createElement('button');
@@ -42,7 +43,8 @@ function row(label, ...children) {
 // catchRarity(rarityId) (each returns null, or a note such as "Not
 // fishing."), showReveal(rarityId) (previews a reveal card),
 // spawnButterfly(colorId or null), frogCroak() and frogHop() (each
-// returns null, or a note such as "Only at the Lake."), readout()
+// returns null, or a note such as "Only at the Lake."), workTrips()
+// (whether the "Work trips" setting is on), setWorkTrips(on), readout()
 // (returns { stats, traits, goal, job, tree, place, life, fishing }),
 // speed() (current speed id), onOpen() }.
 export function createDevMenu(menu, gear, actions) {
@@ -159,8 +161,13 @@ export function createDevMenu(menu, gear, actions) {
       button('Croak', lakeAction(actions.frogCroak)),
       button('Frog hop', lakeAction(actions.frogHop)));
 
+    // A player setting, here until there's a player settings menu.
+    const workTrips = row(WORK_TRIP_TEXT.setting, ...[true, false].map((on) =>
+      button(on ? WORK_TRIP_TEXT.on : WORK_TRIP_TEXT.off, () => { actions.setWorkTrips(on); render(); },
+        actions.workTrips() === on ? 'active' : '')));
+
     const children = [newLife, speeds, skips, extras, tree, home, housing, places, fish, catches, reveals,
-      wild, life, health];
+      wild, workTrips, life, health];
     if (note) {
       const message = document.createElement('p');
       message.className = 'dev-note';

@@ -61,12 +61,32 @@ export const ACTIVITY_LOOPS = { pageFlip: 1.6, coin: 0.9, wave: 0.3, heart: 1.4,
 // How long a milestone celebration bubble stays up.
 export const MILESTONE_BUBBLE_SECONDS = 5;
 
-// Going to work: while the character has a job, when an idle pause ends
-// this is the chance they walk out the nearest side of the window "to
-// work", checked before the goal activity. They stay away WORK_AWAY
+// Going to work: while the character has a job (and the "Work trips"
+// setting is on), they now and then walk out the nearest open side of the
+// window "to work". At most one trip every WORK_TRIP_EVERY_MINUTES real
+// minutes (a random wait in that range, drawn again after each trip), and
+// only when an idle pause ends. Never within WORK_QUIET_SECONDS of the
+// player clicking on the game, nor while a menu, card, bubble, catch
+// reveal or the activity bar is showing. They stay away WORK_AWAY
 // seconds, then walk back in from the same side; they come back early if
-// something needs them (an event, a bubble). WORK_EXIT is how far past
-// the window edge they walk before they count as gone, in scene pixels.
-export const WORK_TRIP_CHANCE = 0.15;
-export const WORK_AWAY = [20, 45];
+// something needs them (an event, a bubble) or the place label is
+// clicked. WORK_EXIT is how far past the window edge they walk before
+// they count as gone, in scene pixels.
+export const WORK_TRIP_EVERY_MINUTES = [5, 8];
+export const WORK_QUIET_SECONDS = 60;
+export const WORK_AWAY = [20, 40];
 export const WORK_EXIT = 10;
+
+// Work trip text: the bubble as they leave (shown for bubbleSeconds), the
+// place label while they're away ({place} is the place's name), its
+// tooltip (click to call them back; {name} is the character's), and the
+// dev menu's setting row.
+export const WORK_TRIP_TEXT = {
+  leaving: 'Off to work!',
+  bubbleSeconds: 2.5,
+  atWork: '{place} - At work',
+  callBack: 'Call {name} back from work',
+  setting: 'Work trips',
+  on: 'On',
+  off: 'Off',
+};

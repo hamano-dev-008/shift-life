@@ -56,8 +56,13 @@ Early development. What works so far:
   in every in-game year, promotions come with time once they meet the
   next step's smarts or health, and work events bring raises, overtime,
   tough bosses, layoffs and career changes. They wear their job's item
-  (hard hat, tie, apron, chef hat...) and now and then walk out the side
-  of the window to work, coming back a bit later. At 65 they retire with
+  (hard hat, tie, apron, chef hat...) and now and then (at most once
+  every 5-8 real minutes, never within a minute of you clicking on the
+  game or while a menu, bubble or the activity bar is up) say "Off to
+  work!" and walk out the side of the window, coming back 20-40 seconds
+  later. While they're away the place label says "At work"; click it
+  to call them back at once. The "Work trips" setting (On/Off, in the
+  dev menu for now, saved between launches) can turn this off. At 65 they retire with
   a small yearly pension. Hover the name label to see job, level, pay and
   money. Job data is in `src/data/jobs.js`.
 - Places: the current one's name shows under the name label.
@@ -227,7 +232,7 @@ housing tier (sleeping bag, tent, house), jump to any place without
 walking (the Lake included), give a fishing rod, make a fish bite
 now, catch a fish of a chosen rarity now, preview the catch reveal
 card for each rarity, add a butterfly (or a blue one) or make a frog
-croak or hop at the Lake, end the life now (adults only), set health (0, 10, 50 or 100;
+croak or hop at the Lake, turn work trips on or off, end the life now (adults only), set health (0, 10, 50 or 100;
 0 ends an adult's life), and see the character's stats, traits, goal,
 job, tree progress, place, housing, yearly ageing and the chance of the
 life ending on the next birthday, and how fishing is going.
@@ -237,11 +242,12 @@ Keyboard shortcuts (window focused): Ctrl+Shift+F toggles fast speed (the
 label shows `>>`), Ctrl+Shift+M cycles happiness (smile, neutral,
 frown), Ctrl+Shift+E starts an event right away (children and older
 only), Ctrl+Shift+A starts the goal's idle activity, and Ctrl+Shift+W
-sends the character off to work (if they have a job). You can also
+sends the character off to work (if they have a job and work trips
+are on). You can also
 start a new life by closing the app and deleting
 `%APPDATA%\shift-life\save.json`. The Book of past lives is in
-`past-lives.json` next to it, and the fish collection in
-`collection.json`.
+`past-lives.json` next to it, the fish collection in
+`collection.json`, and the settings in `settings.json`.
 
 **Adding sprites:** every graphic is drawn in code for now, but any of
 them can be replaced by your own pixel art, one at a time, without

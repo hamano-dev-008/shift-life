@@ -31,6 +31,9 @@ ipcMain.on('book:write', (_, value) => { savedBook = value; });
 let savedCollection = null;
 ipcMain.handle('collection:load', () => savedCollection);
 ipcMain.on('collection:write', (_, value) => { savedCollection = value; });
+let savedSettings = null;
+ipcMain.handle('settings:load', () => savedSettings);
+ipcMain.on('settings:write', (_, value) => { savedSettings = value; });
 // Window dragging (ui/windowDrag.js): positions the renderer asks for.
 let win;
 const windowMoves = [];
@@ -623,9 +626,38 @@ app.whenReady().then(async () => {
     await wait(1500);
     assert.equal(saved.home.resting, true);
     await checkProps('Home, resting with the activity bar up');
+    // Work trips: the dev menu's setting (saved in settings.json), then a
+    // job, Ctrl+Shift+W: "Off to work!", the place label says "At work"
+    // and a real click on it calls them back. The label never takes
+    // clicks otherwise.
+    await press('document.querySelector("#activity-bar .bar-stop")');
+    await dev('Off');
+    assert.equal(savedSettings.workTrips, false);
+    await dev('On');
+    assert.equal(savedSettings.workTrips, true);
+    await dev('Trigger event');
+    assert.equal(await js('document.querySelector("#event-card").hidden'), false);
+    await press(`[...document.querySelectorAll('#event-card button')].find((b) => !b.classList.contains('panel-close') && !b.disabled)`);
+    await wait(300);
+    assert.equal(saved.jobs.current !== null && saved.jobs.current !== undefined, true, 'took a job');
+    const placeOnTop = () => js(`(() => { const el = document.querySelector('#place'); const r = el.getBoundingClientRect();
+      return document.elementFromPoint(Math.floor(r.x + r.width / 2), Math.floor(r.y + r.height / 2)) === el; })()`);
+    assert.equal(await placeOnTop(), false, 'the place label takes clicks while not at work');
+    for (let i = 0; i < 100 && !(await js('document.querySelector("#speech").hidden')); i++) await wait(100);
+    await js(`window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyW', ctrlKey: true, shiftKey: true }))`);
+    await wait(100);
+    assert.equal(await js('document.querySelector("#speech").textContent'), 'Off to work!');
+    for (let i = 0; i < 150 && !(await js('document.querySelector("#place").textContent.endsWith("At work")')); i++) await wait(100);
+    assert.equal(await js('document.querySelector("#place").textContent'), 'Home - At work');
+    assert.equal(await placeOnTop(), true, 'the "At work" label is clickable');
+    await press('document.querySelector("#place")');
+    await wait(100);
+    assert.equal(await js('document.querySelector("#place").textContent'), 'Home');
+    assert.equal(await placeOnTop(), false);
+    await point();
     assert.deepEqual(await appRegions(), []);
     assert.deepEqual(errors, []);
-    console.log('PASS: the Fortune Tree\'s wishing well (its bubble, click area apart from the tree\'s, drags from it and the background), activities start only on arrival (walking to the tree from the far side, then "Busking - 0:00"; the sofa; the dock), no -webkit-app-region anywhere, JS window drags (background, character, tree: the window follows, no poke, no menu), plain clicks on every prop in every place, native gentle/rapid clicks, spam, calming, moving hit regions, drag rejection, 25 poses, offscreen, prop/event priority, real clicks on props and menus, prop click areas on top in every place (at rest, after travel, menus closed, an event waiting, the activity bar, a catch reveal), rest/travel/busking preserved, transparent sprite, end of life, summary, Book, new life, the Lake (frogs, butterflies), fishing (rod, bite, catch, reveal, collection, activity bar, selling); no renderer errors.');
+    console.log('PASS: the Fortune Tree\'s wishing well (its bubble, click area apart from the tree\'s, drags from it and the background), activities start only on arrival (walking to the tree from the far side, then "Busking - 0:00"; the sofa; the dock), no -webkit-app-region anywhere, JS window drags (background, character, tree: the window follows, no poke, no menu), plain clicks on every prop in every place, native gentle/rapid clicks, spam, calming, moving hit regions, drag rejection, 25 poses, offscreen, prop/event priority, real clicks on props and menus, prop click areas on top in every place (at rest, after travel, menus closed, an event waiting, the activity bar, a catch reveal), rest/travel/busking preserved, transparent sprite, end of life, summary, Book, new life, the Lake (frogs, butterflies), fishing (rod, bite, catch, reveal, collection, activity bar, selling), work trips (the setting saved, "Off to work!", the "At work" label calling them back); no renderer errors.');
   } catch (error) {
     console.error(error);
     process.exitCode = 1;

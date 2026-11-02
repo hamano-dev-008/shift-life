@@ -69,6 +69,13 @@ body {
   display: none;
 }
 
+/* While the character is at work the place label can be clicked to call
+   them back; otherwise it never takes clicks. */
+#place.at-work {
+  pointer-events: auto;
+  cursor: pointer;
+}
+
 /* Invisible click areas over props (tree, houses, beds, sofa, door); the props
    are canvas art. */
 #targets button {
