@@ -28,7 +28,10 @@ with **Electron and plain JavaScript**.
 > between places: the Fortune Tree (busking, the golden apple), the
 > Parents' Yard and Home (resting on the sofa) while growing up, then
 > from 18 My Yard (sleeping bag, tent or house, bought by the player)
-> and their own Home; the life is saved between launches. Items marked
+> and their own Home. From 50 health fades with age; the life ends
+> gently (no health left, or a yearly chance from 70 up to 100) with a
+> life summary, goes into the Book of past lives, and a new life can
+> begin. The life and the Book are saved between launches. Items marked
 > *(planned)* don't exist yet; follow the planned layout when adding them,
 > and update this section whenever files are added, moved, or removed.
 
@@ -42,31 +45,37 @@ Shift-Life/
 ├── package-lock.json  Locked dependency versions (commit it)
 ├── main.js            Electron main process: creates the frameless,
 │                      transparent, always-on-top 320x240 window, saves and
-│                      restores its position, handles window and save IPC,
-│                      lists the PNGs in assets/sprites/, reports dev
-│                      runs (!app.isPackaged)
+│                      restores its position, handles window, save and
+│                      Book of past lives IPC, lists the PNGs in
+│                      assets/sprites/, reports dev runs (!app.isPackaged)
 ├── preload.js         Exposes window.shiftLife { minimize, close, loadSave,
-│                      save, saveSync, isDev, listSprites } to the
-│                      renderer via contextBridge
+│                      save, saveSync, loadBook, saveBook, isDev,
+│                      listSprites } to the renderer via contextBridge
 ├── src/
 │   ├── index.html     Renderer page: scene canvas, prop click areas,
 │   │                  label, place name, stats panel, event bubble/card,
-│   │                  goal, tree, rest, Go to and dev menus, text
-│   │                  bubble, top-right buttons (goal, place, gear, -, x)
+│   │                  goal, tree, rest, Go to and dev menus, life summary
+│   │                  card, Book of past lives, text bubble, top-right
+│   │                  buttons (goal, book, place, gear, -, x)
 │   ├── styles.css     Rounded frame, drag region, pixelated canvas, label,
 │   │                  place name, stats panel, prop click areas, panels
 │   │                  (event card, goal, tree, rest, Go to and dev
-│   │                  menus), top-right buttons, text bubble
+│   │                  menus, life summary, Book; the tall ones scroll),
+│   │                  top-right buttons, text bubble (and the farewell
+│   │                  bubble)
 │   ├── renderer.js    Renderer entry point (ES module): loads or starts a
-│   │                  life, builds each place's scene, runs clock,
-│   │                  events, goals, jobs, the Fortune Tree, resting
-│   │                  and moving out (real-time tick), trips between
-│   │                  places, following map changes, prop clicks,
-│   │                  buying housing, autosave, frame loop, text
+│   │                  life and the Book, builds each place's scene, runs
+│   │                  clock, ageing and the end of life, events, goals,
+│   │                  jobs, the Fortune Tree, resting and moving out
+│   │                  (real-time tick), trips between places, following
+│   │                  map changes, prop clicks, buying housing, the
+│   │                  goodbye (sitting, fade, farewell bubble, summary
+│   │                  card) and new lives, autosave, frame loop, text
 │   │                  bubble queue, menu wiring, dev shortcuts
 │   ├── game/          Game logic only (no hard-coded content)
 │   │   ├── interaction.js Unsaved real-time poke rules and happiness changes
-│   │   ├── clock.js       Real-time clock: in-game years, speed
+│   │   ├── clock.js       Real-time clock: in-game years, speed, stopped
+│   │   │                  once the life has ended
 │   │   ├── character.js   Birth (random name/look/traits), stats,
 │   │   │                  expression, age, life stage
 │   │   ├── events.js      Event engine: scheduling, picking, choices,
@@ -90,13 +99,22 @@ Shift-Life/
 │   │   │                  rate, upgrade offer and buying
 │   │   ├── fortuneTree.js The Fortune Tree: busking sessions and pay,
 │   │   │                  the golden apple (growth, pick chance, pick),
-│   │   │                  real-time timers, the tree menu's view
+│   │   │                  real-time timers, the tree menu's view, life
+│   │   │                  totals (sessions played, apples won)
+│   │   ├── endOfLife.js   Ageing (health from 50, by home), when a life
+│   │   │                  ends (no health, yearly chance, natural
+│   │   │                  limit), ending it (stops busking/resting,
+│   │   │                  events, the clock), life summary and title,
+│   │   │                  the Book of past lives, starting a new life
+│   │   │                  (with the hook for continuing as a child)
 │   │   ├── dev.js         Dev actions: new life, speed, skip years,
 │   │   │                  trigger event, add money, finish a busking
 │   │   │                  session, apple now, rest a minute, go to a
 │   │   │                  place instantly, set the housing tier, jump
-│   │   │                  to 18, read-out (job, tree, place, housing)
-│   │   └── save.js        Save format (versioned) and load/save calls
+│   │   │                  to 18, end life now, set health, read-out
+│   │   │                  (job, tree, place, housing, life)
+│   │   └── save.js        Save format (versioned) and load/save calls,
+│   │                      for the life and the Book of past lives
 │   ├── ui/            Drawing and visual-only behavior
 │   │   ├── interaction.js Pixel-shaped click targets and reaction poses
 │   │   ├── pixel.js       Low-res layer helpers: paint, outline, scaled draw
@@ -118,8 +136,9 @@ Shift-Life/
 │   │   │                  wooden floor, window, front door, sofa
 │   │   ├── animator.js    Wandering, prop visits, goal activities,
 │   │   │                  trips off-screen to work and back, staying put
-│   │   │                  to busk or rest, walking out of a place and
-│   │   │                  into the next,
+│   │   │                  to busk or rest, sitting for good (eyes
+│   │   │                  closing) when a life ends, walking out of a
+│   │   │                  place and into the next,
 │   │   │                  turning, the walk cycle, breathing, blinking;
 │   │   │                  gaits by age (crawl, toddle, walk), baby
 │   │   │                  fidgets, toddler plops
@@ -143,6 +162,12 @@ Shift-Life/
 │   │   ├── goMenu.js      The Go to menu (place button): the other
 │   │   │                  places that exist now; disabled while
 │   │   │                  travelling
+│   │   ├── farewell.js    The goodbye's fade: a pale veil over the scene,
+│   │   │                  thickening in steps
+│   │   ├── lifeSummary.js The life summary card ("Start a new life"), and
+│   │   │                  the summary rows the Book reuses
+│   │   ├── pastLives.js   The Book of past lives (book button): the list
+│   │   │                  of finished lives and each one's summary
 │   │   ├── devMenu.js     The dev settings menu (gear; dev runs only)
 │   │   └── statsPanel.js  Stats, job and traits panel under the name label
 │   └── data/          Pure game data, no logic
@@ -151,7 +176,11 @@ Shift-Life/
 │       │                  thresholds, event gap, auto-decide wait, whim,
 │       │                  goal weights for decisions and event picks
 │       ├── stats.js       Starting stats, stat names and short tags
-│       ├── dev.js         Dev menu amounts (skip-ahead years, money)
+│       ├── dev.js         Dev menu amounts (skip-ahead years, money,
+│       │                  set-health values)
+│       ├── endOfLife.js   Ageing loss by home, when a life ends (ages,
+│       │                  chances), goodbye timing, life title rules
+│       │                  (trait adjectives, nouns), Book size, text
 │       ├── places.js      Places (id, name, requirement, where to go
 │       │                  when gone, scenery pieces, exits, clickable
 │       │                  props), where a new life starts, the default
@@ -199,7 +228,9 @@ Shift-Life/
 ├── assets/
 │   └── sprites/       Pixel-art PNGs that replace code-drawn art (tree.png,
 │                      goldenApple.png so far) and a short README
-└── test/              interaction.test.mjs (rules/poses), smoke.cjs (Electron clicks)
+└── test/              interaction.test.mjs (rules/poses), endOfLife.test.mjs
+                       (ageing, endings, summary, Book, new life),
+                       smoke.cjs (Electron clicks, end of life flow)
 ```
 
 How it works, for anyone extending it:
@@ -313,6 +344,8 @@ How it works, for anyone extending it:
   the window is minimized (`backgroundThrottling: false` in `main.js`).
   Gaps over 2s, such as the PC sleeping, are capped. Time does not pass
   while the app is closed. Ages are whole years: `floor(years - bornAt)`.
+  Once the life has ended the clock is `stopped` (not saved: it follows
+  `endOfLife.ended`) and stands still.
 - **Stats and traits:** `character.stats` holds health, happiness and
   smarts (whole numbers, 0-100) and money (whole dollars, never below 0).
   Change them only through `setStat()` / `changeStats()`, which clamp.
@@ -356,9 +389,8 @@ How it works, for anyone extending it:
   - `updateGoals()` runs on the same 250ms timer as events. It applies the
     drift and checks the active goal's milestones (stat thresholds, years
     with the goal, or variety of events seen). Reached milestones are
-    saved with the age they happened, for the end-of-life summary (not
-    built yet; there is no end of life yet), and celebrated with a golden
-    text bubble.
+    saved with the age they happened, for the life summary (see **End
+    of life**), and celebrated with a golden text bubble.
   - Text bubbles (event results, milestones) are queued in the renderer
     and shown one at a time; at most `MAX_QUEUED_BUBBLES` wait, dropping
     the oldest event results first.
@@ -392,8 +424,8 @@ How it works, for anyone extending it:
     come back `WORK_AWAY` seconds later. They don't leave while
     something needs them on screen (an event, a bubble, the card open),
     and come back early if it does. Purely visual.
-  - There's no end of life yet; when the summary is built, it should
-    read the job, level and money from `careerView()` and `history`.
+  - The life summary (see **End of life**) lists the jobs held from
+    `history` and `current`, and the highest title reached.
 - **Places:** the scene is a place (`data/places.js`: id, name, the
   `scenery` pieces it shows back to front, `exits`, and clickable
   `targets`, plus `requires` and `gone`, see **Housing**). Growing up
@@ -512,7 +544,8 @@ How it works, for anyone extending it:
     No bubble for that.
 - **Fortune Tree:** `game.fortuneTree` holds `playing`, `sessionMs`
   (real time into the current session), `sessions` (full sessions since
-  the last successful pick), `appleReady` and `appleInMs`. Numbers and
+  the last successful pick), `appleReady`, `appleInMs`, and life totals
+  for the summary: `sessionsPlayed` and `applesWon`. Numbers and
   text are in `data/fortuneTree.js`; logic in `game/fortuneTree.js`.
   - Clicking the tree (its click area, see **Places**) opens the tree
     menu (`ui/treeMenu.js`), which shares the panels' spot. Under
@@ -544,6 +577,50 @@ How it works, for anyone extending it:
     sessions, capped): `APPLE_REWARD` dollars, a golden bubble, and
     `sessions` back to 0. A miss shows "The apple slipped away...".
     Either way the apple is gone and the next one starts growing.
+- **End of life:** `game.endOfLife` holds `checkedAge` (the last
+  birthday whose ageing and chance have run) and `ended` (null while
+  alive; then `{ id, endedOn, at, cause, summary }`). Numbers and text
+  in `data/endOfLife.js`; logic in `game/endOfLife.js`.
+  - `updateEndOfLife()` runs first on the life tick. On each birthday not
+    yet checked (catching up after skipped years) it takes
+    `AGEING_LOSS` health from `AGEING_FROM_AGE` (50) by where they live
+    (sleeping bag most, house least), then rolls `deathChance(age,
+    health)`: 0 before `DEATH.fromAge` (70), rising each year, lower with
+    more health, 1 at `DEATH.maxAge` (100). At any time an adult with 0
+    health dies. Nobody under `DEATH.minAge` (18) dies, whatever their
+    health. An ending found while catching up moves the clock back to
+    that year. Tests pass their own `random`.
+  - `endLife()` ends it gently: busking or resting stops, a waiting
+    event goes, the clock stops, and `lifeSummary()` is stored. After
+    that the life tick does nothing (events, goals, jobs, pay, the
+    tree's and resting's timers all stand still) and pokes, prop clicks,
+    Go to, the goal button and the dev shortcuts are off.
+  - The goodbye (renderer, frame loop): any trip ends
+    (`stopTravelling()`), the animator's `farewell` stay mode sits the
+    character where they are (walking back in if they were out) and
+    closes their eyes after `FAREWELL.eyesCloseAfter`; `ui/farewell.js`
+    fades the scene to a pale veil over `fadeSeconds`; the soft
+    lavender bubble says "{name} drifted off peacefully at {age}." and
+    stays. After `summaryAfter` seconds the summary card opens; once
+    seen, clicking the bubble opens it again. A save of an ended life
+    opens already faded.
+  - The summary card (`ui/lifeSummary.js`) shows the life title, name
+    and ages, the goal and milestones reached, jobs held and the top
+    title, money, the home and golden apples won, and scrolls if needed.
+    The title is "The {adjective} {noun}": the adjective from the
+    strongest trait (`TRAIT_SCORE`: jobs held that lean to it, the goal),
+    the noun from busking (`BUSKER`), else the top job (`JOB_NOUNS`),
+    else the goal (`GOAL_NOUNS`).
+  - The Book of past lives is its own file (`past-lives.json`, via
+    `book:load`/`book:write`), so it outlasts each life. Each ended life
+    is added once by id (`recordLife()`), also on load if it was missed;
+    at most `BOOK_MAX_LIVES`. The book button (top bar) shows once
+    there's a life in it and opens `ui/pastLives.js`: newest first, each
+    opening its summary with Back.
+  - "Start a new life" (`startNewLife()`) replaces the life in place
+    with a newborn at the Parents' Home and restarts the clock. Its
+    `options.parent` is the hook for continuing as a child of the life
+    that ended; it's ignored for now.
 - **Stats panel:** hovering the name label shows stats, the job (title,
   level, pay; "Looking" or "Retired" with the pension) from age 18, and
   traits; clicking it pins the panel open.
@@ -562,18 +639,23 @@ How it works, for anyone extending it:
     follows on the next tick), set the housing tier directly (Sleeping
     bag, Tent, House; ends resting, leaves Home if the house goes; a
     child stays with their parents), Go to any place that exists
-    instantly (no walking; ends busking or resting and any trip), and a
-    read-out of stats, traits, goal, job, the tree, the place and
-    housing. The menu scrolls (no scrollbar) if it's taller than the
-    window, and rebuilds when the places change.
+    instantly (no walking; ends busking or resting and any trip), End
+    life now (adults only, otherwise a note; plays the goodbye), set
+    health (0, 10, 50, 100; 0 ends an adult's life on the next tick), and
+    a read-out of stats, traits, goal, job, the tree, the place and
+    housing, and the yearly ageing and the next birthday's chance (or how
+    the life ended). The dev New life doesn't add the old life to the
+    Book. Skipping years does nothing once the life has ended. The menu
+    scrolls (no scrollbar) if it's taller than the window, and rebuilds
+    when the places change.
   - `ui/devMenu.js` only calls the actions it's given; the work lives in
     `game/dev.js`, and the renderer wraps it to keep the screen in step.
     Amounts are in `data/dev.js`.
   - Skipping years doesn't replay events: the character ages, goal
     boosts and paydays (with promotions and retirement) catch up, and at
     most one due event comes up.
-  - The event card and the goal, tree, rest, Go to and dev menus share
-    the same spot, so opening one closes the others (`closePanels()` in
+  - The event card, the life summary and the goal, tree, rest, Go to,
+    Book and dev menus share the same spot, so opening one closes the others (`closePanels()` in
     the renderer).
 - **Dev shortcuts** (window focused; these work in any build):
   - Ctrl+Shift+F toggles between normal and fast speed. The label shows
@@ -608,29 +690,34 @@ How it works, for anyone extending it:
 - **Renderer ↔ main:** the renderer has no Node access. Add new
   capabilities as named IPC channels in `main.js` and expose them through
   `window.shiftLife` in `preload.js`.
-- **Saved state:** both files live in `%APPDATA%\shift-life\`.
+- **Saved state:** all three files live in `%APPDATA%\shift-life\`.
   - `window-state.json` holds the window position. It's ignored if it
     would put the window off every connected screen.
   - `save.json` holds the life: `{ version, clock: { years }, character,
-    events, goals, jobs, place, fortuneTree, home, housing }`.
+    events, goals, jobs, place, fortuneTree, home, housing, endOfLife }`.
     `character` includes
     `stats` and `traits`; `events`
     holds `nextAt`, the `pending` event, how often each was `seen`,
     `lastId`, and `frozenAt` (while busking or resting); `goals` holds the `active` goal, `since` and `nextDriftAt`,
     `pastYears` per goal, and reached `milestones` ({ goal, id, age });
     `jobs` is described under **Jobs** above; `place`, `fortuneTree`,
-    `home` and `housing` under **Places**, **Fortune Tree**, **Resting**
-    and **Housing**.
+    `home`, `housing` and `endOfLife` under **Places**, **Fortune Tree**,
+    **Resting**, **Housing** and **End of life**.
     The renderer autosaves every 10s and saves synchronously on
     `beforeunload`, so every way of closing is covered. `main.js` writes
     via a temp file and rename.
   - New optional fields can keep the version if `restore*()` fills in a
     default (as `stats`, `traits`, `events`, `goals`, `jobs`, `place`,
-    `fortuneTree`, `home` and `housing` do; older saves'
+    `fortuneTree`, `home`, `housing` and `endOfLife` do (ageing starts
+    from the age at load); older saves'
     `mood` becomes happiness). For breaking changes, bump `SAVE_VERSION` in
     `game/save.js` and handle old versions. Right now an unrecognised save
     is replaced by a new life.
-  - Delete `save.json` to start a new life.
+  - `past-lives.json` holds the Book of past lives: `{ version, lives:
+    [{ id, endedOn, summary }] }`, written the same way. Starting a new
+    life keeps it.
+  - Delete `save.json` to start a new life (the Book stays; delete
+    `past-lives.json` to clear it).
 
 ## Install, run, and test
 
@@ -643,7 +730,7 @@ The same goes for `npx` → `npx.cmd`. In Git Bash, plain `npm` works.
 ```powershell
 npm.cmd install      # install dependencies
 npm.cmd start        # launch the game (runs `electron .`)
-npm.cmd test         # run interaction rule and pose tests (Node 22.7+)
+npm.cmd test         # run interaction and end-of-life logic tests (Node 22.7+)
 npm.cmd run test:smoke # isolated Electron renderer/click checks
 ```
 

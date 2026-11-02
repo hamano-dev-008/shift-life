@@ -1,8 +1,9 @@
 // animator.js — Purely visual motion for the character: wandering, visiting
 // the tree, goal activities (reading, counting coins, jogging,
 // waving), walking off "to work" and back, busking under the Fortune
-// Tree, resting on the sofa, walking out of a place (off an edge or
-// through a door) and into the next, turning, the walk cycle, crawling
+// Tree, resting on the sofa, sitting down for good at the end of a life
+// (eyes closing), walking out of a place (off an edge or through a door)
+// and into the next, turning, the walk cycle, crawling
 // and toddling for the youngest (with sitting, fidgets and plops),
 // breathing, and blinking. Never touches game state; the renderer passes
 // in the gait for the age, which activity the goal calls for, whether the
@@ -21,13 +22,15 @@ import {
   CRAWL_UNTIL_AGE, WALK_FROM_AGE, CRAWL, TODDLE, PLOP_CHANCE, PLOP_DURATION,
   BABY_FIDGET_INTERVAL, BABY_LOOK_CHANCE, BABY_LOOK_DURATION, BABY_WOBBLE_DURATION,
 } from '../data/infant.js';
+import { FAREWELL } from '../data/endOfLife.js';
 
 // Crawling and toddling numbers by gait; walking uses the per-stage
 // WALK_SPEED and STRIDE.
 const INFANT_GAITS = { crawl: CRAWL, toddle: TODDLE };
 
-// Modes for staying put somewhere (see updateStay()).
-const STAY_MODES = ['busking', 'resting'];
+// Modes for staying put somewhere (see updateStay()): 'farewell' is
+// sitting down at the end of a life.
+const STAY_MODES = ['busking', 'resting', 'farewell'];
 
 // A wobble shifts the sitting baby's upper body through these columns.
 const WOBBLE_STEPS = [1, 0, -1, 0];
@@ -58,7 +61,8 @@ export function createAnimator(layout) {
     // sat down mid-walk), 'activity' (doing `activity`; jogging also
     // walks during it), 'away' (at work, off past the window's edge),
     // 'busking' (sitting under the tree playing), 'resting' (lying on the
-    // sofa), or 'exited' (reached the way out of the place, waiting for
+    // sofa), 'farewell' (sitting, eyes closed, at the end of a life), or
+    // 'exited' (reached the way out of the place, waiting for
     // the next one)
     mode: 'idle',
     activity: null, // activity id being done, or being walked to
@@ -364,6 +368,13 @@ export function isTravelling(anim) {
   return anim.travelling;
 }
 
+// Stops walking out of the place (the trip was called off); what to do
+// next comes from the next update, e.g. walking back in to stay.
+export function stopTravelling(anim) {
+  anim.travelling = false;
+  if (anim.destination === 'exit') anim.destination = null;
+}
+
 // Walking to the exit; toddlers still plop now and then.
 function updateTravel(anim, dt, stage) {
   if (anim.mode === 'walking') {
@@ -420,7 +431,7 @@ export function placeIn(anim, layout) {
 // `needed`: something wants them on screen (an event, a bubble), so they
 // don't leave, and come back if they're out. `stay`: while busking or
 // resting, { x, mode, lift }: they go to canvas x `x` and stay in `mode`
-// ('busking' or 'resting'), with no wandering, activities or work trips;
+// ('busking', 'resting' or 'farewell'), with no wandering, activities or work trips;
 // `lift` raises the figure that many canvas pixels (lying on the sofa).
 // Null otherwise. Travelling (travelTo()) comes before all of this.
 export function updateAnimator(anim, dt, stage, gait, {
@@ -512,9 +523,9 @@ function walkPose(p, stride) {
 // The current frame's pose, in the shape drawCharacter() expects. x is
 // snapped to whole character pixels so the sprite moves in crisp steps.
 // `gait` is 'crawl', 'toddle' or 'walk'; `sit` means sitting on the ground
-// (a crawler at rest, or a toddler who plopped); `gaze` is -1 while
-// looking back over the shoulder; `wobble` shifts the sitting upper body
-// sideways. `lying` means lying down (resting on the sofa), raised `lift`
+// (a crawler at rest, a toddler who plopped, busking, or the end of a
+// life, eyes closed); `gaze` is -1 while looking back over the shoulder;
+// `wobble` shifts the sitting upper body sideways. `lying` means lying down (resting on the sofa), raised `lift`
 // canvas pixels above the feet row. `activity` is the activity being done
 // (null when none; 'busk' while busking, sitting; 'rest' while resting,
 // lying) and `activityTime` how long it has been going, in seconds.
@@ -522,10 +533,11 @@ function walkPose(p, stride) {
 export function poseOf(anim, stage) {
   const busking = anim.mode === 'busking';
   const resting = anim.mode === 'resting';
-  const staying = busking || resting;
+  const farewell = anim.mode === 'farewell';
+  const staying = busking || resting || farewell;
   const doing = anim.mode === 'activity';
   const walking = anim.mode === 'walking' || (doing && anim.jogging);
-  const sit = busking || anim.mode === 'plopped'
+  const sit = busking || farewell || anim.mode === 'plopped'
     || (anim.gait === 'crawl' && !walking && !doing && !resting);
   const stride = gaitStride(anim, stage);
   const wobbleStep = Math.floor((BABY_WOBBLE_DURATION - anim.wobbleLeft) * 8) % WOBBLE_STEPS.length;
@@ -536,7 +548,7 @@ export function poseOf(anim, stage) {
     sit,
     gaze: anim.lookLeft > 0 ? -1 : 0,
     wobble: anim.wobbleLeft > 0 ? WOBBLE_STEPS[wobbleStep] : 0,
-    blinking: anim.blinkLeft > 0,
+    blinking: anim.blinkLeft > 0 || (farewell && anim.activityTime >= FAREWELL.eyesCloseAfter),
     breath: !walking && anim.time % BREATH_CYCLE > BREATH_CYCLE * 0.6 ? 1 : 0,
     walk: walking ? walkPose(anim.steps % (4 * stride), stride) : null,
     lying: resting,

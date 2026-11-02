@@ -18,8 +18,13 @@ const APPLE_MS = APPLE_EVERY_HOURS * 60 * 60 * 1000;
 // session. sessions: full sessions since the last successful apple pick
 // (each adds to the pick chance). appleReady: an apple hangs on the tree.
 // appleInMs: real time until the next apple, while none is ready.
+// sessionsPlayed and applesWon: full sessions and golden apples over the
+// whole life (for the life summary).
 export function createTreeState() {
-  return { playing: false, sessionMs: 0, sessions: 0, appleReady: false, appleInMs: APPLE_MS };
+  return {
+    playing: false, sessionMs: 0, sessions: 0, appleReady: false, appleInMs: APPLE_MS,
+    sessionsPlayed: 0, applesWon: 0,
+  };
 }
 
 const isAmount = (value) => Number.isFinite(value) && value >= 0;
@@ -33,6 +38,9 @@ export function restoreTreeState(data) {
   if (Number.isInteger(data?.sessions) && data.sessions >= 0) state.sessions = data.sessions;
   state.appleReady = data?.appleReady === true;
   if (isAmount(data?.appleInMs)) state.appleInMs = Math.min(data.appleInMs, APPLE_MS);
+  for (const id of ['sessionsPlayed', 'applesWon']) {
+    if (Number.isInteger(data?.[id]) && data[id] >= 0) state[id] = data[id];
+  }
   return state;
 }
 
@@ -71,6 +79,7 @@ export function stopPlaying(game) {
 function completeSession(game) {
   const tree = game.fortuneTree;
   tree.sessions += 1;
+  tree.sessionsPlayed += 1;
   const deltas = changeStats(game.character, { money: SESSION_PAY });
   const { heading, text } = TREE_TEXT.sessionPaid;
   return { heading, text: fill(text, { name: game.character.name }), deltas, celebrate: false };
@@ -109,6 +118,7 @@ export function pickApple(game) {
   tree.appleInMs = APPLE_MS;
   if (!won) return { text: TREE_TEXT.appleLost.text, deltas: {}, celebrate: false };
   tree.sessions = 0;
+  tree.applesWon += 1;
   const deltas = changeStats(game.character, { money: APPLE_REWARD });
   const { heading, text } = TREE_TEXT.appleWon;
   return { heading, text: fill(text, { name: game.character.name }), deltas, celebrate: true };

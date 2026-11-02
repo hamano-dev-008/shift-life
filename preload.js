@@ -1,6 +1,7 @@
 // preload.js — Exposes a minimal API to the renderer as window.shiftLife
-// (window controls, save file access, the sprite file list, and whether
-// it's a dev run), without giving the page access to Node or Electron.
+// (window controls, save file and Book of past lives access, the sprite
+// file list, and whether it's a dev run), without giving the page access
+// to Node or Electron.
 
 const { contextBridge, ipcRenderer } = require('electron');
 
@@ -10,6 +11,8 @@ contextBridge.exposeInMainWorld('shiftLife', {
   loadSave: () => ipcRenderer.invoke('save:load'),
   save: (data) => ipcRenderer.send('save:write', data),
   saveSync: (data) => ipcRenderer.sendSync('save:write-sync', data),
+  loadBook: () => ipcRenderer.invoke('book:load'),
+  saveBook: (data) => ipcRenderer.send('book:write', data),
   isDev: () => ipcRenderer.invoke('app:is-dev'),
   listSprites: () => ipcRenderer.invoke('sprites:list'),
 });

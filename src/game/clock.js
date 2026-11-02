@@ -1,6 +1,7 @@
 // clock.js — Real-time simulation clock. Tracks in-game time in years and
 // advances it by real elapsed time while the app is running, at the
-// current speed (SPEEDS in data/balance.js).
+// current speed (SPEEDS in data/balance.js). A stopped clock (the life
+// has ended) stands still.
 
 import { SPEEDS } from '../data/balance.js';
 
@@ -10,11 +11,14 @@ const TICK_MS = 250;
 // stalled; only this much of it is counted.
 const MAX_TICK_MS = 2000;
 
+// stopped: true once the life has ended (not saved; it follows the end
+// of life state).
 export function createClock(years = 0) {
-  return { years, speed: 'normal' };
+  return { years, speed: 'normal', stopped: false };
 }
 
 export function advanceClock(clock, realMs) {
+  if (clock.stopped) return;
   const msPerYear = (SPEEDS[clock.speed] ?? SPEEDS.normal).secondsPerYear * 1000;
   clock.years += realMs / msPerYear;
 }

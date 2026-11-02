@@ -4,7 +4,7 @@
 // no game logic itself.
 
 import { SPEEDS } from '../data/balance.js';
-import { DEV_SKIP_YEARS, DEV_MONEY } from '../data/dev.js';
+import { DEV_SKIP_YEARS, DEV_MONEY, DEV_HEALTH } from '../data/dev.js';
 import { HOUSING_TIERS, MOVE_OUT_AGE } from '../data/housing.js';
 
 function button(text, onClick, className = '') {
@@ -35,8 +35,10 @@ function row(label, ...children) {
 // (returns whether they were resting), goTo(placeId), place() (current
 // place id), places() (the places that exist now, { id, name }),
 // setTier(tierId), tier() (current housing tier id), toMoveOut()
-// (returns whether the clock moved), readout() (returns { stats, traits,
-// goal, job, tree, place }), speed() (current speed id), onOpen() }.
+// (returns whether the clock moved), endLife() (returns null, or a note
+// on why the life can't end now), setHealth(n), readout() (returns
+// { stats, traits, goal, job, tree, place, life }), speed() (current
+// speed id), onOpen() }.
 export function createDevMenu(menu, gear, actions) {
   const body = menu.querySelector('.dev-body');
   const readout = menu.querySelector('.dev-readout');
@@ -111,7 +113,20 @@ export function createDevMenu(menu, gear, actions) {
       button(place.name, () => { actions.goTo(place.id); render(); },
         actions.place() === place.id ? 'active' : '')));
 
-    const children = [newLife, speeds, skips, extras, tree, home, housing, places];
+    const life = row('Life',
+      button('End life now', () => {
+        note = actions.endLife() ?? '';
+        if (note) {
+          render();
+        } else {
+          close();
+        }
+      }, 'danger'));
+
+    const health = row('Health', ...DEV_HEALTH.map((value) =>
+      button(String(value), () => actions.setHealth(value))));
+
+    const children = [newLife, speeds, skips, extras, tree, home, housing, places, life, health];
     if (note) {
       const message = document.createElement('p');
       message.className = 'dev-note';
@@ -140,8 +155,8 @@ export function createDevMenu(menu, gear, actions) {
     update() {
       if (menu.hidden) return;
       if (placesKey() !== shownPlaces) render();
-      const { stats, traits, goal, job, tree, place } = actions.readout();
-      const lines = [stats, traits, goal, job, tree, place];
+      const { stats, traits, goal, job, tree, place, life } = actions.readout();
+      const lines = [stats, traits, goal, job, tree, place, life];
       const key = lines.join('|');
       if (key === shown) return;
       shown = key;

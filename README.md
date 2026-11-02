@@ -118,6 +118,28 @@ Early development. What works so far:
 - Life runs in real time: one in-game year every 3 real minutes. The
   character grows from baby to child, teen, adult, and elder (grey hair),
   and the top-left label shows their name and age.
+- Growing old and the end of life:
+  - From 50, health drops a little every in-game year. A better home
+    slows it: 3 a year in the sleeping bag, 2 in the tent, 1 in the
+    house. Resting still restores health.
+  - A life ends when health reaches 0, or, from 70, by a yearly chance
+    that grows with age and shrinks with good health; nobody lives past
+    100. Babies, children and teens never die.
+  - There's no game-over screen. Busking or resting stops, the character
+    sits down and closes their eyes, the scene slowly fades, and a soft
+    bubble says "Mia drifted off peacefully at 82." Time, events, jobs
+    and timers stop.
+  - A moment later the life summary opens: a life title such as "The
+    Steady Farmer" or "The Friendly Busker" (from their strongest trait
+    and what their life was about), name and age, goal and milestones,
+    jobs and highest title, money, home and golden apples won. Close it
+    and click the farewell bubble to see it again.
+  - "Start a new life" on the summary starts a fresh baby at the
+    parents' home.
+  - Every finished life goes into the Book of past lives: the book
+    button in the top bar lists them (name, ages, life title); click one
+    to read its summary. The Book is kept across new lives.
+  The numbers and the title rules are in `src/data/endOfLife.js`.
 - The life is saved, so closing and reopening continues it. Time doesn't
   pass while the app is closed.
 
@@ -134,8 +156,10 @@ at one year a second), skip ahead 1 or 10 years, trigger an event, add
 $1,000, finish a busking session instantly, grow a golden apple now,
 rest a minute instantly, jump to age 18 to test moving out, set the
 housing tier (sleeping bag, tent, house), jump to any place without
-walking, and see the character's stats, traits, goal, job, tree
-progress, place and housing.
+walking, end the life now (adults only), set health (0, 10, 50 or 100;
+0 ends an adult's life), and see the character's stats, traits, goal,
+job, tree progress, place, housing, yearly ageing and the chance of the
+life ending on the next birthday.
 It's hidden in packaged builds.
 
 Keyboard shortcuts (window focused): Ctrl+Shift+F toggles fast speed (the
@@ -144,7 +168,8 @@ frown), Ctrl+Shift+E starts an event right away (children and older
 only), Ctrl+Shift+A starts the goal's idle activity, and Ctrl+Shift+W
 sends the character off to work (if they have a job). You can also
 start a new life by closing the app and deleting
-`%APPDATA%\shift-life\save.json`.
+`%APPDATA%\shift-life\save.json`. The Book of past lives is in
+`past-lives.json` next to it.
 
 **Adding sprites:** every graphic is drawn in code for now, but any of
 them can be replaced by your own pixel art, one at a time, without
@@ -193,10 +218,11 @@ npm.cmd start        # launch the game
 ```
 
 In Git Bash, plain `npm` works. The first start downloads Electron, so it
-takes a little longer. Run `npm.cmd test` for interaction rules and pose
-checks (Node 22.7+), and `npm.cmd run test:smoke` for isolated Electron
-click/renderer checks. The smoke check uses in-memory saves, leaving your
-life untouched.
+takes a little longer. Run `npm.cmd test` for interaction rules, pose
+checks and end-of-life logic (Node 22.7+), and `npm.cmd run test:smoke`
+for isolated Electron click/renderer checks, including a whole goodbye
+and new life. The smoke check uses in-memory saves, leaving your life
+and Book untouched.
 
 ## Project layout
 

@@ -1,6 +1,7 @@
 // main.js — Electron main process: creates the floating, frameless,
 // always-on-top companion window, remembers where the player left it,
-// reads/writes the game save file for the renderer, lists the sprite
+// reads/writes the game save file and the Book of past lives for the
+// renderer, lists the sprite
 // PNGs in assets/sprites/, and tells it whether it's running from source
 // (for developer settings).
 
@@ -17,6 +18,11 @@ function stateFile() {
 
 function saveFile() {
   return path.join(app.getPath('userData'), 'save.json');
+}
+
+// The Book of past lives: its own file, so it outlasts each life's save.
+function bookFile() {
+  return path.join(app.getPath('userData'), 'past-lives.json');
 }
 
 // Returns the saved { x, y }, or {} to let Electron center the window.
@@ -105,32 +111,38 @@ ipcMain.handle('sprites:list', () => {
   }
 });
 
-// Returns the parsed save, or null if there is none or it can't be read.
-ipcMain.handle('save:load', () => {
+// Returns the parsed JSON file, or null if there is none or it can't be
+// read.
+function readJson(file) {
   try {
-    return JSON.parse(fs.readFileSync(saveFile(), 'utf8'));
+    return JSON.parse(fs.readFileSync(file, 'utf8'));
   } catch {
     return null;
   }
-});
+}
 
-// Writes to a temp file first so a crash mid-write can't corrupt the save.
-function writeSave(data) {
-  const file = saveFile();
+// Writes to a temp file first so a crash mid-write can't corrupt it.
+function writeJson(file, data) {
   try {
     fs.writeFileSync(`${file}.tmp`, JSON.stringify(data));
     fs.renameSync(`${file}.tmp`, file);
   } catch (err) {
-    console.error('Could not write save:', err);
+    console.error(`Could not write ${path.basename(file)}:`, err);
   }
 }
 
-ipcMain.on('save:write', (event, data) => writeSave(data));
+ipcMain.handle('save:load', () => readJson(saveFile()));
+
+ipcMain.on('save:write', (event, data) => writeJson(saveFile(), data));
 
 ipcMain.on('save:write-sync', (event, data) => {
-  writeSave(data);
+  writeJson(saveFile(), data);
   event.returnValue = true;
 });
+
+ipcMain.handle('book:load', () => readJson(bookFile()));
+
+ipcMain.on('book:write', (event, data) => writeJson(bookFile(), data));
 
 app.whenReady().then(createWindow);
 app.on('window-all-closed', () => app.quit());

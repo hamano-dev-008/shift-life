@@ -2,36 +2,45 @@
 // start a new life, change the clock speed, skip ahead, force an event,
 // add money, finish a busking session, grow a golden apple, rest a
 // minute, switch place, set the housing tier or jump to moving-out age
-// now, and a read-out of the character. The menu (ui/devMenu.js) only
-// calls these.
+// now, end the life now, set health, and a read-out of the character. The
+// menu (ui/devMenu.js) only calls these.
 
 import { SPEEDS } from '../data/balance.js';
 import { STAT_TAGS } from '../data/stats.js';
 import { TRAIT_LABELS } from '../data/traits.js';
-import { createCharacter, changeStats, ageOf } from './character.js';
-import { createEventState, startEvent } from './events.js';
-import { createGoalState, goalById } from './goals.js';
-import { createJobState, careerView } from './jobs.js';
-import { NEW_LIFE_PLACE } from '../data/places.js';
-import { createTreeState, finishSession, makeAppleReady, treeView } from './fortuneTree.js';
+import { DEATH, END_TEXT } from '../data/endOfLife.js';
+import { changeStats, setStat, ageOf } from './character.js';
+import { startEvent } from './events.js';
+import { goalById } from './goals.js';
+import { careerView } from './jobs.js';
+import { finishSession, makeAppleReady, treeView } from './fortuneTree.js';
 import { MOVE_OUT_AGE } from '../data/housing.js';
-import { createHomeState, restOneMinute, isResting } from './home.js';
+import { restOneMinute, isResting } from './home.js';
 import { currentPlace, enterPlace, leavePlace, settlePlace } from './places.js';
-import { createHousingState, setTier, housingText } from './housing.js';
+import { setTier, housingText } from './housing.js';
+import {
+  startNewLife, endLife, canDie, isEnded, endOfLifeText,
+} from './endOfLife.js';
 
-// Replaces the life with a newborn, in place, so everything holding `game`
-// sees the new one. The clock starts over at 0 and keeps its speed. Save
-// right after to wipe the old life from the save file.
+// Replaces the life with a newborn, in place (see startNewLife()), without
+// adding the old one to the Book. Save right after to wipe the old life
+// from the save file.
 export function newLife(game) {
-  game.clock.years = 0;
-  game.character = createCharacter(0);
-  game.events = createEventState(0);
-  game.goals = createGoalState(0);
-  game.jobs = createJobState();
-  game.place = NEW_LIFE_PLACE;
-  game.fortuneTree = createTreeState();
-  game.home = createHomeState();
-  game.housing = createHousingState();
+  startNewLife(game);
+}
+
+// Ends the life now, as if it had come to its natural end. Returns the
+// ended record, or a note on why not ({ note }): too young, or already
+// ended.
+export function endLifeNow(game) {
+  if (isEnded(game)) return { note: END_TEXT.alreadyEnded };
+  if (!canDie(game)) return { note: END_TEXT.tooYoung.replaceAll('{age}', DEATH.minAge) };
+  return { ended: endLife(game, 'dev') };
+}
+
+// Sets health directly. At 0 an adult's life ends on the next tick.
+export function setHealth(game, value) {
+  setStat(game.character, 'health', value);
 }
 
 export function setSpeed(game, speed) {
@@ -48,7 +57,7 @@ export function toggleFastForward(game) {
 // and the next event (if due) comes right away; events aren't replayed
 // for every skipped year.
 export function skipYears(game, years) {
-  game.clock.years += years;
+  if (!game.clock.stopped) game.clock.years += years;
 }
 
 // Replaces any waiting event with a new random one that fits the current
@@ -96,7 +105,7 @@ export function setHousingTier(game, id) {
 // already that old.
 export function jumpToMoveOut(game) {
   const target = game.character.bornAt + MOVE_OUT_AGE;
-  if (game.clock.years >= target) return false;
+  if (game.clock.years >= target || game.clock.stopped) return false;
   game.clock.years = target;
   return true;
 }
@@ -111,7 +120,7 @@ export function goToPlace(game, id) {
 // A compact summary for the menu: "HP 80  JOY 70  IQ 35  $120",
 // "Bold · Shy", "Scholar, 3y (age 12)", "Developer 2/3, $170/yr",
 // "Tree: busking 2:10, 3 sess, apple 85m", "Place: My Yard, resting ·
-// Tent".
+// Tent", "Life: -2 HP/yr from 50, next bday 4%".
 export function devReadout(game) {
   const { character, goals, clock } = game;
   const stats = Object.entries(character.stats).map(([id, value]) =>
@@ -124,6 +133,7 @@ export function devReadout(game) {
     job: jobText(careerView(game)),
     tree: treeText(treeView(game)),
     place: `Place: ${currentPlace(game).name}${isResting(game) ? ', resting' : ''} · ${housingText(game)}`,
+    life: endOfLifeText(game),
   };
 }
 

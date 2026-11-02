@@ -1,55 +1,64 @@
 // renderer.js — Renderer entry point: loads the saved life or starts a new
 // one, runs the clock, life events, goals, jobs, the Fortune Tree,
-// resting and moving out, draws the current place each frame (rebuilt when
-// the housing changes it), walks the character between places, and wires
-// up controls, the click areas over props, the tree, rest and Go to menus,
-// the dev settings menu (dev runs only) and saving.
+// resting, moving out and the end of life, draws the current place each
+// frame (rebuilt when the housing changes it), walks the character between
+// places, plays the gentle goodbye when a life ends (sitting down, the
+// fade, the farewell bubble, the summary card), and wires up controls, the
+// click areas over props, the tree, rest and Go to menus, the Book of past
+// lives, the dev settings menu (dev runs only) and saving.
 
 import { POKE } from './data/interaction.js';
 import { createInteraction, calmInteraction, pokeCharacter } from './game/interaction.js';
 import { createCharacterTarget, reactionPose } from './ui/interaction.js';
 import { createClock, startClock } from './game/clock.js';
-import { createCharacter, ageOf, lifeStageOf, expressionOf, setStat } from './game/character.js';
+import { ageOf, lifeStageOf, expressionOf, setStat } from './game/character.js';
 import {
-  createEventState, updateEvents, startEvent, postponeAutoDecide, pendingEventView, chooseEvent,
+  updateEvents, startEvent, postponeAutoDecide, pendingEventView, chooseEvent,
 } from './game/events.js';
 import {
-  createGoalState, updateGoals, setGoal, goalView, activeActivity,
+  updateGoals, setGoal, goalView, activeActivity,
 } from './game/goals.js';
 import {
-  createJobState, updateJobs, isEmployed, jobItem, careerView,
+  updateJobs, isEmployed, jobItem, careerView,
 } from './game/jobs.js';
 import {
   placeById, currentPlace, existingPlaces, exitBetween, routeBetween, enterPlace, leavePlace,
   settlePlace, restSpotOf, updatePlaces,
 } from './game/places.js';
 import {
-  createTreeState, updateFortuneTree, isPlaying, startPlaying, stopPlaying, pickApple, treeView,
+  updateFortuneTree, isPlaying, startPlaying, stopPlaying, pickApple, treeView,
 } from './game/fortuneTree.js';
 import {
-  createHomeState, updateHome, isResting, startResting, stopResting, restView,
+  updateHome, isResting, startResting, stopResting, restView,
 } from './game/home.js';
-import { createHousingState, upgradeView, buyUpgrade } from './game/housing.js';
-import { loadGame, saveGame, saveGameNow } from './game/save.js';
+import { upgradeView, buyUpgrade } from './game/housing.js';
+import {
+  updateEndOfLife, startNewLife, recordLife, bookView, farewellText,
+} from './game/endOfLife.js';
+import { loadGame, saveGame, saveGameNow, loadBook, saveBook } from './game/save.js';
 import {
   newLife, setSpeed, toggleFastForward, skipYears, triggerEvent, addMoney, finishBuskingSession,
-  appleNow, finishRest, goToPlace, setHousingTier, jumpToMoveOut, devReadout,
+  appleNow, finishRest, goToPlace, setHousingTier, jumpToMoveOut, endLifeNow, setHealth, devReadout,
 } from './game/dev.js';
 import { RESULT_BUBBLE_SECONDS, MILESTONE_BUBBLE_SECONDS } from './data/animation.js';
 import { SPEEDS } from './data/balance.js';
 import { CRAWL_UNTIL_AGE, FIRST_STEPS } from './data/infant.js';
-import { NEW_LIFE_PLACE, TRAVEL, PLACE_TEXT } from './data/places.js';
+import { TRAVEL, PLACE_TEXT } from './data/places.js';
+import { FAREWELL, END_TEXT } from './data/endOfLife.js';
 import { FORTUNE_TREE_PLACE, TREE_PROP } from './data/fortuneTree.js';
 import { REST_SEATS } from './data/home.js';
 import { computeLayout, createScenery, propClickRect } from './ui/scene.js';
 import { drawGoldenApple } from './ui/goldenApple.js';
 import { createTreeMenu } from './ui/treeMenu.js';
+import { drawFarewellFade } from './ui/farewell.js';
+import { createSummaryCard } from './ui/lifeSummary.js';
+import { createBookMenu } from './ui/pastLives.js';
 import { createRestMenu } from './ui/restMenu.js';
 import { createGoMenu } from './ui/goMenu.js';
 import { loadSprites } from './ui/assets.js';
 import {
   createAnimator, updateAnimator, poseOf, startActivityNow, goToWorkNow, gaitOf,
-  travelTo, hasExited, enterScene, placeIn, setLayout,
+  travelTo, hasExited, enterScene, placeIn, setLayout, stopTravelling,
 } from './ui/animator.js';
 import { drawCharacter, figureHeight } from './ui/sprite.js';
 import {
@@ -90,19 +99,9 @@ const speech = document.getElementById('speech');
 const placeLabel = document.getElementById('place');
 const targets = document.getElementById('targets');
 
+// A newborn at the parents' home (startNewLife() fills in everything).
 function newGame() {
-  const clock = createClock();
-  return {
-    clock,
-    character: createCharacter(clock.years),
-    events: createEventState(clock.years),
-    goals: createGoalState(clock.years),
-    jobs: createJobState(),
-    place: NEW_LIFE_PLACE,
-    fortuneTree: createTreeState(),
-    home: createHomeState(),
-    housing: createHousingState(),
-  };
+  return startNewLife({ clock: createClock() });
 }
 
 function setText(element, text) {
@@ -112,6 +111,10 @@ function setText(element, text) {
 async function start() {
   const game = (await loadGame()) ?? newGame();
   saveGame(game);
+  // The Book of past lives, in its own file. A life that ended just
+  // before the app closed is added now if it didn't make it in.
+  const book = await loadBook();
+  if (recordLife(book, game.endOfLife.ended)) saveBook(book);
   startClock(game.clock);
   setInterval(() => saveGame(game), AUTOSAVE_MS);
   // Fires however the window closes (button, Alt+F4, taskbar).
@@ -135,7 +138,9 @@ async function start() {
   function showBubble(bubble, now) {
     pokeSpeech = false;
     speech.replaceChildren();
-    speech.classList.toggle('celebrate', bubble.celebrate);
+    speech.dataset.farewell = '';
+    speech.classList.remove('farewell', 'clickable');
+    speech.classList.toggle('celebrate', Boolean(bubble.celebrate));
     if (bubble.heading) {
       const heading = document.createElement('span');
       heading.className = 'heading';
@@ -183,7 +188,7 @@ async function start() {
   function closePanels(except = null) {
     if (except !== 'event') closeEventCard();
     for (const [id, panel] of [['goal', goalMenu], ['tree', treeMenu], ['rest', restMenu],
-      ['go', goMenu], ['dev', devMenu]]) {
+      ['go', goMenu], ['summary', summaryCard], ['book', bookMenu], ['dev', devMenu]]) {
       if (id !== except) panel?.close();
     }
   }
@@ -250,6 +255,20 @@ async function start() {
     go: (id) => startTrip(id),
     onOpen: () => closePanels('go'),
   });
+  // After a life ends: its summary card (with "Start a new life"), and the
+  // Book of past lives (its button shows once a life is in it).
+  const summaryCard = createSummaryCard(document.getElementById('summary-card'), {
+    onNewLife: () => restartLife(),
+    onOpen: () => closePanels('summary'),
+  });
+  const bookMenu = createBookMenu(document.getElementById('book-menu'), document.getElementById('book-btn'), {
+    onOpen: () => closePanels('book'),
+  });
+  function openSummary() {
+    const { ended } = game.endOfLife;
+    if (ended) summaryCard.open(ended.summary);
+  }
+
   function openEventCard() {
     const view = pendingEventView(game);
     if (!view) return;
@@ -280,11 +299,22 @@ async function start() {
   // Fortune Tree's and resting's timers get real time, so game speed
   // doesn't change them. Moving out happens here too (the frame loop then
   // shows where they are).
+  //
+  // Ageing and the end of life come first. Once a life has ended nothing
+  // else runs: the clock has stopped, and events, goals, jobs and the
+  // tree's and resting's timers stand still. The frame loop plays the
+  // goodbye.
   let lastTick = performance.now();
   setInterval(() => {
     const tickNow = performance.now();
     const realMs = Math.min(tickNow - lastTick, MAX_TICK_MS);
     lastTick = tickNow;
+    if (game.endOfLife.ended) return;
+    const health = game.character.stats.health;
+    if (updateEndOfLife(game)) {
+      lifeEnded();
+      return;
+    }
     const freeze = isPlaying(game) || isResting(game);
     const result = updateEvents(game, { holdAutoDecide: eventCard.isOpen(), freeze });
     if (result) showResult(result);
@@ -298,8 +328,24 @@ async function start() {
     const moved = updatePlaces(game);
     if (moved) showNews(moved);
     checkFirstSteps();
-    if (result || reached.length || jobNews.length || treeNews.length || rested || moved) saveGame(game);
+    const aged = game.character.stats.health !== health;
+    if (result || reached.length || jobNews.length || treeNews.length || rested || moved || aged) {
+      saveGame(game);
+    }
   }, LIFE_TICK_MS);
+
+  // The life has just ended (endLife() has stopped everything): clears
+  // what was waiting to be shown, adds the life to the Book and saves.
+  // The frame loop then sits the character down and fades the scene.
+  function lifeEnded() {
+    closePanels();
+    bubbles.length = 0;
+    speechUntil = 0;
+    pokeSpeech = false;
+    recordLife(book, game.endOfLife.ended);
+    saveBook(book);
+    saveGame(game);
+  }
 
   const statsPanel = createStatsPanel(label, document.getElementById('stats'));
   // Sprite PNGs replace code-drawn art where they exist (data/sprites.js).
@@ -358,6 +404,7 @@ async function start() {
   showPlace();
   const characterTarget = createCharacterTarget(document.getElementById('character-target'),
     canvas.width, canvas.height, (now) => {
+      if (game.endOfLife.ended) return;
       const result = pokeCharacter(game.character, interaction, now);
       if (Object.keys(result.deltas).length) saveGame(game);
       // Optional chatter never queues or covers an event or important news.
@@ -446,10 +493,75 @@ async function start() {
     }
   }
 
-  // Where the character stays put, if anywhere: under the tree while
-  // busking, on the sofa, sleeping bag or tent while resting.
+  // The gentle goodbye, while the life has ended: { since (when the fade
+  // began, performance.now() ms), x (where they sit), summaryAt (when the
+  // summary card opens by itself), summarySeen }. A life that had already
+  // ended when the app opened starts fully faded.
+  let farewell = null;
+  let openedEnded = Boolean(game.endOfLife.ended);
+  function startFarewell(now) {
+    trip = null;
+    stopTravelling(animator);
+    const { wanderMinX, wanderMaxX } = scene.layout;
+    const after = openedEnded ? FAREWELL.summaryAfterLoad : FAREWELL.summaryAfter;
+    farewell = {
+      since: now - (openedEnded ? FAREWELL.fadeSeconds * 1000 : 0),
+      x: Math.min(Math.max(animator.x, wanderMinX), wanderMaxX),
+      summaryAt: now + after * 1000,
+      summarySeen: false,
+    };
+    openedEnded = false;
+  }
+
+  // The soft goodbye bubble over the head. Once the summary has been
+  // seen, clicking it opens the summary again.
+  function showFarewell() {
+    const key = farewell.summarySeen ? 'hint' : 'plain';
+    if (speech.dataset.farewell === key) return;
+    speech.dataset.farewell = key;
+    speech.classList.remove('celebrate');
+    speech.classList.add('farewell');
+    speech.classList.toggle('clickable', farewell.summarySeen);
+    speech.title = farewell.summarySeen ? END_TEXT.farewellHint : '';
+    speech.replaceChildren(farewellText(game.endOfLife.ended));
+    if (farewell.summarySeen) {
+      const hint = document.createElement('span');
+      hint.className = 'hint';
+      hint.textContent = END_TEXT.farewellHint;
+      speech.append(hint);
+    }
+  }
+  speech.addEventListener('click', () => {
+    if (farewell?.summarySeen) openSummary();
+  });
+
+  // Starts a fresh life at the parents' home, in place (the summary
+  // card's "Start a new life", or the dev menu's New life), and resets
+  // the screen for it.
+  function restartLife(start = startNewLife) {
+    start(game);
+    interaction = createInteraction();
+    pokeSpeech = false;
+    saveGameNow(game);
+    bubbles.length = 0;
+    speechUntil = 0;
+    speech.dataset.farewell = '';
+    speech.title = '';
+    speech.classList.remove('farewell', 'clickable');
+    farewell = null;
+    lastAge = 0;
+    closePanels();
+    trip = null;
+    showPlace();
+    animator = createAnimator(scene.layout);
+  }
+
+  // Where the character stays put, if anywhere: sitting at the end of a
+  // life, under the tree while busking, on the sofa, sleeping bag or tent
+  // while resting.
   function stayOf() {
     const { place, layout } = scene;
+    if (farewell) return { x: farewell.x, mode: 'farewell' };
     if (place.id === FORTUNE_TREE_PLACE && isPlaying(game) && layout.props[TREE_PROP]) {
       return { x: layout.props[TREE_PROP].visitX, mode: 'busking' };
     }
@@ -476,23 +588,12 @@ async function start() {
     const gear = document.getElementById('dev-btn');
     gear.hidden = false;
     devMenu = createDevMenu(document.getElementById('dev-menu'), gear, {
-      newLife: () => {
-        newLife(game);
-        interaction = createInteraction();
-        pokeSpeech = false;
-        saveGameNow(game);
-        bubbles.length = 0;
-        speechUntil = 0;
-        closePanels();
-        trip = null;
-        showPlace();
-        animator = createAnimator(scene.layout);
-      },
+      newLife: () => restartLife(newLife),
       setSpeed: (speed) => setSpeed(game, speed),
       speed: () => game.clock.speed,
       skipYears: (years) => skipYears(game, years),
       triggerEvent: () => {
-        if (!triggerEvent(game)) return false;
+        if (game.endOfLife.ended || !triggerEvent(game)) return false;
         openEventCard();
         return true;
       },
@@ -517,6 +618,7 @@ async function start() {
         return true;
       },
       goTo: (id) => {
+        if (game.endOfLife.ended) return;
         trip = null;
         goToPlace(game, id);
         saveGame(game);
@@ -530,6 +632,16 @@ async function start() {
       },
       tier: () => game.housing.tier,
       toMoveOut: () => jumpToMoveOut(game),
+      endLife: () => {
+        const { note } = endLifeNow(game);
+        if (note) return note;
+        lifeEnded();
+        return null;
+      },
+      setHealth: (value) => {
+        setHealth(game, value);
+        saveGame(game);
+      },
       readout: () => devReadout(game),
       onOpen: () => closePanels('dev'),
     });
@@ -540,7 +652,7 @@ async function start() {
   // Ctrl+Shift+A starts the goal's idle activity now, Ctrl+Shift+W sends
   // the character to work (if they have a job).
   window.addEventListener('keydown', (event) => {
-    if (!event.ctrlKey || !event.shiftKey) return;
+    if (!event.ctrlKey || !event.shiftKey || game.endOfLife.ended) return;
     if (event.code === 'KeyF') {
       toggleFastForward(game);
     } else if (event.code === 'KeyM') {
@@ -568,6 +680,8 @@ async function start() {
     const needed = Boolean(game.events.pending) || bubbles.length > 0 || (now < speechUntil && !pokeSpeech)
       || eventCard.isOpen();
     followMapChanges();
+    const { ended } = game.endOfLife;
+    if (ended && !farewell) startFarewell(now);
     updateAnimator(animator, dt, stage, gaitOf(age), {
       activity: activeActivity(game), employed: isEmployed(game), needed, stay: stayOf(),
     });
@@ -585,24 +699,36 @@ async function start() {
     }
     drawCharacter(ctx, pose, stage, game.character.appearance,
       expression, layout.feetY, layout.characterScale, jobItem(game));
-    characterTarget.update((hitCtx) => drawCharacter(hitCtx, pose, stage, game.character.appearance,
+    if (farewell) drawFarewellFade(ctx, canvas.width, canvas.height, (now - farewell.since) / 1000);
+    // No pokes once the life has ended (nothing drawn: no click target).
+    characterTarget.update((hitCtx) => ended || drawCharacter(hitCtx, pose, stage, game.character.appearance,
       expression, layout.feetY, layout.characterScale, jobItem(game), true));
     const { mark } = SPEEDS[game.clock.speed];
     setText(label, `${game.character.name} · ${age}y${mark ? ` ${mark}` : ''}`);
     setText(placeLabel, trip
       ? PLACE_TEXT.travelling.replaceAll('{place}', place.name).replaceAll('{to}', placeById(trip.to).name)
       : place.name);
-    targets.hidden = Boolean(trip);
+    targets.hidden = Boolean(trip) || Boolean(ended);
 
     // Bubbles follow the character's head. Text bubbles take the spot
     // first; a new "!" waits until they're done.
-    if (now >= speechUntil && bubbles.length) showBubble(bubbles.shift(), now);
+    // At the end of a life the farewell bubble stays instead, and the
+    // summary card opens by itself after a while.
+    if (farewell) {
+      if (!farewell.summarySeen && now >= farewell.summaryAt) {
+        farewell.summarySeen = true;
+        openSummary();
+      }
+      showFarewell();
+    } else if (now >= speechUntil && bubbles.length) {
+      showBubble(bubbles.shift(), now);
+    }
     if (pokeSpeech && (game.events.pending || eventCard.isOpen() || now >= speechUntil)) {
       speechUntil = 0;
       pokeSpeech = false;
     }
     const bubbleY = bubbleBottomY(layout, figureHeight(stage, pose)) - pose.lift;
-    const speaking = now < speechUntil;
+    const speaking = Boolean(farewell) || now < speechUntil;
     speech.hidden = !speaking;
     if (speaking) placeSpeech(speech, layout, pose.x, bubbleY);
     const showAlert = Boolean(game.events.pending) && !speaking && !eventCard.isOpen();
@@ -611,10 +737,12 @@ async function start() {
       placeOver(eventBubble, drawEventBubble(ctx, layout, pose.x, bubbleY, animator.time));
     }
     statsPanel.update(game.character, careerView(game));
-    goalMenu.update(goalView(game));
+    const goals = goalView(game);
+    goalMenu.update(ended ? { ...goals, unlocked: false } : goals);
     treeMenu.update(place.name, place.id === FORTUNE_TREE_PLACE ? treeView(game) : null);
     restMenu.update(restMenuView());
-    goMenu.update(place, existingPlaces(game), Boolean(trip));
+    goMenu.update(place, existingPlaces(game), Boolean(trip) || Boolean(ended));
+    bookMenu.update(bookView(book));
     devMenu?.update();
 
     requestAnimationFrame(frame);

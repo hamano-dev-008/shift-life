@@ -3,9 +3,12 @@ const { app, BrowserWindow, ipcMain, protocol, net, nativeImage } = require('ele
 const path = require('node:path');
 const assert = require('node:assert/strict');
 let saved;
+let savedBook = null;
 let spriteFiles = [];
 const errors = [];
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+// Long enough for the summary card to open by itself (FAREWELL.summaryAfter).
+const FAREWELL_WAIT = 9500;
 ipcMain.handle('save:load', () => ({ version: 1, clock: { years: 10 }, place: 'home',
   character: { name: 'Poke Test', bornAt: 0, stats: { health: 60, happiness: 50, smarts: 50, money: 100 },
     traits: [], appearance: { skin: '#e8b98a', hair: '#442211', shirt: '#4488cc' } },
@@ -14,6 +17,8 @@ ipcMain.handle('app:is-dev', () => true);
 ipcMain.handle('sprites:list', () => spriteFiles);
 ipcMain.on('save:write', (_, value) => { saved = value; });
 ipcMain.on('save:write-sync', (event, value) => { saved = value; event.returnValue = true; });
+ipcMain.handle('book:load', () => savedBook);
+ipcMain.on('book:write', (_, value) => { savedBook = value; });
 
 app.whenReady().then(async () => {
   protocol.handle('file', (request) => {
@@ -143,8 +148,37 @@ app.whenReady().then(async () => {
       return host.children.length===4 && [...host.children].every(r=>r.style.width==='4px')
         && parseInt(host.firstChild.style.left)===156;
     })()`), true);
+    // End of life: a gentle stop, the summary card, the Book, a new life.
+    const devClick = (label) => js(`[...document.querySelectorAll("#dev-menu button")]
+      .find(b=>b.textContent===${JSON.stringify(label)}).click()`);
+    await js('document.querySelector("#dev-btn").click()');
+    await devClick('To 18');
+    await wait(400);
+    await devClick('End life now');
+    await wait(200);
+    assert.equal(saved.endOfLife.ended.cause, 'dev');
+    assert.equal(saved.fortuneTree.playing, false);
+    assert.equal(saved.events.pending, null);
+    assert.equal(savedBook.lives.length, 1);
+    assert.match(await js('document.querySelector("#speech").textContent'), /drifted off peacefully at 18\./);
+    assert.equal(await js('document.querySelector("#character-target").hidden'), true);
+    const years = saved.clock.years;
+    await wait(FAREWELL_WAIT);
+    assert.equal(await js('document.querySelector("#summary-card").hidden'), false);
+    assert.match(await js('document.querySelector("#summary-card").textContent'), /The .+Poke Test, 0-18.*Start a new life/s);
+    assert.equal(saved.clock.years, years);
+    assert.equal(await js('document.querySelector("#book-btn").hidden'), false);
+    await js('[...document.querySelectorAll("#summary-card button")].find(b=>b.textContent==="Start a new life").click()');
+    await wait(100);
+    assert.equal(saved.endOfLife.ended, null);
+    assert.ok(saved.clock.years < 0.1);
+    assert.equal(saved.place, 'home');
+    await js('document.querySelector("#book-btn").click()');
+    assert.match(await js('document.querySelector("#book-menu").textContent'), /Book of past lives.*Poke Test, 0-18/s);
+    await js('document.querySelector("#book-menu .book-list button").click()');
+    assert.match(await js('document.querySelector("#book-menu").textContent'), /Golden apples.*Back/s);
     assert.deepEqual(errors, []);
-    console.log('PASS: native gentle/rapid clicks, spam, calming, moving hit regions, drag rejection, 25 poses, offscreen, prop/event priority, rest/travel/busking preserved, transparent sprite; no renderer errors.');
+    console.log('PASS: native gentle/rapid clicks, spam, calming, moving hit regions, drag rejection, 25 poses, offscreen, prop/event priority, rest/travel/busking preserved, transparent sprite, end of life, summary, Book, new life; no renderer errors.');
   } catch (error) {
     console.error(error);
     process.exitCode = 1;

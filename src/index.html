@@ -50,6 +50,17 @@
       <div class="menu-options"></div>
       <p class="menu-status"></p>
     </section>
+    <!-- The life summary, shown after a life ends. -->
+    <section id="summary-card" class="panel scroll" hidden>
+      <button class="panel-close" title="Close" aria-label="Close">x</button>
+      <div class="summary-body"></div>
+      <div class="menu-options"></div>
+    </section>
+    <!-- The Book of past lives: every finished life. -->
+    <section id="book-menu" class="panel scroll" hidden>
+      <button class="panel-close" title="Close" aria-label="Close">x</button>
+      <div class="book-body"></div>
+    </section>
     <!-- Developer settings; the gear only shows when running from source. -->
     <section id="dev-menu" class="panel" hidden>
       <button class="panel-close" title="Close" aria-label="Close">x</button>
@@ -62,6 +73,12 @@
     <div id="stats" hidden></div>
     <div id="controls">
       <button id="goal-btn" title="Life goal" hidden></button>
+      <button id="book-btn" title="Book of past lives" aria-label="Book of past lives" hidden>
+        <!-- 8x8 pixel book. -->
+        <svg viewBox="0 0 8 8" width="8" height="8" shape-rendering="crispEdges" aria-hidden="true">
+          <path fill="currentColor" d="M1 0h7v1h-7zM0 1h1v6h-1zM2 1h1v5h-1zM7 1h1v5h-1zM4 2h2v1h-2zM1 6h7v1h-7zM1 7h6v1h-6z"/>
+        </svg>
+      </button>
       <button id="go-btn" title="Go to" aria-label="Go to">
         <!-- 8x8 pixel map pin. -->
         <svg viewBox="0 0 8 8" width="8" height="8" shape-rendering="crispEdges" aria-hidden="true">
