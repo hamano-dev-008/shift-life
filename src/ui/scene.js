@@ -213,6 +213,31 @@ export function propClickRect(layout, id) {
   };
 }
 
+// Draws prop `id` alone, as the scenery draws it (an animated sprite's
+// frame `seconds` in), for its hover outline's silhouette. Returns the
+// screen pixels per pixel of its art, or null if the place has no such
+// prop or it's drawn by something else (the dock is part of the Lake's
+// picture).
+export function drawPropAlone(ctx, layout, id, seconds = 0) {
+  const piece = SCENERY.find((candidate) => candidate.name === id);
+  if (!piece || !layout.props[id]) return null;
+  const sprite = getSprite(id);
+  if (sprite) {
+    piece.drawSprite(ctx, layout, sprite, isAnimated(sprite) ? frameAtTime(sprite, seconds) : 0);
+    return scaleOf(layout, sprite);
+  }
+  if (piece.drawCode === NO_ART) return null;
+  piece.drawCode(ctx, layout);
+  return layout.scale;
+}
+
+// Which frame of prop `id`'s sprite shows `seconds` in (0 for a still
+// one or a code-drawn prop).
+export function propArtFrame(id, seconds) {
+  const sprite = getSprite(id);
+  return sprite && isAnimated(sprite) ? frameAtTime(sprite, seconds) : 0;
+}
+
 function placeProp(ctx, layout, sprite, frame, id) {
   const rect = propRect(layout, id);
   drawSprite(ctx, sprite, frame, rect.left, rect.top + rect.height, rect.scale);
@@ -265,6 +290,9 @@ function background(name, drawCode, fallback = null) {
   };
 }
 
+// The drawing of a prop that has no art of its own (the dock).
+function NO_ART() {}
+
 // Every scenery piece a place can show (data/places.js lists which, back
 // to front). Each has its sprite name (see data/sprites.js), how to draw
 // that sprite's frame, and the code-drawn fallback; or, for a live piece,
@@ -285,7 +313,7 @@ const SCENERY = [
   background('lake', drawLake),
   { name: 'lake.shimmer', drawLive: drawShimmer },
   // Part of the Lake's background; only its click area and visit spot.
-  prop(DOCK_PROP, () => {}),
+  prop(DOCK_PROP, NO_ART),
   // The Fortune Tree's picture; sky and grass without it.
   background(TREE_BACKGROUND, null, TREE_BACKGROUND_FALLBACK),
   prop(WELL_PROP, drawWell),

@@ -101,7 +101,7 @@ app.whenReady().then(async () => {
   // top, or { covered } if none is. Anything else on top is a bug:
   // { blocked: what }.
   const propAt = (title) => js(`(() => {
-    const el = document.querySelector('#targets button[title=' + ${JSON.stringify(JSON.stringify(title))} + ']');
+    const el = document.querySelector('#targets button[aria-label=' + ${JSON.stringify(JSON.stringify(title))} + ']');
     if (!el) return { missing: 'no click area' };
     const r = el.getBoundingClientRect();
     if (!r.width || !r.height) return { missing: 'hidden' };
@@ -138,7 +138,7 @@ app.whenReady().then(async () => {
   // Every prop click area here is on top at its middle.
   async function checkProps(when) {
     assert.equal(await js('document.querySelector("#targets").hidden'), false, `prop click areas hidden (${when})`);
-    const titles = await js('[...document.querySelectorAll("#targets button")].map((b) => b.title)');
+    const titles = await js('[...document.querySelectorAll("#targets button")].map((b) => b.getAttribute("aria-label"))');
     assert.ok(titles.length > 0, `no prop click areas (${when})`);
     for (const title of titles) await propPoint(title, when);
     return titles;
@@ -370,7 +370,7 @@ app.whenReady().then(async () => {
     // from the yard they're on the far (right) side: after "Play an
     // instrument" the bar says they're walking, all the way over, and only
     // once they've settled under the tree "Busking - 0:00".
-    const tree = await js(`(() => { const r = document.querySelector('#targets button[title="Fortune Tree"]')
+    const tree = await js(`(() => { const r = document.querySelector('#targets button[aria-label="Fortune Tree"]')
       .getBoundingClientRect(); return { left: r.left, right: r.right }; })()`);
     let farX = null;
     for (let i = 0; i < 60 && farX === null; i++) {
@@ -413,7 +413,7 @@ app.whenReady().then(async () => {
     // couple of seconds, and a press-and-move from it, or from the
     // background, moves the window without the bubble.
     const clickAreas = await js(`(() => {
-      const box = (title) => document.querySelector('#targets button[title="' + title + '"]').getBoundingClientRect().toJSON();
+      const box = (title) => document.querySelector('#targets button[aria-label="' + title + '"]').getBoundingClientRect().toJSON();
       return { well: box('Wishing well'), tree: box('Fortune Tree') };
     })()`);
     assert.ok(clickAreas.well.right <= clickAreas.tree.left,
@@ -498,15 +498,15 @@ app.whenReady().then(async () => {
     // happiness (once per cooldown); the dev menu makes one croak and adds
     // a butterfly.
     await wait(300);
-    const frogs = await js('document.querySelectorAll("#wildlife button[title=Frog]").length');
+    const frogs = await js('document.querySelectorAll("#wildlife button[aria-label=Frog]").length');
     assert.ok(frogs >= 1 && frogs <= 2, `${frogs} frogs`);
     const happy = saved.character.stats.happiness;
-    await js('document.querySelector("#wildlife button[title=Frog]").click()');
+    await js('document.querySelector("#wildlife button[aria-label=Frog]").click()');
     await wait(60);
     assert.equal(await js('document.querySelector("#critter-bubble").hidden'), false);
     assert.equal(await js('document.querySelector("#critter-bubble").textContent'), 'ribbit!');
     assert.equal(saved.character.stats.happiness, happy + 1);
-    await js('document.querySelector("#wildlife button[title=Frog]")?.click()');
+    await js('document.querySelector("#wildlife button[aria-label=Frog]")?.click()');
     await wait(60);
     assert.equal(saved.character.stats.happiness, happy + 1);
     // Once the hop is over, a frog croaks for the dev menu.
@@ -517,7 +517,7 @@ app.whenReady().then(async () => {
     await js('document.querySelector("#dev-btn").click()');
     await devClick('Blue one');
     await wait(1200);
-    assert.ok(await js('document.querySelectorAll("#wildlife button[title=Butterfly]").length') >= 1);
+    assert.ok(await js('document.querySelectorAll("#wildlife button[aria-label=Butterfly]").length') >= 1);
     // The dock opens its menu; a baby is too young to fish.
     await checkProps('the Lake with butterflies about');
     await pressProp('Dock');
@@ -666,9 +666,82 @@ app.whenReady().then(async () => {
     assert.equal(await js('document.querySelector("#dev-menu").hidden'), true);
     await wait(1500);
     assert.deepEqual(await checkProps('Fortune Tree in a gust, the apple glowing'), ['Fortune Tree', 'Wishing well']);
+    // The hover outline: the pointer over the tree, the character, the
+    // sofa and the dock outlines just that (the canvas's data-hover, and
+    // white pixels drawn around it), gone as soon as the pointer leaves;
+    // none with a menu open; clicks work as before. No native tooltips
+    // on the click targets.
+    const hoverKey = () => js('document.querySelector("#scene").dataset.hover ?? ""');
+    const untilHover = async (want) => {
+      for (let i = 0; i < 40 && (await hoverKey()) !== want; i++) await wait(50);
+      return hoverKey();
+    };
+    const moveTo = async (p) => {
+      win.webContents.sendInputEvent({ type: 'mouseMove', x: p.x, y: p.y });
+      await wait(120);
+    };
+    const targetBox = (label) => js(`document.querySelector('#targets button[aria-label="${label}"]').getBoundingClientRect().toJSON()`);
+    // Pixels in and around `box` that turned whiter than in the last
+    // snapshot (`snap: true` takes one): every channel 200+ now and
+    // lighter by 30+ in all. The outline is white; the scene moving
+    // (leaves, sparkles) changes few pixels that way.
+    const whitened = (box, snap = false) => js(`(() => {
+      const b = ${JSON.stringify(box)}; const pad = 12;
+      const x = Math.max(0, Math.floor(b.left - pad)); const y = Math.max(0, Math.floor(b.top - pad));
+      const w = Math.min(320 - x, Math.ceil(b.width + 2 * pad)); const h = Math.min(240 - y, Math.ceil(b.height + 2 * pad));
+      const d = document.querySelector('#scene').getContext('2d').getImageData(x, y, w, h).data;
+      if (${snap}) { window.__hoverSnap = d; return 0; }
+      const s = window.__hoverSnap;
+      let n = 0;
+      for (let i = 0; i < d.length; i += 4) {
+        if (d[i] >= 200 && d[i + 1] >= 200 && d[i + 2] >= 200
+          && d[i] + d[i + 1] + d[i + 2] - s[i] - s[i + 1] - s[i + 2] >= 30) n++;
+      }
+      return n; })()`);
+    async function checkHoverProp(label, key) {
+      const away = await backgroundPoint();
+      await moveTo(away);
+      assert.equal(await untilHover(''), '', `${label}: an outline with the pointer on the background`);
+      const box = await targetBox(label);
+      await whitened(box, true);
+      const over = await propPoint(label, `hovering ${label}`);
+      await moveTo(over);
+      assert.equal(await untilHover(key), key, `${label}: no outline while hovering`);
+      const lit = await whitened(box);
+      assert.ok(lit > 300, `${label}: only ${lit} outline pixels`);
+      await moveTo(away);
+      assert.equal(await untilHover(''), '', `${label}: the outline stayed after the pointer left`);
+      const left = await whitened(box);
+      assert.ok(left < lit / 4, `${label}: ${left} of ${lit} outline pixels left behind`);
+      return over;
+    }
+    assert.equal(await js('document.querySelectorAll("#targets button[title], #wildlife button[title]").length'), 0,
+      'click targets show native tooltips');
+    assert.equal(await js('[...document.querySelectorAll("#targets button")].every((b) => b.getAttribute("aria-label"))'), true);
+    const treeAt = await checkHoverProp('Fortune Tree', 'prop:tree');
+    await moveTo(treeAt);
+    assert.equal(await untilHover('prop:tree'), 'prop:tree');
+    await click(treeAt);
+    assert.deepEqual(await openPanels(), ['tree-menu'], 'a click on the hovered tree opens its menu');
+    await wait(150);
+    assert.equal(await hoverKey(), '', 'an outline with a menu open');
+    await press('document.querySelector("#tree-menu .panel-close")');
+    const at = await point();
+    await moveTo(at);
+    assert.equal(await untilHover('character'), 'character', 'no outline while hovering the character');
+    await moveTo(await backgroundPoint());
+    assert.equal(await untilHover(''), '');
+    await dev('Home');
+    const sofaAt = await checkHoverProp('Sofa', 'prop:home.sofa');
+    await moveTo(sofaAt);
+    await click(sofaAt);
+    assert.deepEqual(await openPanels(), ['rest-menu'], 'a click on the hovered sofa opens the rest menu');
+    await press('document.querySelector("#rest-menu .panel-close")');
+    await dev('Lake');
+    await checkHoverProp('Dock', 'prop:lake.dock');
     assert.deepEqual(await appRegions(), []);
     assert.deepEqual(errors, []);
-    console.log(`PASS: the Fortune Tree's wishing well (its bubble, click area apart from the tree's, drags from it and the background), activities start only on arrival (walking to the tree from the far side, then "Busking - 0:00"; the sofa; the dock), no -webkit-app-region anywhere, JS window drags (background, character, tree: the window follows, no poke, no menu), plain clicks on every prop in every place, native gentle/rapid clicks, spam, calming, moving hit regions, drag rejection, 25 poses, offscreen, prop/event priority, real clicks on props and menus, prop click areas on top in every place (at rest, after travel, menus closed, an event waiting, the activity bar, a catch reveal), rest/travel/busking preserved, transparent sprite, end of life, summary, Book, new life, the Lake (frogs, butterflies), fishing (rod, bite, catch, reveal, collection, activity bar, selling), work trips (the setting saved, "Off to work!", the "At work" label calling them back), the Fortune Tree's wind (Gust now there only; props still on top with the apple glowing in a gust); no renderer errors.`);
+    console.log(`PASS: the Fortune Tree's wishing well (its bubble, click area apart from the tree's, drags from it and the background), activities start only on arrival (walking to the tree from the far side, then "Busking - 0:00"; the sofa; the dock), no -webkit-app-region anywhere, JS window drags (background, character, tree: the window follows, no poke, no menu), plain clicks on every prop in every place, native gentle/rapid clicks, spam, calming, moving hit regions, drag rejection, 25 poses, offscreen, prop/event priority, real clicks on props and menus, prop click areas on top in every place (at rest, after travel, menus closed, an event waiting, the activity bar, a catch reveal), rest/travel/busking preserved, transparent sprite, end of life, summary, Book, new life, the Lake (frogs, butterflies), fishing (rod, bite, catch, reveal, collection, activity bar, selling), work trips (the setting saved, "Off to work!", the "At work" label calling them back), the Fortune Tree's wind (Gust now there only; props still on top with the apple glowing in a gust), the hover outline (tree, character, sofa, dock: shown while hovering, gone on leaving, none with a menu open, clicks unchanged, no native tooltips); no renderer errors.`);
   } catch (error) {
     console.error(error);
     process.exitCode = 1;

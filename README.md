@@ -159,6 +159,11 @@ Early development. What works so far:
   `src/data/catchReveal.js`); the activity itself (where,
   from what age, the rod) in `src/data/activities.js`, where future
   activities can be added as data.
+- Hover over anything you can click (the tree, the wishing well, a
+  house or door, the sofa, sleeping bag or tent, the dock, a frog or
+  butterfly, or the character) and a white pixel outline traces its
+  shape, gently pulsing, until the pointer moves off. Its color,
+  thickness and pulse are in `src/data/hover.js`.
 - The Fortune Tree's place is decorated: golden leaves now and then
   drift down from the tree, swaying, and fade out on the grass (now and
   then one sparkles); now and then a gust of wind swings the golden

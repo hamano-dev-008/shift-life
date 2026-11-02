@@ -199,7 +199,9 @@ Shift-Life/
 │   │   ├── scene.js       computeLayout() (data → canvas pixels, for a
 │   │   │                  place: its props, feet row, walking limits
 │   │   │                  and open sides), where props are drawn and
-│   │   │                  clicked (propRect, propClickRect), and the
+│   │   │                  clicked (propRect, propClickRect), a prop
+│   │   │                  drawn alone for its hover outline
+│   │   │                  (drawPropAlone, propArtFrame), and the
 │   │   │                  place's scenery (sky, grass, tree, houses,
 │   │   │                  sleeping bag, tent; Home's wall, floor,
 │   │   │                  window, door, sofa; the Lake's background and
@@ -214,8 +216,10 @@ Shift-Life/
 │   │   ├── room.js        Draws Home's living room in code: wallpaper,
 │   │   │                  wooden floor, window, front door, sofa
 │   │   ├── lake.js        Draws the Lake: the code-drawn background
-│   │   │                  (when lake.png is missing) and the water
-│   │   │                  shimmer (sparkles that twinkle and drift)
+│   │   │                  (when lake.png is missing), the water
+│   │   │                  shimmer (sparkles that twinkle and drift),
+│   │   │                  and the dock's silhouette (its wood's pixels
+│   │   │                  in the picture) for the hover outline
 │   │   ├── lakeLife.js    The Lake's wildlife, visual only (no DOM, so
 │   │   │                  tests run it): frogs on the lily pads (blink,
 │   │   │                  croak, hop, plop, dive at the bobber),
@@ -223,7 +227,9 @@ Shift-Life/
 │   │   │                  leave), click reactions, click boxes
 │   │   ├── lakeLifeArt.js Draws the wildlife (code or lake.frog /
 │   │   │                  lake.butterfly sprites, tinted per color),
-│   │   │                  ripples and splashes; click boxes to canvas
+│   │   │                  ripples and splashes; click boxes to canvas;
+│   │   │                  one critter alone (drawCritter) for its hover
+│   │   │                  outline
 │   │   ├── animator.js    Wandering, prop visits, goal activities,
 │   │   │                  trips off-screen to work and back (by an open
 │   │   │                  side, only when allowed; called back), staying put
@@ -288,12 +294,19 @@ Shift-Life/
 │   │   ├── devMenu.js     The dev settings menu (gear; dev runs only),
 │   │   │                  with the Work trips setting for now
 │   │   ├── statsPanel.js  Stats, job and traits panel under the name label
+│   │   ├── hoverOutline.js The white outline around the interactable
+│   │   │                  thing under the pointer: which thing
+│   │   │                  (hoverTargetOf()), its silhouette grown by one
+│   │   │                  art pixel minus itself, the gentle pulse
 │   │   └── windowDrag.js  Dragging the window in JS (no OS drag
 │   │                      regions): the threshold, pointer capture,
-│   │                      moving once per frame, cancelling the click
+│   │                      moving once per frame, cancelling the click;
+│   │                      whether a drag is under way (isDragging)
 │   └── data/          Pure game data, no logic
 │       ├── interaction.js Poke dialogue, timing, thresholds and rewards;
 │       │                  the window drag threshold
+│       ├── hover.js       The hover outline's color, thickness and
+│       │                  pulse
 │       ├── balance.js     Pacing (minutes per year, clock speeds), mood
 │       │                  thresholds, event gap, auto-decide wait, whim,
 │       │                  goal weights for decisions and event picks
@@ -327,7 +340,8 @@ Shift-Life/
 │       │                  walking limits, the dock's click area and
 │       │                  fishing spot, where the bobber lands, the
 │       │                  water shimmer (area,
-│       │                  sparkles, colors, timing), the dock bubble
+│       │                  sparkles, colors, timing), the dock bubble,
+│       │                  the dock's wood colors (its hover outline)
 │       ├── lakeLife.js    The Lake's wildlife: lily pads, frog and
 │       │                  butterfly counts, timing, speeds, area, reeds,
 │       │                  colors (the rare blue), the click reward and
@@ -436,7 +450,12 @@ Shift-Life/
                        wildlife, fishing, the reveal, the activity bar,
                        the Work trips setting, "Off to work!" and the
                        "At work" label calling them back, "Gust now" at
-                       the Fortune Tree only, its props on top in a gust)
+                       the Fortune Tree only, its props on top in a gust,
+                       the hover outline on the tree, the character,
+                       the sofa and the dock: shown while hovering (the
+                       canvas's data-hover and white pixels drawn),
+                       gone on leaving, none with a menu open, clicks
+                       unchanged; no native tooltips on click targets)
 ```
 
 How it works, for anyone extending it:
@@ -719,7 +738,9 @@ How it works, for anyone extending it:
     prop click areas hidden, while travelling.
   - Click areas: the renderer puts an invisible button in
     `#targets` over each of the place's `targets` (the prop's visible
-    pixels, `propClickRect()`). Clicking an exit's prop (a house, the
+    pixels, `propClickRect()`; the target's name is its `aria-label`,
+    with no `title`, so no native tooltip; `data-prop` is the prop id).
+    Hovering one outlines the prop (see **Hover outline**). Clicking an exit's prop (a house, the
     front door) travels through it; the tree opens its menu, anything
     in `REST_SEATS` (sofa, sleeping bag, tent) the rest menu, and an
     activity's prop (`activityAt()`, the Lake's dock) the activity
@@ -795,7 +816,7 @@ How it works, for anyone extending it:
     little roof, rope and bucket) or the sprite, behind the character.
     `visit: false` keeps the animator from wandering over to it
     (`chooseTarget()`), so walking is as before. Its click area (title
-    `WELL_TEXT.title`) shows `#prop-bubble` over it ("A coin for luck?
+    `WELL_TEXT.title`, its aria-label) shows `#prop-bubble` over it ("A coin for luck?
     Coming soon!") for `WELL_BUBBLE_SECONDS`; a coin toss comes later.
     Its click area stays clear of the tree's (the smoke test checks).
   - Falling golden leaves: the renderer makes `createTreeDecor()` while
@@ -1114,6 +1135,42 @@ How it works, for anyone extending it:
     the character walks to the spot again and it resumes, with its saved
     progress, on arrival. The dev actions (finish a session, rest a
     minute, a bite, a catch) still work on the way.
+- **Hover outline** (`data/hover.js`, `ui/hoverOutline.js`; visual
+  only): while the pointer is over an interactable thing, a white
+  (`HOVER_OUTLINE.color`) outline traces its silhouette just outside its
+  opaque pixels, `thickness` (1) pixels of its own art thick (the tree at
+  its sprite scale, scenery at `SCENE_SCALE`, the character at
+  `CHARACTER_SCALE`), gently pulsing in opacity (`pulse`).
+  - What: every prop with a click area (`#targets`: the tree, the
+    wishing well, houses, front doors, the sofa, sleeping bag, tent, the
+    dock), the Lake's frogs and butterflies (`#wildlife`), and the
+    character (`#character-target`'s runs). One at a time: each frame
+    the renderer takes the topmost element under the pointer
+    (`document.elementFromPoint()`, the pointer tracked with
+    `pointermove`; cleared when it leaves the window) and
+    `hoverTargetOf()` maps it to its thing, so the outline follows a
+    thing moving under a still pointer and goes the frame the pointer
+    is off it. None while travelling, once the life has ended, while
+    dragging the window (`isDragging()` from `ui/windowDrag.js`), or
+    while a panel, card or the catch reveal is open.
+  - How: the thing is painted alone onto an offscreen mask from the same
+    art drawn this frame (`drawPropAlone()` in `ui/scene.js`: the sprite
+    frame or code-drawn prop; `drawCritter()` in `ui/lakeLifeArt.js`;
+    `drawCharacter(..., hitOnly)` for the character), grown by one art
+    pixel up, down, left and right per `thickness`, minus itself; the
+    ring is filled white and drawn over the scene. A still prop's ring
+    is kept while its key (place, prop, frame) stays the same.
+  - The dock has no art of its own: its silhouette is the pixels inside
+    `DOCK` whose color is in `DOCK_COLORS` (`data/lake.js`), from
+    lake.png or the code-drawn Lake (`drawDockSilhouette()` in
+    `ui/lake.js`); with none found, its click area is outlined.
+  - Order: a prop's outline is drawn just after the scenery (so the
+    character, leaves and the apple pass in front), a critter's just
+    after the wildlife, the character's just after the character; all
+    under the "!" bubbles, the catch reveal, and the DOM bubbles, cards
+    and menus. The pointer cursor on click targets is unchanged.
+  - The canvas's `data-hover` says what's outlined (`prop:<id>`,
+    `critter:<id>`, `character` or empty), for the smoke test.
 - **Stats panel:** hovering the name label shows stats, the job (title,
   level, pay; "Looking" or "Retired" with the pension) from age 18, and
   traits; clicking it pins the panel open.

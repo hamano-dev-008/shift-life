@@ -1,13 +1,16 @@
 // lake.js — Draws the Lake: the code-drawn background used when lake.png
 // is missing (sky, far shore, water, the dock and the grassy shore), and
 // the water shimmer, a few highlight pixels that slowly twinkle and drift,
-// drawn every frame over the background. Positions come from data/lake.js
-// (in the picture's pixels: x from the left, rows from the top).
+// drawn every frame over the background, and the dock's silhouette (its
+// wood's pixels in the picture) for the hover outline. Positions come
+// from data/lake.js (in the picture's pixels: x from the left, rows from
+// the top).
 
 import {
-  LAKE_ART, LAKE_FEET_FROM_BOTTOM, DOCK, SHIMMER,
+  LAKE_ART, LAKE_FEET_FROM_BOTTOM, DOCK, DOCK_COLORS, SHIMMER,
 } from '../data/lake.js';
 import { createLayer, fill, drawLayer } from './pixel.js';
+import { getSprite } from './assets.js';
 
 // Pure art for the code-drawn Lake.
 const SKY_BANDS = ['#8ecae6', '#a9d3e6', '#c5dbe0', '#e3dcd2', '#fde2c8'];
@@ -62,6 +65,52 @@ let lakeLayer = null;
 export function drawLake(ctx, layout) {
   lakeLayer ??= paintLake();
   drawLayer(ctx, lakeLayer, 0, layout.height, layout.scale);
+}
+
+// The dock's silhouette on a layer the size of the picture: the pixels
+// inside DOCK whose color is one of DOCK_COLORS, in lake.png (or the
+// code-drawn Lake without it). Null if there are none. Cached per picture.
+const dockLayers = new Map();
+function dockLayer() {
+  const sprite = getSprite('lake');
+  const key = sprite ? sprite.image : 'code';
+  if (dockLayers.has(key)) return dockLayers.get(key);
+  const { width, height } = LAKE_ART;
+  const source = createLayer(width, height);
+  if (sprite) {
+    source.ctx.drawImage(sprite.image, 0, 0, sprite.frameWidth, sprite.frameHeight, 0, 0, sprite.frameWidth, sprite.frameHeight);
+  } else {
+    lakeLayer ??= paintLake();
+    source.ctx.drawImage(lakeLayer.canvas, 0, 0);
+  }
+  const wood = new Set(DOCK_COLORS.map((color) => color.toLowerCase()));
+  const hex = (value) => value.toString(16).padStart(2, '0');
+  const { data } = source.ctx.getImageData(0, 0, width, height);
+  const layer = createLayer(width, height);
+  let found = 0;
+  for (let y = DOCK.top; y <= DOCK.bottom && y < height; y++) {
+    for (let x = DOCK.left; x <= DOCK.right && x < width; x++) {
+      const i = (y * width + x) * 4;
+      if (data[i + 3] === 0 || !wood.has(`#${hex(data[i])}${hex(data[i + 1])}${hex(data[i + 2])}`)) continue;
+      fill(layer, x, y, 1, 1, '#000');
+      found++;
+    }
+  }
+  const result = found ? layer : null;
+  dockLayers.set(key, result);
+  return result;
+}
+
+// Paints the dock's silhouette (from the picture's wood colors) where the
+// Lake draws it, and returns the screen pixels per pixel of the picture.
+// Returns null, painting nothing, if no wood was found (the caller
+// outlines the click area instead).
+export function drawDockSilhouette(ctx, layout) {
+  const layer = dockLayer();
+  if (!layer) return null;
+  const scale = getSprite('lake')?.scale ?? layout.scale;
+  drawLayer(ctx, layer, 0, layout.height, scale);
+  return scale;
 }
 
 // Cheap deterministic noise in 0..1, so each sparkle's spots, speeds and

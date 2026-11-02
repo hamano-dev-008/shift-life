@@ -12,7 +12,8 @@ const NO_DRAG = '.panel, #controls, #label, #place.at-work, #stats, #activity-ba
   + '#reveal-close, #speech.clickable';
 
 // api: { getPosition() -> Promise<{ x, y }>, setPosition(x, y), endDrag() }
-// (window.shiftLife's window calls).
+// (window.shiftLife's window calls). Returns { isDragging() }: whether the
+// window is being dragged right now.
 export function enableWindowDrag(root, api) {
   let press = null; // { id, screenX, screenY, window: { x, y } | null, dragging, to, frame }
   let swallowClick = false;
@@ -85,4 +86,6 @@ export function enableWindowDrag(root, api) {
     event.stopPropagation();
     event.preventDefault();
   }, true);
+
+  return { isDragging: () => Boolean(press?.dragging) };
 }

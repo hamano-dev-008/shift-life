@@ -10,7 +10,9 @@
 // reveal card, the fish collection), the Lake's wildlife (frogs and
 // butterflies, their click areas and the ribbit), the Fortune Tree's
 // decoration (falling golden leaves, sparkles around the apple, the
-// wishing well's bubble), work trips (when they may leave, "Off to
+// wishing well's bubble, the glow, the wind), the white hover outline
+// around whatever interactable thing is under the pointer, work trips
+// (when they may leave, "Off to
 // work!", the "At work" place label that calls them back), the activity bar
 // (what's running, with Stop), the Book of past lives, the player settings
 // (work trips), the dev settings menu (dev runs only), dragging the window
@@ -73,7 +75,11 @@ import { TRAVEL, PLACE_TEXT } from './data/places.js';
 import { FAREWELL, END_TEXT } from './data/endOfLife.js';
 import { FORTUNE_TREE_PLACE, TREE_PROP } from './data/fortuneTree.js';
 import { REST_SEATS } from './data/home.js';
-import { computeLayout, createScenery, propClickRect } from './ui/scene.js';
+import {
+  computeLayout, createScenery, propClickRect, drawPropAlone, propArtFrame,
+} from './ui/scene.js';
+import { createHoverOutline, hoverTargetOf } from './ui/hoverOutline.js';
+import { drawDockSilhouette } from './ui/lake.js';
 import { drawGoldenApple } from './ui/goldenApple.js';
 import {
   createTreeDecor, updateTreeDecor, appleFrame, startGust, flashApple, isFlashing,
@@ -95,8 +101,8 @@ import { createCatchReveal } from './ui/catchReveal.js';
 import {
   createLakeLife, updateLakeLife, bobberLanded, clickCritter, critterBoxes, addButterfly, croakNow, hopNow,
 } from './ui/lakeLife.js';
-import { drawLakeLife, boxToRect } from './ui/lakeLifeArt.js';
-import { LAKE_PLACE, BOBBER_SPOT } from './data/lake.js';
+import { drawLakeLife, boxToRect, drawCritter } from './ui/lakeLifeArt.js';
+import { LAKE_PLACE, BOBBER_SPOT, DOCK_PROP } from './data/lake.js';
 import { WILDLIFE_CLICK, LAKE_LIFE_TEXT } from './data/lakeLife.js';
 import { createGoMenu } from './ui/goMenu.js';
 import { loadSprites } from './ui/assets.js';
@@ -406,6 +412,44 @@ async function start() {
   // says "ribbit!" and hops, a butterfly flutters off, and either gives a
   // little happiness on a real-time cooldown (game/lakeLife.js).
   let lakeLife = null;
+  // The white outline around the interactable thing under the pointer
+  // (ui/hoverOutline.js), and where the pointer is (null once it leaves
+  // the window).
+  const hoverOutline = createHoverOutline(canvas.width, canvas.height);
+  let pointer = null;
+  const notePointer = (event) => { pointer = { x: event.clientX, y: event.clientY }; };
+  window.addEventListener('pointermove', notePointer);
+  window.addEventListener('pointerdown', notePointer);
+  window.addEventListener('pointerout', (event) => { if (!event.relatedTarget) pointer = null; });
+  document.documentElement.addEventListener('pointerleave', () => { pointer = null; });
+  // The thing to outline now: the topmost click target under the pointer
+  // (a prop, a critter, the character), or null. None while travelling,
+  // once the life has ended, while dragging the window, or while a panel,
+  // card or catch reveal is open.
+  function hoveredThing(ended) {
+    if (!pointer || trip || ended || windowDrag.isDragging() || catchReveal.isOpen()
+      || document.querySelector('#app .panel:not([hidden])')) return null;
+    return hoverTargetOf(document.elementFromPoint(pointer.x, pointer.y));
+  }
+  // The dock's silhouette is its wood in the Lake's picture; failing that,
+  // its click area.
+  function paintDock(maskCtx, layout) {
+    const scale = drawDockSilhouette(maskCtx, layout);
+    if (scale) return scale;
+    const rect = propClickRect(layout, DOCK_PROP);
+    if (!rect) return null;
+    maskCtx.fillStyle = '#000';
+    maskCtx.fillRect(rect.left, rect.top, rect.width, rect.height);
+    return layout.scale;
+  }
+  // Which outline was drawn this frame ('prop:<id>', 'critter:<id>',
+  // 'character' or ''), on the canvas's data-hover (for the smoke test).
+  let shownHover = '';
+  function noteHover(key) {
+    if (key === shownHover) return;
+    shownHover = key;
+    canvas.dataset.hover = key;
+  }
   // The Fortune Tree's falling leaves (ui/treeDecor.js), while it's shown.
   let treeDecor = null;
   let lastFishPhase = null;
@@ -452,7 +496,7 @@ async function start() {
         button = document.createElement('button');
         button.dataset.id = String(box.id);
         const title = box.kind === 'frog' ? WILDLIFE_CLICK.frogLabel : WILDLIFE_CLICK.butterflyLabel;
-        button.title = title;
+        // No native tooltip (the hover outline shows it's clickable).
         button.setAttribute('aria-label', title);
         button.addEventListener('click', () => clickWildlife(box.id));
         wildlife.append(button);
@@ -622,8 +666,10 @@ async function start() {
     shownView = viewKey(scene.place);
     targets.replaceChildren(...Object.entries(scene.place.targets).map(([id, title]) => {
       const button = document.createElement('button');
-      button.title = title;
+      // No native tooltip (the hover outline shows it's clickable); which
+      // prop it is, for the outline.
       button.setAttribute('aria-label', title);
+      button.dataset.prop = id;
       placeOver(button, propClickRect(scene.layout, id));
       button.addEventListener('click', () => clickProp(id));
       return button;
@@ -1014,6 +1060,20 @@ async function start() {
     // Cleared first: sprites may have see-through pixels.
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     scene.scenery.draw(ctx, now / 1000);
+    // The hover outline goes with the thing it's around: a prop's just
+    // over the scenery (so the character and leaves pass in front of it),
+    // a critter's just over the wildlife, the character's just over the
+    // character; all under the "!" bubbles, the reveal card, bubbles and
+    // menus.
+    const hovered = hoveredThing(ended);
+    let outlined = '';
+    if (hovered?.kind === 'prop') {
+      const seconds = now / 1000;
+      const drawn = hoverOutline.draw(ctx, (maskCtx) => (hovered.id === DOCK_PROP
+        ? paintDock(maskCtx, layout) : drawPropAlone(maskCtx, layout, hovered.id, seconds)),
+      seconds, `${sceneKey(place)}:${hovered.id}:${propArtFrame(hovered.id, seconds)}`);
+      if (drawn) outlined = `prop:${hovered.id}`;
+    }
     // The Fortune Tree's wind and golden leaves falling, then a ready
     // apple's glow, the apple (swinging in a gust; still shown while a
     // pick's flash lasts) and its sparkles, all behind the character;
@@ -1040,6 +1100,10 @@ async function start() {
       lastFishPhase = phase;
       updateLakeLife(lakeLife, dt);
       drawLakeLife(ctx, layout, lakeLife);
+      if (hovered?.kind === 'critter'
+        && hoverOutline.draw(ctx, (maskCtx) => drawCritter(maskCtx, layout, lakeLife, hovered.id), now / 1000)) {
+        outlined = `critter:${hovered.id}`;
+      }
     } else {
       lakeLife = null;
       lastFishPhase = null;
@@ -1049,6 +1113,14 @@ async function start() {
     if (pose.activity === 'fish' && look) {
       drawFishing(ctx, layout, fishingHand(stage, pose, layout.feetY, layout.characterScale), look);
     }
+    if (hovered?.kind === 'character' && hoverOutline.draw(ctx, (maskCtx) => {
+      drawCharacter(maskCtx, pose, stage, game.character.appearance,
+        expression, layout.feetY, layout.characterScale, jobItem(game), true);
+      return layout.characterScale;
+    }, now / 1000)) {
+      outlined = 'character';
+    }
+    noteHover(outlined);
     // A catch's reveal card over the scene (fishing carries on behind).
     catchReveal.draw(ctx, now);
     const revealing = catchReveal.isOpen();
@@ -1129,6 +1201,6 @@ async function start() {
 
 document.getElementById('minimize-btn').addEventListener('click', () => window.shiftLife.minimize());
 document.getElementById('close-btn').addEventListener('click', () => window.shiftLife.close());
-enableWindowDrag(document.getElementById('app'), window.shiftLife);
+const windowDrag = enableWindowDrag(document.getElementById('app'), window.shiftLife);
 
 start();

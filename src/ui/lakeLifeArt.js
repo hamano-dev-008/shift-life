@@ -175,6 +175,24 @@ function drawSplash(ctx, layout, effect) {
   }
 }
 
+// Draws only the frog or butterfly `id` (for its hover outline's
+// silhouette). Returns the screen pixels per pixel of its art, or null if
+// there's no such critter showing.
+export function drawCritter(ctx, layout, life, id) {
+  const frog = life.frogs.find((candidate) => candidate.id === id);
+  if (frog) {
+    if (frog.state === 'under') return null;
+    drawFrog(ctx, layout, frog);
+    return getSprite('lake.frog')?.scale ?? layout.scale;
+  }
+  const butterfly = life.butterflies.find((candidate) => candidate.id === id);
+  if (!butterfly) return null;
+  drawButterfly(ctx, layout, butterfly);
+  const color = BUTTERFLIES.colors.find((candidate) => candidate.id === butterfly.color) ?? BUTTERFLIES.colors[0];
+  const sprite = getSprite(`lake.butterfly.${color.id}`) ?? getSprite('lake.butterfly');
+  return sprite?.scale ?? layout.scale;
+}
+
 // Draws all of it: ripples and splashes, frogs, then butterflies.
 export function drawLakeLife(ctx, layout, life) {
   for (const effect of life.effects) {

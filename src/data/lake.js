@@ -36,6 +36,12 @@ export const DOCK_PROP = 'lake.dock';
 // inclusive), and the fishing spot near its left tip (the x where the
 // character stands when visiting the dock).
 export const DOCK = { left: 25, right: 80, top: 67, bottom: 71 };
+
+// The dock's wood in lake.png (its dark top edge, gold planks, brown side
+// and posts): the pixels of these colors inside DOCK are the dock's
+// silhouette, for the hover outline. Without lake.png (or with none of
+// these colors there) the outline goes around the click area instead.
+export const DOCK_COLORS = ['#4e3952', '#5e4e5b', '#f4c657', '#ecaf50', '#8e5f4f', '#2d2e56', '#50423f'];
 export const FISHING_SPOT_X = 27;
 
 // Where the bobber lands, cast to the left into the open water: the
