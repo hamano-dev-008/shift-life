@@ -3,8 +3,8 @@
 // add money, finish a busking session, grow a golden apple, rest a
 // minute, switch place, set the housing tier or jump to moving-out age
 // now, end the life now, set health, give a fishing rod, a bite now, a
-// catch of a chosen rarity now, and a read-out of the character. The menu
-// (ui/devMenu.js) only calls these.
+// catch of a chosen rarity now, preview a rarity's reveal card, and a
+// read-out of the character. The menu (ui/devMenu.js) only calls these.
 
 import { SPEEDS } from '../data/balance.js';
 import { STAT_TAGS } from '../data/stats.js';
@@ -24,7 +24,9 @@ import {
   startNewLife, endLife, canDie, isEnded, endOfLifeText,
 } from './endOfLife.js';
 import { giveItem, hasItem, activityById } from './activities.js';
-import { biteNow, catchNow, fishingLook } from './fishing.js';
+import {
+  biteNow, catchNow, fishingLook, bucketTotals, previewCatch,
+} from './fishing.js';
 
 // Replaces the life with a newborn, in place (see startNewLife()), without
 // adding the old one to the Book. Save right after to wipe the old life
@@ -135,6 +137,12 @@ export function catchRarityNow(game, rarity) {
   return { news: catchNow(game, fishing, rarity) };
 }
 
+// A made-up catch of rarity `rarity` to preview its reveal card, with
+// or without fishing (nothing changes).
+export function revealPreview(game, rarity) {
+  return previewCatch(game, rarity);
+}
+
 // Switches to place `id` at once, without walking (ending busking or
 // resting).
 export function goToPlace(game, id) {
@@ -174,7 +182,7 @@ function fishingText(game) {
   const { caught } = game.activities.totals.fishing;
   const fishing = game.activities.current?.fishing;
   if (!fishing) return `Fish: ${rod}, ${caught} caught`;
-  const total = fishing.bucket.reduce((sum, entry) => sum + entry.value, 0);
+  const { total } = bucketTotals(fishing);
   const phase = fishing.phase === 'waiting'
     ? `wait ${minutesSeconds(fishing.phaseMs)}/${minutesSeconds(fishing.waitMs)}`
     : fishingLook(fishing).phase;

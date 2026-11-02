@@ -37,4 +37,6 @@ export const REST_TEXT = {
   resting: 'Resting: {time} of {total}',
   health: 'Health: {health}/{max}',
   full: 'Fully rested!',
+  // The activity bar while resting.
+  bar: 'Resting - Health {health}/{max}',
 };

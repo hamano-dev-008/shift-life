@@ -39,8 +39,9 @@ function row(label, ...children) {
 // (returns whether the clock moved), endLife() (returns null, or a note
 // on why the life can't end now), setHealth(n), giveRod(), biteNow() and
 // catchRarity(rarityId) (each returns null, or a note such as "Not
-// fishing."), readout() (returns { stats, traits, goal, job, tree, place,
-// life, fishing }), speed() (current speed id), onOpen() }.
+// fishing."), showReveal(rarityId) (previews a reveal card), readout()
+// (returns { stats, traits, goal, job, tree, place, life, fishing }),
+// speed() (current speed id), onOpen() }.
 export function createDevMenu(menu, gear, actions) {
   const body = menu.querySelector('.dev-body');
   const readout = menu.querySelector('.dev-readout');
@@ -141,7 +142,11 @@ export function createDevMenu(menu, gear, actions) {
         if (note) render(); else close();
       })));
 
-    const children = [newLife, speeds, skips, extras, tree, home, housing, places, fish, catches, life, health];
+    const reveals = row('Reveal', ...RARITIES.map((rarity) =>
+      button(rarity.name, () => { actions.showReveal(rarity.id); close(); })));
+
+    const children = [newLife, speeds, skips, extras, tree, home, housing, places, fish, catches, reveals,
+      life, health];
     if (note) {
       const message = document.createElement('p');
       message.className = 'dev-note';

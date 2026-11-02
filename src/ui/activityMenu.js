@@ -3,19 +3,22 @@
 // toggle()). Offers buying the item it needs ("Buy a fishing rod - $30",
 // disabled with how much more is needed), then starting or stopping it,
 // with its status (for fishing, what's happening and the bucket). For
-// fishing it also opens the fish collection: every fish, its icon, and
-// who caught it first at what age (unknown ones as "???"). It only calls
+// fishing it also opens the fish collection: every fish, its icon, who
+// caught it first at what age, and the biggest (unknown ones as "???"). It only calls
 // the actions it's given; the logic is in game/activities.js and
 // game/fishing.js. Text comes from data/activities.js and data/fishing.js.
 
-import { FISHING_TEXT } from '../data/fishing.js';
-import { drawFishIcon } from './fishing.js';
+import { FISHING_TEXT, FISH } from '../data/fishing.js';
+import { drawFishIcon, fishIconSize } from './fishing.js';
 
-// Collection icons: screen pixels per icon pixel, and the canvas size
-// (fits the biggest code-drawn icon with its outline).
+// Collection icons: screen pixels per icon pixel. Every icon's canvas is
+// the size of the biggest one (sprite or code-drawn), so the text lines
+// up.
 const ICON_SCALE = 2;
-const ICON_WIDTH = 13;
-const ICON_HEIGHT = 8;
+function iconBox() {
+  const sizes = FISH.map((fish) => fishIconSize(fish.id));
+  return { width: Math.max(...sizes.map((size) => size.width)), height: Math.max(...sizes.map((size) => size.height)) };
+}
 
 function element(tag, className, text = '') {
   const node = document.createElement(tag);
@@ -29,25 +32,29 @@ function fill(text, values) {
 }
 
 // A small canvas with fish `id`'s icon (a silhouette if not caught yet).
-function fishIcon(id, caught) {
+function fishIcon(id, caught, box) {
   const canvas = element('canvas', 'fish-icon');
-  canvas.width = ICON_WIDTH * ICON_SCALE;
-  canvas.height = ICON_HEIGHT * ICON_SCALE;
+  canvas.width = box.width * ICON_SCALE;
+  canvas.height = box.height * ICON_SCALE;
   const ctx = canvas.getContext('2d');
   ctx.imageSmoothingEnabled = false;
-  drawFishIcon(ctx, id, canvas.width / 2, canvas.height, ICON_SCALE, { silhouette: !caught });
+  const { height } = fishIconSize(id);
+  const bottom = Math.round((canvas.height + height * ICON_SCALE) / 2 / ICON_SCALE) * ICON_SCALE;
+  drawFishIcon(ctx, id, canvas.width / 2, bottom, ICON_SCALE, { silhouette: !caught, exact: true });
   return canvas;
 }
 
-// The collection's rows: icon, then the name and rarity (or "???") and
-// who caught it first.
+// The collection's rows: icon, then the name and rarity (or "???"), who
+// caught it first, and the biggest.
 function collectionRows(collection) {
+  const box = iconBox();
   return collection.fish.map((fish) => {
     const row = element('div', 'fish-row');
     const text = element('div', 'fish-text');
     text.append(element('span', '', fish.first ? `${fish.name} (${fish.rarity})` : FISHING_TEXT.unknown));
     if (fish.first) text.append(element('span', 'fish-first', fish.first));
-    row.append(fishIcon(fish.id, Boolean(fish.first)), text);
+    if (fish.biggest) text.append(element('span', 'fish-first', fish.biggest));
+    row.append(fishIcon(fish.id, Boolean(fish.first), box), text);
     return row;
   });
 }
@@ -102,7 +109,7 @@ export function createActivityMenu(menu, actions) {
       }
       const { view, collection } = shown;
       if (showingCollection && collection) {
-        const key = `collection|${collection.count}`;
+        const key = `collection|${collection.fish.map((fish) => `${fish.first}${fish.biggest}`).join('|')}`;
         if (key === shownOptions) return;
         shownOptions = key;
         shownStatus = '';

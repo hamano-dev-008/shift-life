@@ -26,7 +26,8 @@ with **Electron and plain JavaScript**.
 > speech bubbles, pursues a life goal the player picks, works jobs from
 > 18 (pay, promotions, work events) and retires at 65, and walks
 > between places: the Lake (fishing from the dock: a rod to buy, bites,
-> catches sold from the bucket, a fish collection kept across lives;
+> catches of random sizes revealed on a card and sold from the bucket,
+> a fish collection with the biggest of each kind, kept across lives;
 > the first of the data-defined place activities), the Fortune Tree
 > (busking, the golden apple), the
 > Parents' Yard and Home (resting on the sofa) while growing up, then
@@ -35,7 +36,8 @@ with **Electron and plain JavaScript**.
 > gently (no health left, or a yearly chance from 70 up to 100) with a
 > life summary, goes into the Book of past lives, and a new life can
 > begin. The life, the Book and the fish collection are saved between
-> launches. Items marked
+> launches. While fishing, busking or resting a bar at the bottom says
+> what's happening, with Stop. Items marked
 > *(planned)* don't exist yet; follow the planned layout when adding them,
 > and update this section whenever files are added, moved, or removed.
 
@@ -60,13 +62,15 @@ Shift-Life/
 ├── src/
 │   ├── index.html     Renderer page: scene canvas, prop click areas,
 │   │                  label, place name, stats panel, event bubble/card,
-│   │                  bite bubble, goal, tree, rest, activity (dock),
+│   │                  bite bubble, the reveal card's click area, the
+│   │                  activity bar, goal, tree, rest, activity (dock),
 │   │                  Go to and dev menus, life summary
 │   │                  card, Book of past lives, text bubble, top-right
 │   │                  buttons (goal, book, place, gear, -, x)
 │   ├── styles.css     Rounded frame, drag region, pixelated canvas, label,
 │   │                  place name (with the label's backing), stats
-│   │                  panel, prop click areas, panels (event card, goal,
+│   │                  panel, prop click areas, the reveal's click
+│   │                  area, the activity bar, panels (event card, goal,
 │   │                  tree, rest, activity with the fish collection, Go
 │   │                  to and dev menus, life summary, Book; the tall
 │   │                  ones scroll),
@@ -80,7 +84,8 @@ Shift-Life/
 │   │                  between places (selling the bucket), following
 │   │                  map changes, prop clicks (the dock opens the
 │   │                  activity menu), fishing's drawing and bite "!",
-│   │                  the fish collection, buying housing, the
+│   │                  the catch reveal, the fish collection, the
+│   │                  activity bar (Stop), buying housing, the
 │   │                  goodbye (sitting, fade, farewell bubble, summary
 │   │                  card) and new lives, autosave, frame loop, text
 │   │                  bubble queue, menu wiring, dev shortcuts
@@ -116,9 +121,18 @@ Shift-Life/
 │   │   │                  the activity menu's view, per-life totals
 │   │   ├── fishing.js     Fishing's bites and catches: the real-time
 │   │   │                  wait, the bite (click odds), reeling, landing
-│   │   │                  into the bucket, selling it, the menu status;
-│   │   │                  the fish collection (first catch of each kind,
-│   │   │                  across lives)
+│   │   │                  into the bucket (a random size, which nudges
+│   │   │                  the value; what the reveal shows), selling it,
+│   │   │                  the menu status, a preview catch; the fish
+│   │   │                  collection (first catch of each kind and the
+│   │   │                  biggest, across lives)
+│   │   ├── catchReveal.js The catch reveal's timing (suspense, pop-in,
+│   │   │                  hold, fade, a click fading it sooner, the
+│   │   │                  legendary flash and turning rays) and its text
+│   │   │                  (banner, name, size and value, badges, junk)
+│   │   ├── activityBar.js The activity bar: what's running (an
+│   │   │                  activity, busking, resting), its text (the
+│   │   │                  bucket for fishing), and stopping it
 │   │   ├── fortuneTree.js The Fortune Tree: busking sessions and pay,
 │   │   │                  the golden apple (growth, pick chance, pick),
 │   │   │                  real-time timers, the tree menu's view, life
@@ -135,7 +149,8 @@ Shift-Life/
 │   │   │                  session, apple now, rest a minute, go to a
 │   │   │                  place instantly, set the housing tier, jump
 │   │   │                  to 18, end life now, set health, give a rod,
-│   │   │                  a bite now, catch a rarity now, read-out (job,
+│   │   │                  a bite now, catch a rarity now, preview a
+│   │   │                  rarity's reveal card, read-out (job,
 │   │   │                  tree, place, housing, fishing, life)
 │   │   └── save.js        Save format (versioned) and load/save calls,
 │   │                      for the life, the Book of past lives and the
@@ -196,10 +211,17 @@ Shift-Life/
 │   │   │                  travelling
 │   │   ├── activityMenu.js The activity menu (the dock): buy the item,
 │   │   │                  start/stop, status (the bucket), and the fish
-│   │   │                  collection view (icons, who caught each first)
+│   │   │                  collection view (icons, who caught each first,
+│   │   │                  the biggest)
 │   │   ├── fishing.js     Draws fishing: the rod, line, bobber (cast,
-│   │   │                  bobbing, bite splash, reeled in), the catch
-│   │   │                  held up, and the fish icons (sprite or code)
+│   │   │                  bobbing, bite splash, reeled in, jerking as
+│   │   │                  it lands), the catch held up, and the fish
+│   │   │                  icons (sprite or code) and their silhouettes
+│   │   ├── catchReveal.js The catch reveal over the scene: the dark
+│   │   │                  silhouette flashing, then the card (rays in
+│   │   │                  the rarity's color, the fish big, banner,
+│   │   │                  name, size, value, badges, sparkles, the
+│   │   │                  legendary flash), fading; its queue
 │   │   ├── farewell.js    The goodbye's fade: a pale veil over the scene,
 │   │   │                  thickening in steps
 │   │   ├── lifeSummary.js The life summary card ("Start a new life"), and
@@ -227,10 +249,16 @@ Shift-Life/
 │       ├── activities.js  Place activities (fishing so far): place,
 │       │                  prop, facing, minimum age, item and price,
 │       │                  how long it runs, rewards, event freeze,
-│       │                  animation, menu text (format in the file)
+│       │                  animation, menu and activity bar text (format
+│       │                  in the file); the bar's Stop label
 │       ├── fishing.js     Fishing: bite wait, bite window, reel/show/
 │       │                  cast times, rarities (weights, click bonus),
-│       │                  the fish and their values, visual loops, text
+│       │                  the fish, their values and sizes, how size
+│       │                  changes value, visual loops, text
+│       ├── catchReveal.js The catch reveal: timing (suspense, flash,
+│       │                  pop-in, fade), per-rarity colors, hold time,
+│       │                  rays, spin, sparkles and gold flash, the
+│       │                  card's layout, colors and text
 │       ├── lake.js        The Lake's numbers and text: its feet row,
 │       │                  walking limits, the dock's click area and
 │       │                  fishing spot, where the bobber lands, the
@@ -279,16 +307,19 @@ Shift-Life/
 │                          names drawing code looks for
 ├── assets/
 │   └── sprites/       Pixel-art PNGs that replace code-drawn art (tree.png,
-│                      goldenApple.png, lake.png so far) and a short README
+│                      goldenApple.png, lake.png, fish.<id>.png so far)
+│                      and a short README
 └── test/              interaction.test.mjs (rules/poses), endOfLife.test.mjs
                        (ageing, endings, summary, Book, new life),
                        lake.test.mjs (the Lake: routes, feet row, walking
                        limits, dock, work trips, shimmer),
                        activities.test.mjs (activities and fishing:
-                       rod, bites, odds, earnings, selling, collection,
-                       saving, a data-only activity, dev), smoke.cjs
-                       (Electron clicks, end of life flow, the Lake,
-                       fishing)
+                       rod, bites, odds, earnings, sizes, selling,
+                       collection and records, saving, a data-only
+                       activity, the reveal's timing and text, the
+                       activity bar, dev), smoke.cjs (Electron clicks,
+                       end of life flow, the Lake, fishing, the reveal,
+                       the activity bar)
 ```
 
 How it works, for anyone extending it:
@@ -737,6 +768,15 @@ How it works, for anyone extending it:
     the pose's `activity` and `facing`): it walks to the prop's visit
     spot, faces that way and stays; no wandering or work trips. Events
     are frozen when `freezeEvents` is set.
+  - The activity bar (`#activity-bar`, `game/activityBar.js`): while an
+    activity, busking or resting runs, a small bar at the bottom of the
+    window (below the feet row, centered) says what's happening (text
+    `bar` in `data/activities.js`, `TREE_TEXT.bar`, `REST_TEXT.bar`;
+    fishing: "Fishing - 4 fish - $38", busking the session's time,
+    resting the health) with a Stop button (`ACTIVITY_BAR_TEXT`).
+    `stopFromBar()` stops it as its own menu does (fishing sells the
+    bucket and shows the sale). Hidden while travelling and once the
+    life has ended; panels open over it.
   - The activity menu (`ui/activityMenu.js`, `#activity-menu`) opens from
     the prop: under `minAge` it says to come back; without the item
     "Buy a fishing rod - $30" (disabled, with "Need $X more", when it's
@@ -750,15 +790,38 @@ How it works, for anyone extending it:
     over it) for `biteWindow` seconds. Clicking it reels in with the
     click odds (`clickBonus` per rarity: rarer fish more likely);
     ignored, they reel in at normal odds. Reeling takes `reel` seconds,
-    then the catch lands in the bucket (a bubble: golden for rare,
-    legendary or new to the collection), they hold it up for `show`
-    seconds and cast again. `RARITIES` (junk, common, uncommon, rare,
-    legendary) have weights tuned to about $4 a real minute when every
-    bite is ignored (the sum is in `data/fishing.js`; a test checks it);
-    `FISH` are the catches with their values (a number or a [min, max]
-    range). Stopping sells the bucket: "Sold 3 for $65." While a bite's
-    "!" is up it takes the spot over the head (text bubbles and the
-    event "!" wait).
+    then the catch lands in the bucket with a random whole `size` in
+    cm in its `FISH` range (none for junk); its value is scaled by up
+    to `SIZE_VALUE` (+-20%) by where the size falls in that range, so
+    the average stays the same. They hold it up for `show` seconds and
+    cast again. `RARITIES` (junk, common, uncommon, rare, legendary)
+    have weights tuned to about $4 a real minute when every bite is
+    ignored (the sum is in `data/fishing.js`; a test checks it); `FISH`
+    are the catches with their values (a number or a [min, max] range)
+    and sizes. Stopping sells the bucket: "Sold 3 for $65." While a
+    bite's "!" is up it takes the spot over the head (text bubbles and
+    the event "!" wait).
+  - The catch reveal (`game/catchReveal.js` times it, `ui/catchReveal.js`
+    draws it, `data/catchReveal.js` has the numbers, colors and text):
+    a landed catch's `reveal` (`{ fish, size, value, isNew, record }`)
+    goes to the reveal instead of a bubble. First the suspense
+    (`REVEAL_TIMES.suspense`, 0.5s): the bobber jerks at the dock tip
+    (`fishingLook()` phase `'land'`, the first part of `show`) and a
+    dark silhouette of the fish flashes where the card will be. Then
+    the card pops in (scaled with nearest-neighbour, overshooting a
+    little): the fish drawn big at a whole-number scale (fitting the
+    art, sprite or code-drawn) on light rays in the rarity's color
+    (`REVEAL_RARITIES`: junk gray, common green, uncommon blue, rare
+    purple, legendary gold), the rarity banner, the name, "57 cm -
+    $298", and NEW! (first of its kind) or NEW RECORD! (beat the
+    biggest) badges. Rare and legendary get sparkles; legendary also a
+    gold flash over the window, slowly turning rays and the longest
+    hold. Junk is low-key: gray, "Just an old boot...". It fades after
+    its rarity's `hold` (longer for rarer); clicking the card
+    (`#reveal-close`, an invisible button) fades it sooner. It never
+    focuses the window, fishing carries on behind it, news bubbles and
+    the event "!" wait while it's up, and up to `REVEAL_MAX_QUEUED` wait
+    their turn. Nothing about it is saved.
   - Drawing (`ui/fishing.js`, after the character): the rod from the hand
     (`fishingHand()` in `ui/sprite.js`, which also draws the arm: out
     holding the rod, or raised with the catch): swung back and up for
@@ -766,14 +829,21 @@ How it works, for anyone extending it:
     the line (sagging while waiting) to the bobber at `BOBBER_SPOT`
     (data/lake.js), which flies out in an arc, bobs with ripples, dips
     with a splash at a bite and is pulled toward the dock while reeling;
-    then the catch held up in front. Fish icons are `fish.<id>` sprites
-    or code-drawn (`FISH_ART`), used on the scene and in the collection
-    (unknown ones as a plain silhouette and "???").
+    jerks at the dock tip as it lands; then the catch held up in front.
+    Fish icons are `fish.<id>` sprites or code-drawn (`FISH_ART`), used
+    on the scene, on the reveal card and in the collection (unknown
+    ones as a plain silhouette, the sprite's shape if there is one, and
+    "???"); `fishIconSize()` gives an icon's size.
   - The fish collection (`game.collection`, not part of the life's save)
     is its own file, `collection.json` (`collection:load`/
     `collection:write`), so it lasts across lives: the first catch of
-    each kind ever, `{ name, age, on }`. The renderer loads it at start,
-    keeps it through new lives and saves it when a new kind is caught.
+    each kind ever, `{ name, age, on, best }`, with `best` the biggest
+    one (`{ size, name, age }`; none for junk). `recordCatch()` returns
+    `{ isNew, record, changed }`: a record only when an earlier biggest
+    is beaten (a kind first caught before sizes just gets its first
+    biggest). The view shows "Biggest: 54 cm (Mia)". The renderer
+    loads it at start, keeps it through new lives and saves it when it
+    changes.
 - **Stats panel:** hovering the name label shows stats, the job (title,
   level, pay; "Looking" or "Retired" with the pension) from age 18, and
   traits; clicking it pins the panel open.
@@ -795,7 +865,8 @@ How it works, for anyone extending it:
     instantly (no walking, the Lake included; ends busking, resting,
     fishing (selling the bucket) and any trip), give a fishing rod, a
     bite now and catch a fish of a chosen rarity now ("Not fishing."
-    unless fishing), End
+    unless fishing), preview a rarity's reveal card ("Reveal" row: a
+    made-up catch from `previewCatch()`, nothing changes), End
     life now (adults only, otherwise a note; plays the goodbye), set
     health (0, 10, 50, 100; 0 ends an adult's life on the next tick), and
     a read-out of stats, traits, goal, job, the tree, the place and
@@ -876,8 +947,12 @@ How it works, for anyone extending it:
     [{ id, endedOn, summary }] }`, written the same way. Starting a new
     life keeps it.
   - `collection.json` holds the fish collection: `{ version, fish: {
-    <fish id>: { name, age, on } } }`, written the same way and kept
-    across lives.
+    <fish id>: { name, age, on, best: { size, name, age } } } }`,
+    written the same way and kept across lives (entries from before
+    sizes have no `best`).
+  - The bucket in `activities.current.fishing` keeps each catch as `{
+    id, value, size }` (size null for junk and for catches from before
+    sizes).
   - Delete `save.json` to start a new life (the Book and the collection
     stay; delete `past-lives.json` or `collection.json` to clear them).
 

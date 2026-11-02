@@ -6,8 +6,9 @@
 // places, plays the gentle goodbye when a life ends (sitting down, the
 // fade, the farewell bubble, the summary card), and wires up controls, the
 // click areas over props, the tree, rest, activity (the dock) and Go to
-// menus, fishing (the rod, line and bobber, the bite's "!", the fish
-// collection), the Book of past lives, the dev settings menu (dev runs
+// menus, fishing (the rod, line and bobber, the bite's "!", the catch
+// reveal card, the fish collection), the activity bar (what's running,
+// with Stop), the Book of past lives, the dev settings menu (dev runs
 // only) and saving.
 
 import { POKE } from './data/interaction.js';
@@ -40,6 +41,7 @@ import {
   activityFreezesEvents,
 } from './game/activities.js';
 import { reelIn, fishingLook, collectionView } from './game/fishing.js';
+import { activityBarView, stopFromBar } from './game/activityBar.js';
 import {
   updateEndOfLife, startNewLife, recordLife, bookView, farewellText,
 } from './game/endOfLife.js';
@@ -49,7 +51,7 @@ import {
 import {
   newLife, setSpeed, toggleFastForward, skipYears, triggerEvent, addMoney, finishBuskingSession,
   appleNow, finishRest, goToPlace, setHousingTier, jumpToMoveOut, endLifeNow, setHealth, devReadout,
-  giveFishingRod, fishBiteNow, catchRarityNow,
+  giveFishingRod, fishBiteNow, catchRarityNow, revealPreview,
 } from './game/dev.js';
 import { RESULT_BUBBLE_SECONDS, MILESTONE_BUBBLE_SECONDS } from './data/animation.js';
 import { SPEEDS } from './data/balance.js';
@@ -67,6 +69,7 @@ import { createBookMenu } from './ui/pastLives.js';
 import { createRestMenu } from './ui/restMenu.js';
 import { createActivityMenu } from './ui/activityMenu.js';
 import { drawFishing } from './ui/fishing.js';
+import { createCatchReveal } from './ui/catchReveal.js';
 import { createGoMenu } from './ui/goMenu.js';
 import { loadSprites } from './ui/assets.js';
 import {
@@ -112,6 +115,8 @@ const speech = document.getElementById('speech');
 const placeLabel = document.getElementById('place');
 const biteBubble = document.getElementById('bite-bubble');
 const targets = document.getElementById('targets');
+const activityBar = document.getElementById('activity-bar');
+const activityBarText = activityBar.querySelector('.bar-text');
 
 // A newborn at the parents' home (startNewLife() fills in everything).
 function newGame() {
@@ -189,6 +194,13 @@ async function start() {
     seconds: news.celebrate ? MILESTONE_BUBBLE_SECONDS : RESULT_BUBBLE_SECONDS,
     celebrate: news.celebrate,
   });
+  // A landed catch gets its reveal card (with the suspense first); other
+  // activity news (a sale) gets a bubble.
+  const catchReveal = createCatchReveal(document.getElementById('reveal-close'));
+  const showActivityNews = (news) => {
+    if (news.reveal) catchReveal.show(news.reveal);
+    else showNews(news);
+  };
   const celebrate = (milestone) => queueBubble({
     heading: 'Milestone!', text: milestone.label, detail: milestone.goalLabel,
     seconds: MILESTONE_BUBBLE_SECONDS, celebrate: true,
@@ -296,6 +308,25 @@ async function start() {
     if (news) showNews(news);
   }
 
+  // The activity bar's Stop: stops fishing (selling the bucket), busking
+  // or resting, as their own menus do.
+  activityBar.querySelector('.bar-stop').addEventListener('click', () => {
+    const { stopped, news } = stopFromBar(game);
+    if (news) showNews(news);
+    if (stopped) saveGame(game);
+  });
+  let shownBar = '';
+  function updateActivityBar(view) {
+    const key = view ? view.text : '';
+    if (key === shownBar) return;
+    shownBar = key;
+    activityBar.hidden = !view;
+    if (view) {
+      activityBarText.textContent = view.text;
+      activityBar.querySelector('.bar-stop').textContent = view.stop;
+    }
+  }
+
   // The place button opens Go to; picking a place starts the trip there.
   const goMenu = createGoMenu(document.getElementById('go-menu'), document.getElementById('go-btn'), {
     go: (id) => startTrip(id),
@@ -378,7 +409,7 @@ async function start() {
     treeNews.forEach(showNews);
     const rested = updateHome(game, realMs);
     const activityNews = updateActivities(game, realMs);
-    activityNews.forEach(showNews);
+    activityNews.forEach(showActivityNews);
     if (activityNews.some((news) => news.collected)) saveCollection(game.collection);
     const moved = updatePlaces(game);
     if (moved) showNews(moved);
@@ -395,6 +426,7 @@ async function start() {
   // The frame loop then sits the character down and fades the scene.
   function lifeEnded() {
     closePanels();
+    catchReveal.clear();
     bubbles.length = 0;
     speechUntil = 0;
     pokeSpeech = false;
@@ -611,6 +643,7 @@ async function start() {
     interaction = createInteraction();
     pokeSpeech = false;
     saveGameNow(game);
+    catchReveal.clear();
     bubbles.length = 0;
     speechUntil = 0;
     speech.dataset.farewell = '';
@@ -735,11 +768,17 @@ async function start() {
         const { note, news } = catchRarityNow(game, rarity);
         if (note) return note;
         if (news) {
-          showNews(news);
+          showActivityNews(news);
           if (news.collected) saveCollection(game.collection);
           saveGame(game);
         }
         return null;
+      },
+      // A made-up catch's reveal card, to preview it (nothing changes).
+      showReveal: (rarity) => {
+        if (game.endOfLife.ended) return;
+        const caught = revealPreview(game, rarity);
+        if (caught) catchReveal.show(caught);
       },
       readout: () => devReadout(game),
       onOpen: () => closePanels('dev'),
@@ -805,6 +844,9 @@ async function start() {
     if (pose.activity === 'fish' && look) {
       drawFishing(ctx, layout, fishingHand(stage, pose, layout.feetY, layout.characterScale), look);
     }
+    // A catch's reveal card over the scene (fishing carries on behind).
+    catchReveal.draw(ctx, now);
+    const revealing = catchReveal.isOpen();
     if (farewell) drawFarewellFade(ctx, canvas.width, canvas.height, (now - farewell.since) / 1000);
     // No pokes once the life has ended (nothing drawn: no click target).
     characterTarget.update((hitCtx) => ended || drawCharacter(hitCtx, pose, stage, game.character.appearance,
@@ -826,7 +868,8 @@ async function start() {
         openSummary();
       }
       showFarewell();
-    } else if (now >= speechUntil && bubbles.length) {
+    } else if (now >= speechUntil && bubbles.length && !revealing) {
+      // News waits while a reveal card is up.
       showBubble(bubbles.shift(), now);
     }
     if (pokeSpeech && (game.events.pending || eventCard.isOpen() || now >= speechUntil)) {
@@ -837,10 +880,10 @@ async function start() {
     // A fish biting takes the spot over the head first: its "!" is only
     // up for a few seconds.
     const biting = fishing?.phase === 'bite' && !ended;
-    const speaking = Boolean(farewell) || (now < speechUntil && !biting);
+    const speaking = Boolean(farewell) || (now < speechUntil && !biting && !revealing);
     speech.hidden = !speaking;
     if (speaking) placeSpeech(speech, layout, pose.x, bubbleY);
-    const showAlert = Boolean(game.events.pending) && !speaking && !biting && !eventCard.isOpen();
+    const showAlert = Boolean(game.events.pending) && !speaking && !biting && !revealing && !eventCard.isOpen();
     eventBubble.hidden = !showAlert;
     if (showAlert) {
       placeOver(eventBubble, drawEventBubble(ctx, layout, pose.x, bubbleY, animator.time));
@@ -861,6 +904,7 @@ async function start() {
       };
     });
     goMenu.update(place, existingPlaces(game), Boolean(trip) || Boolean(ended));
+    updateActivityBar(trip ? null : activityBarView(game));
     bookMenu.update(bookView(book));
     devMenu?.update();
 

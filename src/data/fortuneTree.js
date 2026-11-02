@@ -58,4 +58,6 @@ export const TREE_TEXT = {
   sessionPaid: { heading: 'Busking', text: 'Tips from passersby!' },
   appleWon: { heading: 'Golden apple!', text: '{name} picked the golden apple!' },
   appleLost: { text: 'The apple slipped away...' },
+  // The activity bar while busking; {time} and {total} as m:ss.
+  bar: 'Busking - {time} of {total}',
 };

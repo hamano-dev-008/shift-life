@@ -1,6 +1,6 @@
 // fishing.js — Fishing's numbers and text: how long bites take, the
-// catches (rarities, fish, values, odds), the timing of the cast, reel
-// and catch, and the bubble and menu text. Pure data: game/fishing.js
+// catches (rarities, fish, sizes, values, odds), the timing of the cast,
+// reel and catch, and the bubble and menu text. Pure data: game/fishing.js
 // runs it, ui/fishing.js draws it. The activity itself (where, from what
 // age, the rod) is in data/activities.js.
 
@@ -37,17 +37,25 @@ export const RARITIES = [
 // Everything that can be caught. id: saved in the bucket and the
 // collection (don't rename once shipped); also its icon's sprite name,
 // fish.<id> (data/sprites.js). value: dollars when sold, or [min, max]
-// for a random whole amount per catch.
+// for a random whole amount per catch. size: [min, max] whole cm, a
+// random size per catch (none for junk); the biggest of each kind is
+// kept in the fish collection.
 export const FISH = [
   { id: 'boot', name: 'Old boot', rarity: 'junk', value: 0 },
-  { id: 'carp', name: 'Carp', rarity: 'common', value: [3, 6] },
-  { id: 'perch', name: 'Perch', rarity: 'common', value: [3, 6] },
-  { id: 'trout', name: 'Trout', rarity: 'uncommon', value: 15 },
-  { id: 'catfish', name: 'Catfish', rarity: 'uncommon', value: 15 },
-  { id: 'salmon', name: 'Salmon', rarity: 'rare', value: 50 },
-  { id: 'pike', name: 'Pike', rarity: 'rare', value: 50 },
-  { id: 'goldenKoi', name: 'Golden koi', rarity: 'legendary', value: 300 },
+  { id: 'carp', name: 'Carp', rarity: 'common', value: [3, 6], size: [25, 60] },
+  { id: 'perch', name: 'Perch', rarity: 'common', value: [3, 6], size: [15, 35] },
+  { id: 'trout', name: 'Trout', rarity: 'uncommon', value: 15, size: [25, 55] },
+  { id: 'catfish', name: 'Catfish', rarity: 'uncommon', value: 15, size: [30, 80] },
+  { id: 'salmon', name: 'Salmon', rarity: 'rare', value: 50, size: [50, 90] },
+  { id: 'pike', name: 'Pike', rarity: 'rare', value: 50, size: [45, 110] },
+  { id: 'goldenKoi', name: 'Golden koi', rarity: 'legendary', value: 300, size: [40, 75] },
 ];
+
+// How much size changes a catch's value: the smallest of its kind sells
+// for (1 - SIZE_VALUE) of its value, the biggest for (1 + SIZE_VALUE),
+// rounded to whole dollars. Sizes are even across the range, so on
+// average it's the plain value (the $4 a minute above still holds).
+export const SIZE_VALUE = 0.2;
 
 // Fishing visuals, in seconds: the bobber bobs every `bob`, a ripple
 // spreads every `ripple`, the bite splash loops every `splash`, and the
@@ -75,6 +83,8 @@ export const FISHING_TEXT = {
   collectionTitle: 'Fish collection ({count}/{total})',
   unknown: '???',
   firstCaught: '{name}, age {age}',
+  // {size} in cm, {name} who caught it.
+  biggest: 'Biggest: {size} cm ({name})',
   back: 'Back',
   // The dev read-out and menu.
   notFishing: 'Not fishing.',

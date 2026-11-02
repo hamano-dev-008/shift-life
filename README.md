@@ -97,6 +97,10 @@ Early development. What works so far:
   changes right away. A save from before housing existed: adults start
   with the sleeping bag in My Yard, children keep the parents' house.
   Prices and rates are in `src/data/housing.js`.
+- While fishing, busking or resting, a small bar at the bottom of the
+  window says what's happening (for fishing, "Fishing - 4 fish - $38")
+  with a Stop button that works like the menu's (fishing sells the
+  bucket).
 - Resting: click the sofa (or the sleeping bag or tent) and pick
   "Rest". The character lies down with little z's floating up, gaining
   health (up to 100) until you pick "Get up". No new events come up
@@ -111,19 +115,29 @@ Early development. What works so far:
     Click the "!" within a few seconds to reel in with better odds of a
     rare fish; otherwise they reel it in themselves at normal odds. They
     hold up the catch, it goes in the bucket, and they cast again.
+  - Each catch is revealed on a card: the bobber jerks and a dark
+    silhouette flashes, then the card pops in with the fish drawn big
+    on light rays in its rarity's color (junk gray, common green,
+    uncommon blue, rare purple, legendary gold), its name, size and
+    value, and "NEW!" or "NEW RECORD!" badges. Rare fish sparkle; a
+    legendary one flashes the window gold with slowly turning rays. The
+    card fades by itself (rarer fish stay longer) or when clicked, and
+    fishing carries on behind it. An old boot gets a shrug.
   - Catches: junk (an old boot, $0), common (carp, perch, $3-6),
     uncommon (trout, catfish, $15), rare (salmon, pike, $50) and
-    legendary (the golden koi, $300). Left alone, fishing earns about $4
-    a real minute.
+    legendary (the golden koi, $300). Each fish has a random size in
+    cm; bigger ones sell for up to 20% more, smaller ones up to 20%
+    less. Left alone, fishing earns about $4 a real minute.
   - The dock menu shows the bucket while fishing. "Stop fishing" sells
     everything and shows the total. Travelling away sells it too.
   - The fish collection (from the dock menu) records the first catch of
-    each kind, by whom and at what age. It's kept across lives, and the
-    life summary shows the count.
+    each kind, by whom and at what age, and the biggest one caught. It's
+    kept across lives, and the life summary shows the count.
   - While fishing no new events come up (the event timer waits) and
     they don't go to work. Real time only: game speed doesn't change it
     and it pauses while the app is closed.
-  The numbers are in `src/data/fishing.js`; the activity itself (where,
+  The numbers are in `src/data/fishing.js` (the reveal card's in
+  `src/data/catchReveal.js`); the activity itself (where,
   from what age, the rod) in `src/data/activities.js`, where future
   activities can be added as data.
 - The Fortune Tree: from age 6, click the tree to open its menu:
@@ -191,7 +205,8 @@ $1,000, finish a busking session instantly, grow a golden apple now,
 rest a minute instantly, jump to age 18 to test moving out, set the
 housing tier (sleeping bag, tent, house), jump to any place without
 walking (the Lake included), give a fishing rod, make a fish bite
-now, catch a fish of a chosen rarity now, end the life now (adults only), set health (0, 10, 50 or 100;
+now, catch a fish of a chosen rarity now, preview the catch reveal
+card for each rarity, end the life now (adults only), set health (0, 10, 50 or 100;
 0 ends an adult's life), and see the character's stats, traits, goal,
 job, tree progress, place, housing, yearly ageing and the chance of the
 life ending on the next birthday, and how fishing is going.
@@ -214,9 +229,10 @@ code. Save a PNG in `assets/sprites/` named after what it replaces:
 `yard.sleepingBag.png`, `yard.tent.png`, `yard.house.png`, `home.wall.png`,
 `home.floor.png`, `home.window.png`, `home.door.png`, `home.sofa.png`,
 `lake.png` (the Lake's whole background, 107 x 80; there's one already),
-`fish.<id>.png` for the fish icons (`fish.boot`, `fish.carp`,
-`fish.perch`, `fish.trout`, `fish.catfish`, `fish.salmon`, `fish.pike`,
-`fish.goldenKoi`),
+`fish.<id>.png` for the fish icons, also drawn big on the catch reveal
+card (`fish.boot`, `fish.carp`, `fish.perch`, `fish.trout`,
+`fish.catfish`, `fish.salmon`, `fish.pike`, `fish.goldenKoi`; there's
+one for each already),
 `goldenApple.png` (drawn at the
 tree's scale unless it has its own `scale`, as the current 40 x 40 apple
 does, its middle on the spot set by `APPLE_SPOT` in
@@ -262,7 +278,8 @@ In Git Bash, plain `npm` works. The first start downloads Electron, so it
 takes a little longer. Run `npm.cmd test` for interaction rules, pose
 checks, end-of-life logic, the Lake and fishing (Node 22.7+), and
 `npm.cmd run test:smoke` for isolated Electron click/renderer checks,
-including a whole goodbye, a new life, a visit to the Lake and a catch.
+including a whole goodbye, a new life, a visit to the Lake, a catch
+with its reveal card, and the activity bar's Stop.
 The smoke check uses in-memory saves, leaving your life, Book and
 collection untouched.
 

@@ -2,8 +2,10 @@
 // hand (swung back to cast, out while waiting, jiggling at a bite, bent
 // while reeling), the line, the bobber (flying out on the cast, bobbing
 // with ripples, dipping with a splash at a bite, pulled in while
-// reeling), and the catch held up high. Also the fish icons (a fish.<id>
-// sprite, or code-drawn), on the scene and in the fish collection.
+// reeling, jerking at the dock while the reveal's suspense plays), and
+// the catch held up high. Also the fish icons (a fish.<id> sprite, or
+// code-drawn), on the scene, in the fish collection and on the reveal
+// card, and their silhouettes.
 // Timing comes from data/fishing.js, where the bobber lands from
 // data/lake.js; the hand from fishingHand() in ui/sprite.js.
 
@@ -33,6 +35,9 @@ const RODS = {
   back: [[0, -1], [0, -2], [-1, -3], [-1, -4], [-2, -5], [-2, -6], [-3, -7]],
   up: [[1, -1], [1, -2], [1, -3], [2, -4], [2, -5], [2, -6], [2, -7]],
 };
+// While landing (the reveal's suspense), the bobber jerks up a pixel
+// and back every this many seconds.
+const LAND_JERK = 0.08;
 // Share of the cast spent with the rod back, then upright; after that
 // the rod is out and the bobber flies.
 const CAST_BACK = 0.3;
@@ -54,6 +59,7 @@ function rodFor(look) {
     case 'bite':
       return Math.floor(look.seconds / FISHING_LOOPS.jiggle) % 2 ? RODS.dipped : RODS.out;
     case 'reel':
+    case 'land':
       return RODS.bent;
     case 'show':
       return null;
@@ -149,6 +155,14 @@ export function drawFishing(ctx, layout, hand, look) {
     // Pulled in toward the dock's tip, with a wake.
     const u = Math.min(1, t / FISHING_TIMES.reel);
     x = snap(spotX + (DOCK.left * scale - spotX) * u, unit);
+  } else if (look.phase === 'land') {
+    // At the dock's tip, jerking with the fish on the line.
+    x = snap(DOCK.left * scale, unit);
+    const jerk = Math.floor(t / LAND_JERK) % 2 ? unit : 0;
+    drawLine(ctx, tipX, tipY, x, waterY - 2 * unit - jerk, unit, 0);
+    drawBobber(ctx, x, waterY - jerk, unit, jerk ? 0 : 1);
+    drawSplash(ctx, x, waterY - unit, unit, (t % FISHING_LOOPS.splash) / FISHING_LOOPS.splash);
+    return;
   }
   const lift = look.phase === 'wait' && t % FISHING_LOOPS.bob > FISHING_LOOPS.bob / 2 ? unit : 0;
   drawLine(ctx, tipX, tipY, x, waterY - 2 * unit - lift, unit, look.phase === 'wait' ? LINE_SAG : 0);
@@ -229,36 +243,62 @@ const FISH_ART = {
 const iconLayers = new Map();
 
 // The code-drawn icon for fish `id` on its own outlined layer (cached),
-// or all one color as an unknown silhouette.
-function iconLayer(id, silhouette) {
-  const key = `${id}:${silhouette}`;
+// or all one color (`shade`) as a silhouette.
+function iconLayer(id, shade) {
+  const key = `${id}:${shade}`;
   if (!iconLayers.has(key)) {
     const { shape, colors } = FISH_ART[id] ?? FISH_ART.carp;
     const layer = createLayer(shape[0].length + 2, shape.length + 2);
     shape.forEach((line, row) => [...line].forEach((char, col) => {
-      if (char !== '.') fill(layer, col + 1, row + 1, 1, 1, silhouette ? SILHOUETTE : colors[char]);
+      if (char !== '.') fill(layer, col + 1, row + 1, 1, 1, shade || colors[char]);
     }));
-    outline(layer, OUTLINE_COLOR);
+    outline(layer, shade || OUTLINE_COLOR);
     iconLayers.set(key, layer);
   }
   return iconLayers.get(key);
 }
 
+// The fish.<id> sprite's first frame as one flat color (cached).
+function spriteSilhouette(id, sprite, shade) {
+  const key = `sprite:${id}:${shade}`;
+  if (!iconLayers.has(key)) {
+    const layer = createLayer(sprite.frameWidth, sprite.frameHeight);
+    drawSprite(layer.ctx, sprite, 0, 0, sprite.frameHeight, 1);
+    layer.ctx.globalCompositeOperation = 'source-in';
+    fill(layer, 0, 0, layer.width, layer.height, shade);
+    iconLayers.set(key, layer);
+  }
+  return iconLayers.get(key);
+}
+
+// Fish `id`'s icon size in its own pixels: { width, height } (the
+// sprite's frame, or the code-drawn icon with its outline).
+export function fishIconSize(id) {
+  const sprite = getSprite(`fish.${id}`);
+  if (sprite) return { width: sprite.frameWidth, height: sprite.frameHeight };
+  const layer = iconLayer(id, '');
+  return { width: layer.width, height: layer.height };
+}
+
 // Draws fish `id`'s icon with its bottom edge at canvas row bottomY and
 // its middle at canvas x (`align` 'center'), or its left or right edge
-// there ('left', 'right'); each of its pixels is `scale` canvas pixels:
-// the fish.<id> sprite if there is one, otherwise code-drawn.
-// `silhouette`: not caught yet, shown as a plain shape.
-export function drawFishIcon(ctx, id, x, bottomY, scale, { silhouette = false, align = 'center' } = {}) {
-  const sprite = silhouette ? null : getSprite(`fish.${id}`);
-  const own = sprite ? sprite.scale ?? scale : scale;
-  const layer = sprite ? null : iconLayer(id, silhouette);
+// there ('left', 'right'); each of its pixels is `scale` canvas pixels
+// (a sprite's own `scale` wins unless `exact`): the fish.<id> sprite if
+// there is one, otherwise code-drawn. `silhouette`: one flat color, true
+// for the pale "not caught yet" one or a color.
+export function drawFishIcon(ctx, id, x, bottomY, scale, { silhouette = false, align = 'center', exact = false } = {}) {
+  const sprite = getSprite(`fish.${id}`);
+  const shade = silhouette === true ? SILHOUETTE : silhouette || '';
+  const own = sprite && !exact ? sprite.scale ?? scale : scale;
+  let layer = null;
+  if (!sprite) layer = iconLayer(id, shade);
+  else if (shade) layer = spriteSilhouette(id, sprite, shade);
   const width = (sprite ? sprite.frameWidth : layer.width) * own;
   const shift = { center: width / 2, left: 0, right: width }[align];
   const left = Math.round(x - shift);
-  if (sprite) {
-    drawSprite(ctx, sprite, 0, left, Math.round(bottomY), own);
+  if (layer) {
+    drawLayer(ctx, layer, left, Math.round(bottomY), own);
   } else {
-    drawLayer(ctx, layer, left, Math.round(bottomY), scale);
+    drawSprite(ctx, sprite, 0, left, Math.round(bottomY), own);
   }
 }

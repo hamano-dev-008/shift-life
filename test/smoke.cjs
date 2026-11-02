@@ -210,6 +210,11 @@ app.whenReady().then(async () => {
     await js('[...document.querySelectorAll("#activity-menu button")].find(b=>b.textContent==="Start fishing").click()');
     await wait(100);
     assert.equal(saved.activities.current.id, 'fishing');
+    // The activity bar shows fishing and the empty bucket.
+    assert.equal(await js('document.querySelector("#activity-bar").hidden'), false);
+    assert.equal(await js('document.querySelector("#activity-bar .bar-text").textContent'), 'Fishing - 0 fish - $0');
+    const bar = await js('JSON.stringify(document.querySelector("#activity-bar").getBoundingClientRect())');
+    assert.ok(JSON.parse(bar).top > 205, `bar at ${bar}`);
     await js('document.querySelector("#dev-btn").click()');
     await devClick('Bite now');
     await wait(100);
@@ -219,22 +224,45 @@ app.whenReady().then(async () => {
     assert.equal(saved.activities.current.fishing.bucket.length, 1);
     assert.equal(Object.keys(savedCollection.fish).length, 1);
     const money = saved.character.stats.money;
-    const value = saved.activities.current.fishing.bucket[0].value;
+    const { value, size } = saved.activities.current.fishing.bucket[0];
+    // The catch's reveal card comes up after the suspense; a click closes it.
+    const revealShown = async () => !(await js('document.querySelector("#reveal-close").hidden'));
+    for (let i = 0; i < 20 && !(await revealShown()); i++) await wait(100);
+    assert.equal(await revealShown(), true);
+    assert.match(await js('document.querySelector("#activity-bar .bar-text").textContent'),
+      new RegExp(`^Fishing - 1 fish - \\$${value}$`));
+    await js('document.querySelector("#reveal-close").click()');
+    await wait(800);
+    assert.equal(await revealShown(), false);
     await js(`document.querySelector('#targets button[title="Dock"]').click()`);
     await wait(60);
     assert.match(await js('document.querySelector("#activity-menu").textContent'), /Bucket: .*Worth/s);
     await js('[...document.querySelectorAll("#activity-menu button")].find(b=>b.textContent==="Fish collection").click()');
     await wait(60);
     assert.match(await js('document.querySelector("#activity-menu").textContent'), /Fish collection \(1\/8\).*age 10/s);
+    if (size) {
+      assert.match(await js('document.querySelector("#activity-menu").textContent'),
+        new RegExp(`Biggest: ${size} cm`));
+    }
     assert.equal(await js('document.querySelectorAll("#activity-menu canvas.fish-icon").length'), 8);
     await js('[...document.querySelectorAll("#activity-menu button")].find(b=>b.textContent==="Back").click()');
     await wait(60);
-    await js('[...document.querySelectorAll("#activity-menu button")].find(b=>b.textContent==="Stop fishing").click()');
+    await js('document.querySelector("#activity-menu .panel-close").click()');
+    // Stop on the activity bar sells the bucket, like the menu's.
+    await js('document.querySelector("#activity-bar .bar-stop").click()');
     await wait(200);
     assert.equal(saved.activities.current, null);
     assert.equal(saved.character.stats.money, money + value);
+    assert.equal(await js('document.querySelector("#activity-bar").hidden'), true);
+    // The dev menu previews a legendary reveal card.
+    await js('document.querySelector("#dev-btn").click()');
+    await js(`[...document.querySelectorAll("#dev-menu .dev-row")].find(r=>r.textContent.startsWith("Reveal"))
+      .querySelector("button:last-child").click()`);
+    for (let i = 0; i < 20 && !(await revealShown()); i++) await wait(100);
+    assert.equal(await revealShown(), true);
+    assert.equal(saved.character.stats.money, money + value);
     assert.deepEqual(errors, []);
-    console.log('PASS: native gentle/rapid clicks, spam, calming, moving hit regions, drag rejection, 25 poses, offscreen, prop/event priority, rest/travel/busking preserved, transparent sprite, end of life, summary, Book, new life, the Lake, fishing (rod, bite, catch, collection, selling); no renderer errors.');
+    console.log('PASS: native gentle/rapid clicks, spam, calming, moving hit regions, drag rejection, 25 poses, offscreen, prop/event priority, rest/travel/busking preserved, transparent sprite, end of life, summary, Book, new life, the Lake, fishing (rod, bite, catch, reveal, collection, activity bar, selling); no renderer errors.');
   } catch (error) {
     console.error(error);
     process.exitCode = 1;

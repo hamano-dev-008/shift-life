@@ -21,6 +21,14 @@
     <button id="event-bubble" title="Something's happening!" aria-label="Open event" hidden></button>
     <!-- The same, over the "!" when a fish bites: click to reel it in. -->
     <button id="bite-bubble" title="A bite! Reel it in" aria-label="Reel in" hidden></button>
+    <!-- Invisible, over a catch's reveal card (canvas art): click to close
+         it sooner. -->
+    <button id="reveal-close" title="Close" aria-label="Close the catch" hidden></button>
+    <!-- What's running (fishing, busking, resting), with Stop. -->
+    <div id="activity-bar" hidden>
+      <span class="bar-text"></span>
+      <button class="bar-stop"></button>
+    </div>
     <div id="speech" hidden></div>
     <section id="event-card" class="panel" hidden>
       <button class="panel-close" title="Decide later" aria-label="Decide later">x</button>

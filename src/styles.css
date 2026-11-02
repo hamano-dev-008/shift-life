@@ -1,6 +1,7 @@
 /* styles.css — Look of the companion window: rounded frame, pixel-crisp
    scene canvas, name/age label, place name and stats panel, event bubble
-   and card, click areas over props, the tree, rest, activity (with the
+   and card, click areas over props, the catch reveal's click area, the
+   activity bar, the tree, rest, activity (with the
    fish collection) and Go to menus, goal,
    book and place buttons, goal menu, the farewell bubble, life summary
    card and Book of past lives, dev gear and menu, and the
@@ -185,6 +186,63 @@ body {
 
 #event-bubble:focus,
 #bite-bubble:focus {
+  outline: none;
+}
+
+/* Over a catch's reveal card (canvas art): clicking closes it sooner. */
+#reveal-close {
+  position: absolute;
+  z-index: 1;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+}
+
+#reveal-close:focus {
+  outline: none;
+}
+
+/* While fishing, busking or resting: a small bar along the bottom, below
+   the character's feet, saying what's happening, with Stop. Panels open
+   over it. */
+#activity-bar {
+  position: absolute;
+  bottom: 3px;
+  left: 0;
+  right: 0;
+  z-index: 1;
+  width: fit-content;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 2px 0 6px;
+  border: 2px solid #3d3a4b;
+  border-radius: 4px;
+  font: 8px/10px 'Press Start 2P', monospace;
+  white-space: nowrap;
+  color: #3d3a4b;
+  background: #fffaf0;
+  -webkit-app-region: no-drag;
+}
+
+#activity-bar .bar-stop {
+  padding: 1px 4px;
+  border: none;
+  border-radius: 2px;
+  font: 8px/8px 'Press Start 2P', monospace;
+  color: #fffaf0;
+  background: #e07a5f;
+  cursor: pointer;
+}
+
+#activity-bar .bar-stop:hover {
+  background: #c9604a;
+}
+
+#activity-bar .bar-stop:focus {
   outline: none;
 }
 

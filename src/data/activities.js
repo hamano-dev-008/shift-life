@@ -31,7 +31,8 @@
 //   animation  The pose's activity name while doing it.
 //   text       Menu and bubble text. {item} is the item's name, {price}
 //              and {amount} dollars, {age} an age, {name} the character's
-//              name.
+//              name. `bar` is the activity bar's text while it runs (for
+//              catches, {count} in the bucket and its {total} dollars).
 //
 // Work trips never happen while doing an activity (the character stays
 // at the spot), and travelling stops it.
@@ -65,10 +66,14 @@ export const PLACE_ACTIVITIES = {
       need: 'Need ${amount} more',
       bought: { heading: 'New fishing rod!', text: '{name} bought a {item}.' },
       idle: 'A bite every 30s-3m. Click the "!" fast for rarer fish.',
-      idle: 'A bite every 30s-3m. Click the "!" fast for rarer fish.',
       start: 'Start fishing',
       stop: 'Stop fishing',
       done: { heading: 'Fishing', text: 'All done.' },
+      bar: 'Fishing - {count} fish - ${total}',
     },
   },
 };
+
+// The activity bar at the bottom of the window while something runs
+// (an activity, busking or resting): its Stop button.
+export const ACTIVITY_BAR_TEXT = { stop: 'Stop' };

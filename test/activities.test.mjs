@@ -1,8 +1,10 @@
 // activities.test.mjs — The activity system and fishing: buying the rod,
 // starting and stopping, the bite/reel/catch cycle in real time, click
 // odds, earnings per minute, selling the bucket (also on travel), the
-// event freeze, the fish collection across lives, the life summary,
-// saving, a data-only fixed-time activity, and the dev actions.
+// event freeze, the fish collection across lives (with the biggest of
+// each kind), sizes and their value, the life summary, saving, a
+// data-only fixed-time activity, the catch reveal's timing and text, the
+// activity bar, and the dev actions.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createClock } from '../src/game/clock.js';
@@ -13,12 +15,19 @@ import {
 } from '../src/game/activities.js';
 import {
   catchOdds, pickCatch, reelIn, createCollection, restoreCollection, collectionSaveData, collectionView,
-  fishingStatus, fishingLook,
+  fishingStatus, fishingLook, catchSize, catchValue, recordCatch, previewCatch, fishById, bucketTotals,
 } from '../src/game/fishing.js';
+import {
+  createReveal, revealStage, revealLength, closeReveal, revealText,
+} from '../src/game/catchReveal.js';
+import { activityBarView, stopFromBar } from '../src/game/activityBar.js';
+import { startPlaying, isPlaying } from '../src/game/fortuneTree.js';
+import { startResting, isResting } from '../src/game/home.js';
+import { REVEAL_TIMES, REVEAL_RARITIES } from '../src/data/catchReveal.js';
 import { leavePlace, settlePlace, placeView } from '../src/game/places.js';
 import { fishBiteNow, catchRarityNow, giveFishingRod } from '../src/game/dev.js';
 import { PLACE_ACTIVITIES } from '../src/data/activities.js';
-import { FISHING_TIMES, RARITIES, FISH } from '../src/data/fishing.js';
+import { FISHING_TIMES, RARITIES, FISH, SIZE_VALUE } from '../src/data/fishing.js';
 import { LAKE_PLACE, DOCK_PROP } from '../src/data/lake.js';
 
 const SECOND = 1000;
@@ -125,7 +134,11 @@ test('a bite comes after a real-time wait; ignored, it reels in at normal odds, 
   assert.equal(fishing.bucket.length, 1);
   assert.equal(game.activities.totals.fishing.caught, 1);
   assert.equal(landed[0].collected, true);
-  tick(FISHING_TIMES.show * SECOND);
+  assert.equal(fishingLook(fishing).phase, 'land');
+  assert.ok(landed[0].reveal.isNew);
+  tick(Math.ceil(REVEAL_TIMES.suspense * 4) * 250);
+  assert.equal(fishingLook(fishing).phase, 'show');
+  tick(FISHING_TIMES.show * SECOND - Math.ceil(REVEAL_TIMES.suspense * 4) * 250);
   assert.equal(fishing.phase, 'waiting');
   assert.equal(fishing.catch, null);
   assert.match(fishingStatus(fishing)[1], /^Bucket: /);
@@ -193,36 +206,46 @@ test('stopping sells the bucket with the total in a bubble; travelling or leavin
   catchRarityNow(game, 'rare');
   catchRarityNow(game, 'uncommon');
   catchRarityNow(game, 'junk');
+  const sold = bucketTotals(game.activities.current.fishing);
+  assert.equal(sold.count, 3);
   const news = stopActivity(game);
-  assert.equal(news.text, 'Sold 3 for $65.');
-  assert.deepEqual(news.deltas, { money: 65 });
-  assert.equal(game.character.stats.money, 65);
+  assert.equal(news.text, `Sold 3 for $${sold.total}.`);
+  assert.deepEqual(news.deltas, { money: sold.total });
+  assert.equal(game.character.stats.money, sold.total);
   assert.equal(game.activities.current, null);
-  assert.equal(game.activities.totals.fishing.earned, 65);
+  assert.equal(game.activities.totals.fishing.earned, sold.total);
 
   startActivity(game, 'fishing');
   assert.equal(stopActivity(game).text, 'Nothing in the bucket to sell.');
 
+  let money = game.character.stats.money;
   startActivity(game, 'fishing');
   catchRarityNow(game, 'legendary');
+  const koi = bucketTotals(game.activities.current.fishing).total;
   assert.equal(leavePlace(game), true);
-  assert.equal(game.character.stats.money, 365);
+  assert.equal(game.character.stats.money, money + koi);
 
+  money = game.character.stats.money;
   startActivity(game, 'fishing');
   catchRarityNow(game, 'uncommon');
+  const trout = bucketTotals(game.activities.current.fishing).total;
   game.place = 'fortuneTree';
   settlePlace(game);
   assert.equal(game.activities.current, null);
-  assert.equal(game.character.stats.money, 380);
+  assert.equal(game.character.stats.money, money + trout);
 });
 
 test('the collection keeps the first catch of each kind across lives, and the summary counts it', () => {
   const game = lifeAt(23);
   game.character.name = 'Mia';
   startActivity(game, 'fishing');
-  assert.equal(catchRarityNow(game, 'legendary').news.collected, true);
-  assert.equal(catchRarityNow(game, 'legendary').news.collected, false);
-  assert.deepEqual({ ...game.collection.fish.goldenKoi, on: '' }, { name: 'Mia', age: 23, on: '' });
+  const first = catchRarityNow(game, 'legendary').news;
+  assert.equal(first.collected, true);
+  assert.equal(first.reveal.isNew, true);
+  assert.equal(catchRarityNow(game, 'legendary').news.reveal.isNew, false);
+  const koi = game.collection.fish.goldenKoi;
+  assert.deepEqual({ ...koi, on: '', best: null }, { name: 'Mia', age: 23, on: '', best: null });
+  assert.equal(koi.best.name, 'Mia');
 
   const view = collectionView(game.collection);
   assert.equal(view.count, 1);
@@ -306,5 +329,191 @@ test('dev actions: a bite or a catch needs fishing; give rod', () => {
   const { news } = catchRarityNow(game, 'legendary');
   assert.equal(news.celebrate, true);
   assert.match(news.text, /golden koi/);
-  assert.equal(game.activities.current.fishing.bucket[0].value, 300);
+  const [koi] = game.activities.current.fishing.bucket;
+  assert.ok(koi.value >= 300 * (1 - SIZE_VALUE) && koi.value <= 300 * (1 + SIZE_VALUE), `${koi.value}`);
+  assert.ok(koi.size >= 40 && koi.size <= 75);
+});
+
+test('each catch has a size in its range; bigger ones sell for a little more, junk has none', () => {
+  const random = seeded(11);
+  for (const fish of FISH) {
+    const size = catchSize(fish, random);
+    if (fish.rarity === 'junk') {
+      assert.equal(size, null, fish.id);
+      assert.equal(fish.size, undefined, fish.id);
+      continue;
+    }
+    const [min, max] = fish.size;
+    assert.ok(min > 0 && max > min, fish.id);
+    assert.ok(Number.isInteger(size) && size >= min && size <= max, fish.id);
+  }
+  const salmon = fishById('salmon');
+  assert.equal(catchValue(salmon, salmon.size[0]), Math.round(50 * (1 - SIZE_VALUE)));
+  assert.equal(catchValue(salmon, salmon.size[1]), Math.round(50 * (1 + SIZE_VALUE)));
+  assert.equal(catchValue(salmon, (salmon.size[0] + salmon.size[1]) / 2), 50);
+  assert.equal(catchValue(fishById('boot'), null), 0);
+
+  // On average, sizes don't change what fishing earns.
+  for (const id of ['trout', 'pike', 'goldenKoi']) {
+    const fish = fishById(id);
+    let sum = 0;
+    const [min, max] = fish.size;
+    for (let size = min; size <= max; size++) sum += catchValue(fish, size);
+    const average = sum / (max - min + 1);
+    assert.ok(Math.abs(average - fish.value) / fish.value < 0.02, `${id} ${average}`);
+  }
+});
+
+test('the collection keeps the biggest of each kind: a record only when beaten', () => {
+  const collection = createCollection();
+  assert.deepEqual(recordCatch(collection, 'pike', 'Mia', 20, 60), { isNew: true, record: false, changed: true });
+  assert.deepEqual(collection.fish.pike.best, { size: 60, name: 'Mia', age: 20 });
+  assert.deepEqual(recordCatch(collection, 'pike', 'Bo', 30, 60), { isNew: false, record: false, changed: false });
+  assert.deepEqual(recordCatch(collection, 'pike', 'Bo', 31, 59), { isNew: false, record: false, changed: false });
+  assert.deepEqual(recordCatch(collection, 'pike', 'Bo', 32, 75), { isNew: false, record: true, changed: true });
+  assert.deepEqual(collection.fish.pike.best, { size: 75, name: 'Bo', age: 32 });
+  // Junk has no size: no biggest, no record.
+  recordCatch(collection, 'boot', 'Mia', 20, null);
+  assert.equal(collection.fish.boot.best, undefined);
+  assert.deepEqual(recordCatch(collection, 'boot', 'Mia', 21, null), { isNew: false, record: false, changed: false });
+
+  // A kind first caught before sizes gets its biggest without a record.
+  const old = restoreCollection({ fish: { carp: { name: 'Al', age: 9, on: '' } } });
+  assert.equal(old.fish.carp.best, undefined);
+  assert.deepEqual(recordCatch(old, 'carp', 'Al', 40, 30), { isNew: false, record: false, changed: true });
+  assert.deepEqual(recordCatch(old, 'carp', 'Al', 41, 31), { isNew: false, record: true, changed: true });
+
+  const view = collectionView(collection);
+  assert.equal(view.fish.find((f) => f.id === 'pike').biggest, 'Biggest: 75 cm (Bo)');
+  assert.equal(view.fish.find((f) => f.id === 'boot').biggest, null);
+  assert.equal(view.fish.find((f) => f.id === 'carp').biggest, null);
+
+  const restored = restoreCollection(JSON.parse(JSON.stringify(collectionSaveData(collection))));
+  assert.deepEqual(restored, collection);
+  const bad = restoreCollection({ fish: { pike: { name: 'Mia', age: 1, best: { size: -3, name: 'Mia', age: 1 } } } });
+  assert.equal(bad.fish.pike.best, undefined);
+
+  // The bucket keeps sizes through a save; old entries have none.
+  const game = lifeAt(30);
+  startActivity(game, 'fishing');
+  catchRarityNow(game, 'rare');
+  const saved = JSON.parse(JSON.stringify(game.activities));
+  saved.current.fishing.bucket.push({ id: 'carp', value: 4 });
+  const [rare, carp] = restoreActivityState(saved).current.fishing.bucket;
+  assert.equal(rare.size, game.activities.current.fishing.bucket[0].size);
+  assert.equal(carp.size, null);
+});
+
+test('previewing a reveal changes nothing and shows the badges a catch would get', () => {
+  const game = lifeAt(30);
+  const before = JSON.stringify([game.collection, game.activities, game.character.stats]);
+  const preview = previewCatch(game, 'rare', seeded(5));
+  assert.equal(fishById(preview.fish).rarity, 'rare');
+  assert.equal(preview.isNew, true);
+  assert.equal(preview.record, false);
+  assert.equal(JSON.stringify([game.collection, game.activities, game.character.stats]), before);
+  assert.equal(previewCatch(game, 'nope'), null);
+  recordCatch(game.collection, 'salmon', 'Mia', 30, 50);
+  recordCatch(game.collection, 'pike', 'Mia', 30, 45);
+  const again = previewCatch(game, 'rare', seeded(5));
+  assert.equal(again.isNew, false);
+  assert.equal(again.record, again.size > game.collection.fish[again.fish].best.size);
+});
+
+test('the reveal: suspense, pop-in, hold, fade; rarer stays longer; a click fades it sooner', () => {
+  const caught = (fish, extra = {}) => ({ fish, size: 50, value: 10, isNew: false, record: false, ...extra });
+  const common = createReveal(caught('carp'));
+  const { suspense, flash, popIn, fadeOut } = REVEAL_TIMES;
+  assert.equal(common.rarity, 'common');
+  assert.equal(revealStage(common, 0).stage, 'suspense');
+  assert.equal(revealStage(common, 0).silhouette, true);
+  assert.equal(revealStage(common, flash * 1.5).silhouette, false);
+  assert.equal(revealStage(common, 0).alpha, 0);
+  const pop = revealStage(common, suspense + popIn * 0.5);
+  assert.equal(pop.stage, 'pop');
+  assert.ok(pop.scale > 0 && pop.scale < 1.2);
+  assert.equal(revealStage(common, suspense + popIn + 0.1).stage, 'hold');
+  assert.equal(revealStage(common, suspense + popIn + 0.1).scale, 1);
+  const end = revealLength(common);
+  assert.equal(end, suspense + popIn + REVEAL_RARITIES.common.hold + fadeOut);
+  assert.equal(revealStage(common, end - fadeOut / 2).stage, 'fade');
+  assert.ok(Math.abs(revealStage(common, end - fadeOut / 2).alpha - 0.5) < 1e-9);
+  assert.equal(revealStage(common, end).stage, 'done');
+  assert.equal(revealStage(common, 0.6).flash, 0);
+  assert.equal(revealStage(common, 3).spin, 0);
+
+  // Rarer fish stay longer.
+  const lengths = ['boot', 'carp', 'trout', 'salmon', 'goldenKoi'].map((id) => revealLength(createReveal(caught(id))));
+  assert.deepEqual([...lengths].sort((a, b) => a - b), lengths);
+
+  // Legendary: a gold flash as it pops in, and the rays turn.
+  const koi = createReveal(caught('goldenKoi'));
+  assert.ok(revealStage(koi, suspense).flash > 0.9);
+  assert.equal(revealStage(koi, suspense + REVEAL_RARITIES.legendary.flash + 0.1).flash, 0);
+  assert.ok(revealStage(koi, suspense + 2).spin > 0);
+  assert.ok(REVEAL_RARITIES.legendary.sparkles > 0 && REVEAL_RARITIES.rare.sparkles > 0);
+
+  // No suspense (a preview can skip it); a click starts the fade.
+  const quick = createReveal(caught('carp'), { suspense: false });
+  assert.equal(revealStage(quick, 0).stage, 'pop');
+  closeReveal(quick, popIn + 0.5);
+  assert.equal(revealStage(quick, popIn + 0.6).stage, 'fade');
+  assert.equal(revealLength(quick), popIn + 0.5 + fadeOut);
+  // A click during the pop-in fades once it's in.
+  const early = createReveal(caught('carp'));
+  closeReveal(early, suspense + 0.05);
+  assert.equal(revealStage(early, suspense + popIn - 0.01).stage, 'pop');
+  assert.equal(revealStage(early, suspense + popIn + 0.01).stage, 'fade');
+});
+
+test('the reveal card text: banner, name, size and value, badges; junk is low-key', () => {
+  const card = revealText(createReveal({ fish: 'pike', size: 88, value: 54, isNew: true, record: false }));
+  assert.equal(card.banner, 'RARE');
+  assert.equal(card.title, 'Pike');
+  assert.equal(card.detail, '88 cm - $54');
+  assert.deepEqual(card.badges.map((b) => b.text), ['NEW!']);
+  const record = revealText(createReveal({ fish: 'goldenKoi', size: 70, value: 330, isNew: false, record: true }));
+  assert.equal(record.banner, 'LEGENDARY');
+  assert.deepEqual(record.badges.map((b) => b.text), ['NEW RECORD!']);
+  const boot = revealText(createReveal({ fish: 'boot', size: null, value: 0, isNew: false, record: false }));
+  assert.equal(boot.banner, 'JUNK');
+  assert.equal(boot.title, 'Just an old boot...');
+  assert.equal(boot.junk, true);
+  assert.deepEqual(boot.badges, []);
+});
+
+test('the activity bar: what is running, the bucket, and Stop as its own menu does', () => {
+  const game = lifeAt(30, { money: 0 });
+  assert.equal(activityBarView(game), null);
+  assert.deepEqual(stopFromBar(game), { stopped: false, news: null });
+
+  startActivity(game, 'fishing');
+  assert.equal(activityBarView(game).text, 'Fishing - 0 fish - $0');
+  assert.equal(activityBarView(game).stop, 'Stop');
+  catchRarityNow(game, 'uncommon');
+  catchRarityNow(game, 'common');
+  const { total } = bucketTotals(game.activities.current.fishing);
+  assert.equal(activityBarView(game).text, `Fishing - 2 fish - $${total}`);
+  const { stopped, news } = stopFromBar(game);
+  assert.equal(stopped, true);
+  assert.equal(news.text, `Sold 2 for $${total}.`);
+  assert.equal(game.character.stats.money, total);
+  assert.equal(activityBarView(game), null);
+
+  game.place = 'fortuneTree';
+  startPlaying(game);
+  assert.equal(activityBarView(game).kind, 'busking');
+  assert.equal(activityBarView(game).text, 'Busking - 0:00 of 8:00');
+  assert.equal(stopFromBar(game).stopped, true);
+  assert.equal(isPlaying(game), false);
+
+  startResting(game);
+  game.character.stats.health = 64;
+  assert.equal(activityBarView(game).text, 'Resting - Health 64/100');
+  assert.deepEqual(stopFromBar(game), { stopped: true, news: null });
+  assert.equal(isResting(game), false);
+
+  startResting(game);
+  game.endOfLife.ended = { id: 'x' };
+  assert.equal(activityBarView(game), null);
 });
