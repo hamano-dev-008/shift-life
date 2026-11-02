@@ -19,6 +19,9 @@ ipcMain.on('save:write', (_, value) => { saved = value; });
 ipcMain.on('save:write-sync', (event, value) => { saved = value; event.returnValue = true; });
 ipcMain.handle('book:load', () => savedBook);
 ipcMain.on('book:write', (_, value) => { savedBook = value; });
+let savedCollection = null;
+ipcMain.handle('collection:load', () => savedCollection);
+ipcMain.on('collection:write', (_, value) => { savedCollection = value; });
 
 app.whenReady().then(async () => {
   protocol.handle('file', (request) => {
@@ -189,12 +192,49 @@ app.whenReady().then(async () => {
     const feet = await js(`Math.max(...[...document.querySelectorAll('#character-target span')]
       .map((run) => run.getBoundingClientRect().bottom))`);
     assert.ok(feet > 190 && feet <= 206, `feet at ${feet}`);
+    // The dock opens its menu; a baby is too young to fish.
     await js(`document.querySelector('#targets button[title="Dock"]').click()`);
     await wait(60);
-    assert.equal(await js('document.querySelector("#speech").hidden'), false);
-    assert.match(await js('document.querySelector("#speech").textContent'), /Fishing coming soon!/);
+    assert.equal(await js('document.querySelector("#activity-menu").hidden'), false);
+    assert.match(await js('document.querySelector("#activity-menu").textContent'), /Dock.*Come back at age 6/s);
+    await js('document.querySelector("#activity-menu .panel-close").click()');
+    // Fishing at 10: the rod, a bite clicked in time, the catch in the
+    // bucket and the collection, then selling it.
+    await js('document.querySelector("#dev-btn").click()');
+    await devClick('+10 years');
+    await devClick('Give rod');
+    await js('document.querySelector("#dev-btn").click()');
+    await wait(300);
+    await js(`document.querySelector('#targets button[title="Dock"]').click()`);
+    await wait(60);
+    await js('[...document.querySelectorAll("#activity-menu button")].find(b=>b.textContent==="Start fishing").click()');
+    await wait(100);
+    assert.equal(saved.activities.current.id, 'fishing');
+    await js('document.querySelector("#dev-btn").click()');
+    await devClick('Bite now');
+    await wait(100);
+    assert.equal(await js('document.querySelector("#bite-bubble").hidden'), false);
+    await js('document.querySelector("#bite-bubble").click()');
+    await wait(3600);
+    assert.equal(saved.activities.current.fishing.bucket.length, 1);
+    assert.equal(Object.keys(savedCollection.fish).length, 1);
+    const money = saved.character.stats.money;
+    const value = saved.activities.current.fishing.bucket[0].value;
+    await js(`document.querySelector('#targets button[title="Dock"]').click()`);
+    await wait(60);
+    assert.match(await js('document.querySelector("#activity-menu").textContent'), /Bucket: .*Worth/s);
+    await js('[...document.querySelectorAll("#activity-menu button")].find(b=>b.textContent==="Fish collection").click()');
+    await wait(60);
+    assert.match(await js('document.querySelector("#activity-menu").textContent'), /Fish collection \(1\/8\).*age 10/s);
+    assert.equal(await js('document.querySelectorAll("#activity-menu canvas.fish-icon").length'), 8);
+    await js('[...document.querySelectorAll("#activity-menu button")].find(b=>b.textContent==="Back").click()');
+    await wait(60);
+    await js('[...document.querySelectorAll("#activity-menu button")].find(b=>b.textContent==="Stop fishing").click()');
+    await wait(200);
+    assert.equal(saved.activities.current, null);
+    assert.equal(saved.character.stats.money, money + value);
     assert.deepEqual(errors, []);
-    console.log('PASS: native gentle/rapid clicks, spam, calming, moving hit regions, drag rejection, 25 poses, offscreen, prop/event priority, rest/travel/busking preserved, transparent sprite, end of life, summary, Book, new life, the Lake and its dock; no renderer errors.');
+    console.log('PASS: native gentle/rapid clicks, spam, calming, moving hit regions, drag rejection, 25 poses, offscreen, prop/event priority, rest/travel/busking preserved, transparent sprite, end of life, summary, Book, new life, the Lake, fishing (rod, bite, catch, collection, selling); no renderer errors.');
   } catch (error) {
     console.error(error);
     process.exitCode = 1;

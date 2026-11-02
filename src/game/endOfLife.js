@@ -19,6 +19,8 @@ import { createTreeState } from './fortuneTree.js';
 import { createHomeState } from './home.js';
 import { createHousingState, currentTier } from './housing.js';
 import { leavePlace } from './places.js';
+import { createActivityState } from './activities.js';
+import { collectionCount } from './fishing.js';
 
 const BOOK_VERSION = 1;
 
@@ -219,6 +221,7 @@ export function lifeSummary(game) {
     money: character.stats.money,
     home: homeName(game),
     applesWon: game.fortuneTree.applesWon,
+    fish: { caught: game.activities.totals.fishing.caught, ...collectionCount(game.collection) },
   };
 }
 
@@ -241,6 +244,8 @@ export function restoreSummary(data) {
     money: count(data.money),
     home: isText(data.home) ? data.home : '',
     applesWon: count(data.applesWon),
+    // Lives from before fishing have none.
+    fish: data.fish ? { caught: count(data.fish.caught), count: count(data.fish.count), total: count(data.fish.total) } : null,
   };
 }
 
@@ -308,6 +313,7 @@ export function startNewLife(game, options = {}) {
   game.home = createHomeState();
   game.housing = createHousingState();
   game.endOfLife = createEndOfLifeState();
+  game.activities = createActivityState();
   return game;
 }
 

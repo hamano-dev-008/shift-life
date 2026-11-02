@@ -116,7 +116,11 @@ export const END_TEXT = {
     money: 'Money',
     home: 'Home',
     apples: 'Golden apples',
+    fish: 'Fish',
   },
+  // {caught} fish caught this life, {count} of {total} kinds in the fish
+  // collection (across lives) when the life ended.
+  fish: '{caught} caught, {count}/{total} kinds',
   noMilestones: 'None yet',
   noJobs: 'Never worked',
   // A milestone reached; {goal} is its goal's name.

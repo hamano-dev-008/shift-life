@@ -1,6 +1,9 @@
 // sprite.js — Draws the character as a small pixel sprite, in code,
 // with goal activity props, job items, the guitar and notes while
-// busking, and lying down with floating z's while resting. All character drawing lives here so it can be swapped for hand-drawn sprite
+// busking, lying down with floating z's while resting, and the arm
+// holding the fishing rod (or raising the catch) while fishing; the rod,
+// line and catch themselves are drawn by ui/fishing.js from
+// fishingHand(). All character drawing lives here so it can be swapped for hand-drawn sprite
 // sheets later without touching the rest of the game.
 //
 // The sprite is painted facing right on a small layer in character pixels,
@@ -550,6 +553,18 @@ function drawActivityArm(px, shape, look, col, bodyTop, pose) {
       px(col, bodyTop + 1, 1, sleeve, look.shirt);
       px(col + 1, bodyTop + sleeve, 2, 1, look.skin);
       return true;
+    case 'fish':
+      if (pose.fishing?.phase === 'show') {
+        // Holding the catch up high: shoulder, elbow out, hand raised.
+        px(col, bodyTop + 1, 1, 1, look.shirt);
+        px(col + 1, bodyTop, 1, 1, look.shirt);
+        px(col + 1, bodyTop - 2, 1, 2, look.skin);
+      } else {
+        // Holding the rod out in front, like a book.
+        px(col, bodyTop + 1, 1, sleeve, look.shirt);
+        px(col + 1, bodyTop + sleeve, 2, 1, look.skin);
+      }
+      return true;
     case 'wave': {
       // Shoulder, elbow out, hand up beside the face rocking side to side.
       const rock = Math.floor(pose.activityTime / WAVE_BEAT) % 2;
@@ -606,6 +621,29 @@ function drawActivityExtras(px, shape, armCol, bodyTop, headLeft, headTop, pose)
     default:
       break;
   }
+}
+
+// Where the hand holding the fishing rod is while fishing (pose.activity
+// 'fish', standing), in canvas pixels: { x, y } (the middle of the hand
+// pixel), with `unit` (canvas pixels per character pixel) and `facing`,
+// for drawing the rod, line and catch from it (ui/fishing.js). While
+// showing a catch it's the raised hand. Matches the code-drawn figure;
+// a character.<body>.fish sprite should hold its hand in the same place.
+export function fishingHand(stage, pose, groundY, scale) {
+  const shape = shapeOf(stage, pose);
+  const bodyTop = FOOT_ROW - shape.legs - shape.body;
+  const armCol = -Math.floor(shape.width / 2) + shape.width;
+  const sleeve = Math.ceil((shape.body - 1) / 2);
+  const [col, row] = pose.fishing?.phase === 'show'
+    ? [armCol + 1, bodyTop - 2]
+    : [armCol + 2, bodyTop + sleeve];
+  const top = groundY + scale - LAYER_HEIGHT * scale;
+  return {
+    x: pose.x + pose.facing * (col + 0.5) * scale,
+    y: top + (row + 0.5) * scale,
+    unit: scale,
+    facing: pose.facing,
+  };
 }
 
 // Head in 3/4 view facing right: the back of the head is column 0 and the

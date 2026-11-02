@@ -29,8 +29,9 @@ import { FAREWELL } from '../data/endOfLife.js';
 const INFANT_GAITS = { crawl: CRAWL, toddle: TODDLE };
 
 // Modes for staying put somewhere (see updateStay()): 'farewell' is
-// sitting down at the end of a life.
-const STAY_MODES = ['busking', 'resting', 'farewell'];
+// sitting down at the end of a life; 'doing' is doing a place activity
+// such as fishing (standing at its spot, facing its way).
+const STAY_MODES = ['busking', 'resting', 'farewell', 'doing'];
 
 // A wobble shifts the sitting baby's upper body through these columns.
 const WOBBLE_STEPS = [1, 0, -1, 0];
@@ -74,6 +75,8 @@ export function createAnimator(layout) {
     travelling: false, // walking out of the place (travelTo())
     stayMode: null, // 'busking' or 'resting' once at the stay spot
     stayLift: 0, // canvas pixels the figure is raised while staying
+    stayActivity: null, // the pose's activity while 'doing' (e.g. 'fish')
+    stayFacing: 0, // which way to face while staying (0: as they arrive)
     lastVisited: null,
     pauseLeft: randomIn([1, 3]),
     gridX: Math.round(x / layout.characterScale), // position in whole character pixels
@@ -292,6 +295,7 @@ export function goToWorkNow(anim) {
 
 function startStay(anim) {
   anim.mode = anim.stayMode;
+  if (anim.stayFacing) anim.facing = anim.stayFacing;
   anim.activity = null;
   anim.jogging = false;
   anim.activityTime = 0;
@@ -302,7 +306,10 @@ function startStay(anim) {
 // until it stops.
 function updateStay(anim, dt, stage, stay) {
   anim.stayLift = stay.lift ?? 0;
+  anim.stayActivity = stay.activity ?? null;
+  anim.stayFacing = stay.facing ?? 0;
   if (anim.mode === stay.mode) {
+    if (anim.stayFacing) anim.facing = anim.stayFacing;
     anim.activityTime += dt;
     return;
   }
@@ -433,9 +440,12 @@ export function placeIn(anim, layout) {
 // next. `employed`: the character has a job, so they sometimes go to work.
 // `needed`: something wants them on screen (an event, a bubble), so they
 // don't leave, and come back if they're out. `stay`: while busking or
-// resting, { x, mode, lift }: they go to canvas x `x` and stay in `mode`
-// ('busking', 'resting' or 'farewell'), with no wandering, activities or work trips;
-// `lift` raises the figure that many canvas pixels (lying on the sofa).
+// resting, { x, mode, lift, activity, facing }: they go to canvas x `x`
+// and stay in `mode` ('busking', 'resting', 'farewell' or 'doing'), with
+// no wandering, activities or work trips; `lift` raises the figure that
+// many canvas pixels (lying on the sofa); while 'doing', `activity` is
+// the pose's activity (e.g. 'fish') and `facing` (-1 or 1) the way they
+// face once there.
 // Null otherwise. Travelling (travelTo()) comes before all of this.
 export function updateAnimator(anim, dt, stage, gait, {
   activity = null, employed = false, needed = false, stay = null,
@@ -531,13 +541,15 @@ function walkPose(p, stride) {
 // `wobble` shifts the sitting upper body sideways. `lying` means lying down (resting on the sofa), raised `lift`
 // canvas pixels above the feet row. `activity` is the activity being done
 // (null when none; 'busk' while busking, sitting; 'rest' while resting,
-// lying) and `activityTime` how long it has been going, in seconds.
+// lying; a place activity's animation, e.g. 'fish', standing) and
+// `activityTime` how long it has been going, in seconds.
 // `time` is seconds since the animator started (for sprite animations).
 export function poseOf(anim, stage) {
   const busking = anim.mode === 'busking';
   const resting = anim.mode === 'resting';
   const farewell = anim.mode === 'farewell';
-  const staying = busking || resting || farewell;
+  const doingStay = anim.mode === 'doing';
+  const staying = busking || resting || farewell || doingStay;
   const doing = anim.mode === 'activity';
   const walking = anim.mode === 'walking' || (doing && anim.jogging);
   const sit = busking || farewell || anim.mode === 'plopped'
@@ -556,7 +568,7 @@ export function poseOf(anim, stage) {
     walk: walking ? walkPose(anim.steps % (4 * stride), stride) : null,
     lying: resting,
     lift: resting ? anim.stayLift : 0,
-    activity: busking ? 'busk' : resting ? 'rest' : doing ? anim.activity : null,
+    activity: busking ? 'busk' : resting ? 'rest' : doingStay ? anim.stayActivity : doing ? anim.activity : null,
     activityTime: doing || staying ? anim.activityTime : 0,
     time: anim.time,
   };

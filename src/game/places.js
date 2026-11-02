@@ -10,6 +10,7 @@ import { FORTUNE_TREE_PLACE } from '../data/fortuneTree.js';
 import { REST_SEATS } from '../data/home.js';
 import { stopPlaying } from './fortuneTree.js';
 import { stopResting } from './home.js';
+import { stopActivity, currentActivity } from './activities.js';
 import { meetsRequirement, showsPiece, updateHousing } from './housing.js';
 
 // The place's data as written, whether or not it exists right now.
@@ -88,18 +89,21 @@ export function restSpotOf(game) {
 }
 
 // Ends whatever the character was doing that belongs to a place (busking,
-// resting). Returns whether anything ended.
+// resting, an activity such as fishing, which sells the bucket; call
+// stopActivity() first to get its bubble). Returns whether anything ended.
 export function leavePlace(game) {
   const stoppedPlaying = stopPlaying(game);
   const stoppedResting = stopResting(game);
-  return stoppedPlaying || stoppedResting;
+  const stoppedActivity = Boolean(stopActivity(game));
+  return stoppedPlaying || stoppedResting || stoppedActivity;
 }
 
 // Makes sure the character is somewhere that exists, and doing only what
 // that place allows. A place that's gone (the parents' house after moving
 // out, Home without the house) sends them to its `gone` place, ending
-// busking or resting; busking needs the Fortune Tree and resting needs a
-// resting prop. Returns whether the place changed.
+// busking or resting; busking needs the Fortune Tree, resting needs a
+// resting prop and an activity its own place. Returns whether the place
+// changed.
 export function settlePlace(game) {
   let moved = false;
   for (let tries = 0; !placeExists(game, game.place) && tries < PLACES.length; tries++) {
@@ -110,6 +114,7 @@ export function settlePlace(game) {
   if (moved) leavePlace(game);
   if (game.place !== FORTUNE_TREE_PLACE) stopPlaying(game);
   if (!restSpotOf(game)) stopResting(game);
+  if (currentActivity(game) && currentActivity(game).place !== game.place) stopActivity(game);
   return moved;
 }
 

@@ -25,14 +25,17 @@ with **Electron and plain JavaScript**.
 > traits, wanders the window, ages in real time, meets life events as
 > speech bubbles, pursues a life goal the player picks, works jobs from
 > 18 (pay, promotions, work events) and retires at 65, and walks
-> between places: the Lake (a dock and shimmering water; fishing is
-> still to come), the Fortune Tree (busking, the golden apple), the
+> between places: the Lake (fishing from the dock: a rod to buy, bites,
+> catches sold from the bucket, a fish collection kept across lives;
+> the first of the data-defined place activities), the Fortune Tree
+> (busking, the golden apple), the
 > Parents' Yard and Home (resting on the sofa) while growing up, then
 > from 18 My Yard (sleeping bag, tent or house, bought by the player)
 > and their own Home. From 50 health fades with age; the life ends
 > gently (no health left, or a yearly chance from 70 up to 100) with a
 > life summary, goes into the Book of past lives, and a new life can
-> begin. The life and the Book are saved between launches. Items marked
+> begin. The life, the Book and the fish collection are saved between
+> launches. Items marked
 > *(planned)* don't exist yet; follow the planned layout when adding them,
 > and update this section whenever files are added, moved, or removed.
 
@@ -47,30 +50,37 @@ Shift-Life/
 ├── main.js            Electron main process: creates the frameless,
 │                      transparent, always-on-top 320x240 window, saves and
 │                      restores its position, handles window, save and
-│                      Book of past lives IPC, lists the PNGs in
+│                      Book of past lives and fish collection IPC,
+│                      lists the PNGs in
 │                      assets/sprites/, reports dev runs (!app.isPackaged)
 ├── preload.js         Exposes window.shiftLife { minimize, close, loadSave,
-│                      save, saveSync, loadBook, saveBook, isDev,
+│                      save, saveSync, loadBook, saveBook,
+│                      loadCollection, saveCollection, isDev,
 │                      listSprites } to the renderer via contextBridge
 ├── src/
 │   ├── index.html     Renderer page: scene canvas, prop click areas,
 │   │                  label, place name, stats panel, event bubble/card,
-│   │                  goal, tree, rest, Go to and dev menus, life summary
+│   │                  bite bubble, goal, tree, rest, activity (dock),
+│   │                  Go to and dev menus, life summary
 │   │                  card, Book of past lives, text bubble, top-right
 │   │                  buttons (goal, book, place, gear, -, x)
 │   ├── styles.css     Rounded frame, drag region, pixelated canvas, label,
-│   │                  place name, stats panel, prop click areas, panels
-│   │                  (event card, goal, tree, rest, Go to and dev
-│   │                  menus, life summary, Book; the tall ones scroll),
+│   │                  place name (with the label's backing), stats
+│   │                  panel, prop click areas, panels (event card, goal,
+│   │                  tree, rest, activity with the fish collection, Go
+│   │                  to and dev menus, life summary, Book; the tall
+│   │                  ones scroll),
 │   │                  top-right buttons, text bubble (and the farewell
 │   │                  bubble)
 │   ├── renderer.js    Renderer entry point (ES module): loads or starts a
 │   │                  life and the Book, builds each place's scene, runs
 │   │                  clock, ageing and the end of life, events, goals,
-│   │                  jobs, the Fortune Tree, resting and moving out
-│   │                  (real-time tick), trips between places, following
-│   │                  map changes, prop clicks (the Lake's dock bubble),
-│   │                  buying housing, the
+│   │                  jobs, the Fortune Tree, resting, activities
+│   │                  (fishing) and moving out (real-time tick), trips
+│   │                  between places (selling the bucket), following
+│   │                  map changes, prop clicks (the dock opens the
+│   │                  activity menu), fishing's drawing and bite "!",
+│   │                  the fish collection, buying housing, the
 │   │                  goodbye (sitting, fade, farewell bubble, summary
 │   │                  card) and new lives, autosave, frame loop, text
 │   │                  bubble queue, menu wiring, dev shortcuts
@@ -99,24 +109,37 @@ Shift-Life/
 │   │   ├── housing.js     Moving out at 18, the housing tier, place
 │   │   │                  requirements, which tier prop shows, rest
 │   │   │                  rate, upgrade offer and buying
+│   │   ├── activities.js  Place activities (data/activities.js): the
+│   │   │                  item to buy, starting and stopping, real-time
+│   │   │                  progress and rewards (periodic, on finishing a
+│   │   │                  fixed-time run, catches), the event freeze,
+│   │   │                  the activity menu's view, per-life totals
+│   │   ├── fishing.js     Fishing's bites and catches: the real-time
+│   │   │                  wait, the bite (click odds), reeling, landing
+│   │   │                  into the bucket, selling it, the menu status;
+│   │   │                  the fish collection (first catch of each kind,
+│   │   │                  across lives)
 │   │   ├── fortuneTree.js The Fortune Tree: busking sessions and pay,
 │   │   │                  the golden apple (growth, pick chance, pick),
 │   │   │                  real-time timers, the tree menu's view, life
 │   │   │                  totals (sessions played, apples won)
 │   │   ├── endOfLife.js   Ageing (health from 50, by home), when a life
 │   │   │                  ends (no health, yearly chance, natural
-│   │   │                  limit), ending it (stops busking/resting,
-│   │   │                  events, the clock), life summary and title,
+│   │   │                  limit), ending it (stops busking/resting/
+│   │   │                  fishing, events, the clock), life summary
+│   │   │                  (with fish caught and the collection) and title,
 │   │   │                  the Book of past lives, starting a new life
 │   │   │                  (with the hook for continuing as a child)
 │   │   ├── dev.js         Dev actions: new life, speed, skip years,
 │   │   │                  trigger event, add money, finish a busking
 │   │   │                  session, apple now, rest a minute, go to a
 │   │   │                  place instantly, set the housing tier, jump
-│   │   │                  to 18, end life now, set health, read-out
-│   │   │                  (job, tree, place, housing, life)
+│   │   │                  to 18, end life now, set health, give a rod,
+│   │   │                  a bite now, catch a rarity now, read-out (job,
+│   │   │                  tree, place, housing, fishing, life)
 │   │   └── save.js        Save format (versioned) and load/save calls,
-│   │                      for the life and the Book of past lives
+│   │                      for the life, the Book of past lives and the
+│   │                      fish collection
 │   ├── ui/            Drawing and visual-only behavior
 │   │   ├── interaction.js Pixel-shaped click targets and reaction poses
 │   │   ├── pixel.js       Low-res layer helpers: paint, outline, scaled draw
@@ -171,6 +194,12 @@ Shift-Life/
 │   │   ├── goMenu.js      The Go to menu (place button): the other
 │   │   │                  places that exist now; disabled while
 │   │   │                  travelling
+│   │   ├── activityMenu.js The activity menu (the dock): buy the item,
+│   │   │                  start/stop, status (the bucket), and the fish
+│   │   │                  collection view (icons, who caught each first)
+│   │   ├── fishing.js     Draws fishing: the rod, line, bobber (cast,
+│   │   │                  bobbing, bite splash, reeled in), the catch
+│   │   │                  held up, and the fish icons (sprite or code)
 │   │   ├── farewell.js    The goodbye's fade: a pale veil over the scene,
 │   │   │                  thickening in steps
 │   │   ├── lifeSummary.js The life summary card ("Start a new life"), and
@@ -195,9 +224,17 @@ Shift-Life/
 │       │                  props, own feet row and walking limits),
 │       │                  where a new life starts, the default place,
 │       │                  travel distances, Go to text
+│       ├── activities.js  Place activities (fishing so far): place,
+│       │                  prop, facing, minimum age, item and price,
+│       │                  how long it runs, rewards, event freeze,
+│       │                  animation, menu text (format in the file)
+│       ├── fishing.js     Fishing: bite wait, bite window, reel/show/
+│       │                  cast times, rarities (weights, click bonus),
+│       │                  the fish and their values, visual loops, text
 │       ├── lake.js        The Lake's numbers and text: its feet row,
 │       │                  walking limits, the dock's click area and
-│       │                  fishing spot, the water shimmer (area,
+│       │                  fishing spot, where the bobber lands, the
+│       │                  water shimmer (area,
 │       │                  sparkles, colors, timing), the dock bubble
 │       ├── home.js        Resting numbers and text: what can be rested
 │       │                  on and its seat height, rest health gain, z's,
@@ -246,8 +283,12 @@ Shift-Life/
 └── test/              interaction.test.mjs (rules/poses), endOfLife.test.mjs
                        (ageing, endings, summary, Book, new life),
                        lake.test.mjs (the Lake: routes, feet row, walking
-                       limits, dock, work trips, shimmer), smoke.cjs
-                       (Electron clicks, end of life flow, the Lake)
+                       limits, dock, work trips, shimmer),
+                       activities.test.mjs (activities and fishing:
+                       rod, bites, odds, earnings, selling, collection,
+                       saving, a data-only activity, dev), smoke.cjs
+                       (Electron clicks, end of life flow, the Lake,
+                       fishing)
 ```
 
 How it works, for anyone extending it:
@@ -503,8 +544,9 @@ How it works, for anyone extending it:
     `#targets` over each of the place's `targets` (the prop's visible
     pixels, `propClickRect()`). Clicking an exit's prop (a house, the
     front door) travels through it; the tree opens its menu, anything
-    in `REST_SEATS` (sofa, sleeping bag, tent) the rest menu, and the
-    Lake's dock its bubble.
+    in `REST_SEATS` (sofa, sleeping bag, tent) the rest menu, and an
+    activity's prop (`activityAt()`, the Lake's dock) the activity
+    menu.
   - The Lake (`data/lake.js`, `ui/lake.js`): its scenery is `lake`, one
     picture (`assets/sprites/lake.png`, 107 x 80) drawn from the
     window's bottom-left corner instead of sky and grass (code-drawn if
@@ -519,10 +561,9 @@ How it works, for anyone extending it:
     highlight pixels on the water area, off the dock: each twinkles up
     through its colors and back once per cycle while drifting sideways,
     then shows up somewhere else; positions come from deterministic
-    noise, so it's the same every run. Clicking the dock shows "Fishing
-    coming soon!" as a small remark (`chatter()` in the renderer, like
-    poke chatter: it never covers events or news). The dock's fishing
-    spot is where fishing will start.
+    noise, so it's the same every run. The dock is where fishing
+    happens (see **Activities and fishing**); `BOBBER_SPOT` is where
+    the bobber lands, to the left in the open water.
   - Work trips work the same everywhere (out the nearest side and back).
   - A new place needs an entry in `PLACES` (with exits both ways), any
     new scenery pieces in `SCENERY` (`ui/scene.js`, with code-drawn
@@ -608,7 +649,8 @@ How it works, for anyone extending it:
     away) and sits them there playing (`activity: 'busk'` in the pose):
     no wandering, activities or work trips, even when something needs
     them on screen. Travelling elsewhere stops busking.
-  - Event freeze: while playing (or resting),
+  - Event freeze: while playing (or resting, or doing an activity with
+    `freezeEvents`, such as fishing),
     `updateEvents(game, { freeze: true })`
     starts nothing and records `events.frozenAt`. On the first update
     after, `nextAt` and a waiting event's `shownAt` move forward by the
@@ -653,7 +695,9 @@ How it works, for anyone extending it:
     opens already faded.
   - The summary card (`ui/lifeSummary.js`) shows the life title, name
     and ages, the goal and milestones reached, jobs held and the top
-    title, money, the home and golden apples won, and scrolls if needed.
+    title, money, the home, golden apples won and fish (caught this
+    life, and the collection's count when it ended; lives from before
+    fishing have no fish row), and scrolls if needed.
     The title is "The {adjective} {noun}": the adjective from the
     strongest trait (`TRAIT_SCORE`: jobs held that lean to it, the goal),
     the noun from busking (`BUSKER`), else the top job (`JOB_NOUNS`),
@@ -668,6 +712,68 @@ How it works, for anyone extending it:
     with a newborn at the Parents' Home and restarts the clock. Its
     `options.parent` is the hook for continuing as a child of the life
     that ended; it's ignored for now.
+- **Activities and fishing:** place activities are data
+  (`PLACE_ACTIVITIES` in `data/activities.js`, format documented there):
+  the place and prop, which way the character faces, the minimum age,
+  an item to buy first (`{ id, name, price }`, once per life), how long
+  it runs (`'untilStopped'` or `{ minutes }`), rewards (`every: {
+  minutes, stats }`, `onFinish` stats, or `catches` for fishing),
+  `freezeEvents`, the pose's `animation`, and the menu text. A new
+  activity is a new entry, a place and prop to do it at, and its
+  animation (in `ui/sprite.js`, or a `character.<body>.<animation>`
+  sprite); a test adds a fixed-time one with data only. Busking and
+  resting keep their own code for now.
+  - `game.activities` holds `current` (the running one: `{ id, ms,
+    everyMs, fishing }`), `items` bought this life, and per-activity
+    `totals` (`sessions`, `caught`, `earned`). `game/activities.js` runs
+    it on the real-time life tick (`updateActivities(game, realMs)`, so
+    game speed doesn't change it and nothing passes while the app is
+    closed); only one runs at a time. `stopActivity()` ends it (for
+    catches, selling the bucket) and returns its bubble; `leavePlace()`
+    calls it too (trips, the dev Go to and the end of a life sell the
+    bucket; the renderer stops it first to show the sale), and
+    `settlePlace()` ends an activity away from its place.
+  - While one runs the animator stays put (`stay` mode `'doing'`, with
+    the pose's `activity` and `facing`): it walks to the prop's visit
+    spot, faces that way and stays; no wandering or work trips. Events
+    are frozen when `freezeEvents` is set.
+  - The activity menu (`ui/activityMenu.js`, `#activity-menu`) opens from
+    the prop: under `minAge` it says to come back; without the item
+    "Buy a fishing rod - $30" (disabled, with "Need $X more", when it's
+    too dear); then "Start fishing" / "Stop fishing" with the status
+    (what's happening, the bucket and what it's worth); and for fishing
+    a "Fish collection" view.
+  - Fishing (`game/fishing.js`, `data/fishing.js`): from 6, with a rod,
+    at the Lake's dock, facing left. Each cast starts a wait of
+    `FISHING_TIMES.biteWait` real seconds (30-180); then a bite: a "!"
+    over the head (canvas art like the event "!", with `#bite-bubble`
+    over it) for `biteWindow` seconds. Clicking it reels in with the
+    click odds (`clickBonus` per rarity: rarer fish more likely);
+    ignored, they reel in at normal odds. Reeling takes `reel` seconds,
+    then the catch lands in the bucket (a bubble: golden for rare,
+    legendary or new to the collection), they hold it up for `show`
+    seconds and cast again. `RARITIES` (junk, common, uncommon, rare,
+    legendary) have weights tuned to about $4 a real minute when every
+    bite is ignored (the sum is in `data/fishing.js`; a test checks it);
+    `FISH` are the catches with their values (a number or a [min, max]
+    range). Stopping sells the bucket: "Sold 3 for $65." While a bite's
+    "!" is up it takes the spot over the head (text bubbles and the
+    event "!" wait).
+  - Drawing (`ui/fishing.js`, after the character): the rod from the hand
+    (`fishingHand()` in `ui/sprite.js`, which also draws the arm: out
+    holding the rod, or raised with the catch): swung back and up for
+    the cast, out while waiting, jiggling at a bite, bent while reeling;
+    the line (sagging while waiting) to the bobber at `BOBBER_SPOT`
+    (data/lake.js), which flies out in an arc, bobs with ripples, dips
+    with a splash at a bite and is pulled toward the dock while reeling;
+    then the catch held up in front. Fish icons are `fish.<id>` sprites
+    or code-drawn (`FISH_ART`), used on the scene and in the collection
+    (unknown ones as a plain silhouette and "???").
+  - The fish collection (`game.collection`, not part of the life's save)
+    is its own file, `collection.json` (`collection:load`/
+    `collection:write`), so it lasts across lives: the first catch of
+    each kind ever, `{ name, age, on }`. The renderer loads it at start,
+    keeps it through new lives and saves it when a new kind is caught.
 - **Stats panel:** hovering the name label shows stats, the job (title,
   level, pay; "Looking" or "Retired" with the pension) from age 18, and
   traits; clicking it pins the panel open.
@@ -686,12 +792,15 @@ How it works, for anyone extending it:
     follows on the next tick), set the housing tier directly (Sleeping
     bag, Tent, House; ends resting, leaves Home if the house goes; a
     child stays with their parents), Go to any place that exists
-    instantly (no walking, the Lake included; ends busking or resting
-    and any trip), End
+    instantly (no walking, the Lake included; ends busking, resting,
+    fishing (selling the bucket) and any trip), give a fishing rod, a
+    bite now and catch a fish of a chosen rarity now ("Not fishing."
+    unless fishing), End
     life now (adults only, otherwise a note; plays the goodbye), set
     health (0, 10, 50, 100; 0 ends an adult's life on the next tick), and
     a read-out of stats, traits, goal, job, the tree, the place and
-    housing, and the yearly ageing and the next birthday's chance (or how
+    housing, fishing (the wait, the bucket, fish caught), and the yearly
+    ageing and the next birthday's chance (or how
     the life ended). The dev New life doesn't add the old life to the
     Book. Skipping years does nothing once the life has ended. The menu
     scrolls (no scrollbar) if it's taller than the window, and rebuilds
@@ -738,25 +847,27 @@ How it works, for anyone extending it:
 - **Renderer ↔ main:** the renderer has no Node access. Add new
   capabilities as named IPC channels in `main.js` and expose them through
   `window.shiftLife` in `preload.js`.
-- **Saved state:** all three files live in `%APPDATA%\shift-life\`.
+- **Saved state:** all four files live in `%APPDATA%\shift-life\`.
   - `window-state.json` holds the window position. It's ignored if it
     would put the window off every connected screen.
   - `save.json` holds the life: `{ version, clock: { years }, character,
-    events, goals, jobs, place, fortuneTree, home, housing, endOfLife }`.
+    events, goals, jobs, place, fortuneTree, home, housing, endOfLife,
+    activities }`.
     `character` includes
     `stats` and `traits`; `events`
     holds `nextAt`, the `pending` event, how often each was `seen`,
     `lastId`, and `frozenAt` (while busking or resting); `goals` holds the `active` goal, `since` and `nextDriftAt`,
     `pastYears` per goal, and reached `milestones` ({ goal, id, age });
     `jobs` is described under **Jobs** above; `place`, `fortuneTree`,
-    `home`, `housing` and `endOfLife` under **Places**, **Fortune Tree**,
-    **Resting**, **Housing** and **End of life**.
+    `home`, `housing`, `endOfLife` and `activities` under **Places**,
+    **Fortune Tree**, **Resting**, **Housing**, **End of life** and
+    **Activities and fishing**.
     The renderer autosaves every 10s and saves synchronously on
     `beforeunload`, so every way of closing is covered. `main.js` writes
     via a temp file and rename.
   - New optional fields can keep the version if `restore*()` fills in a
     default (as `stats`, `traits`, `events`, `goals`, `jobs`, `place`,
-    `fortuneTree`, `home`, `housing` and `endOfLife` do (ageing starts
+    `fortuneTree`, `home`, `housing`, `endOfLife` and `activities` do (ageing starts
     from the age at load); older saves'
     `mood` becomes happiness). For breaking changes, bump `SAVE_VERSION` in
     `game/save.js` and handle old versions. Right now an unrecognised save
@@ -764,8 +875,11 @@ How it works, for anyone extending it:
   - `past-lives.json` holds the Book of past lives: `{ version, lives:
     [{ id, endedOn, summary }] }`, written the same way. Starting a new
     life keeps it.
-  - Delete `save.json` to start a new life (the Book stays; delete
-    `past-lives.json` to clear it).
+  - `collection.json` holds the fish collection: `{ version, fish: {
+    <fish id>: { name, age, on } } }`, written the same way and kept
+    across lives.
+  - Delete `save.json` to start a new life (the Book and the collection
+    stay; delete `past-lives.json` or `collection.json` to clear them).
 
 ## Install, run, and test
 

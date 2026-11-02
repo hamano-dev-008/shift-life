@@ -1,6 +1,7 @@
 // lifeSummary.js — The life summary card shown after a life ends: the
 // life title, name and ages, goal and milestones, jobs and the highest
-// title, money, the best home and golden apples won, with a "Start a new
+// title, money, the best home, golden apples won and fish (caught, and
+// the collection's count), with a "Start a new
 // life" button. A compact panel that scrolls if it's taller than the
 // window. summaryRows() also draws the summary for the Book of past lives
 // (ui/pastLives.js). Text comes from END_TEXT in data/endOfLife.js; the
@@ -41,6 +42,7 @@ export function summaryRows(summary) {
     ...row(rows.money, lines(fill(END_TEXT.money, { amount: summary.money.toLocaleString('en-US') }))),
     ...row(rows.home, lines(summary.home)),
     ...row(rows.apples, lines(String(summary.applesWon))),
+    ...(summary.fish ? row(rows.fish, lines(fill(END_TEXT.fish, summary.fish))) : []),
   );
   return [
     element('h2', 'goal-title summary-title', summary.title),

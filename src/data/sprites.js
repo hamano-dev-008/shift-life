@@ -59,6 +59,13 @@
 //             its base line, so keep the seat at that height.
 //   Props are placed like the tree: their outer column against their
 //   window edge (or centered), bottom edge one row below the base line.
+//   Fishing (data/fishing.js), at CHARACTER_SCALE:
+//     fish.<id>  A catch's icon: fish.boot, fish.carp, fish.perch,
+//             fish.trout, fish.catfish, fish.salmon, fish.pike,
+//             fish.goldenKoi. Shown held up over the head after a catch
+//             (its bottom middle on the raised hand) and in the fish
+//             collection. The code-drawn fish are 9 x 5 (the boot 7 x 6),
+//             facing left.
 //   Character (character pixels, CHARACTER_SCALE in data/layout.js):
 //     character.<body>.<animation>, optionally followed by .<expression>
 //     (smile, neutral or frown) for a version that matches the mood,
@@ -68,7 +75,9 @@
 //                  WALK_FROM_AGE in data/infant.js)
 //       animation  idle, walk, sit (baby, toddler), crawl (baby), a goal
 //                  activity (read, coins, wave, jog), busk (sitting
-//                  under the Fortune Tree playing an instrument), or
+//                  under the Fortune Tree playing an instrument), fish
+//                  (standing on the dock with the rod; the line, bobber
+//                  and catch are drawn over it either way), or
 //                  rest (lying on the sofa, sleeping bag or in the tent;
 //                  drawn raised to the seat)
 //     Drawn facing right (mirrored when facing left), with the frame's

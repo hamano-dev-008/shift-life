@@ -6,6 +6,7 @@
 import { SPEEDS } from '../data/balance.js';
 import { DEV_SKIP_YEARS, DEV_MONEY, DEV_HEALTH } from '../data/dev.js';
 import { HOUSING_TIERS, MOVE_OUT_AGE } from '../data/housing.js';
+import { RARITIES } from '../data/fishing.js';
 
 function button(text, onClick, className = '') {
   const node = document.createElement('button');
@@ -36,9 +37,10 @@ function row(label, ...children) {
 // place id), places() (the places that exist now, { id, name }),
 // setTier(tierId), tier() (current housing tier id), toMoveOut()
 // (returns whether the clock moved), endLife() (returns null, or a note
-// on why the life can't end now), setHealth(n), readout() (returns
-// { stats, traits, goal, job, tree, place, life }), speed() (current
-// speed id), onOpen() }.
+// on why the life can't end now), setHealth(n), giveRod(), biteNow() and
+// catchRarity(rarityId) (each returns null, or a note such as "Not
+// fishing."), readout() (returns { stats, traits, goal, job, tree, place,
+// life, fishing }), speed() (current speed id), onOpen() }.
 export function createDevMenu(menu, gear, actions) {
   const body = menu.querySelector('.dev-body');
   const readout = menu.querySelector('.dev-readout');
@@ -126,7 +128,20 @@ export function createDevMenu(menu, gear, actions) {
     const health = row('Health', ...DEV_HEALTH.map((value) =>
       button(String(value), () => actions.setHealth(value))));
 
-    const children = [newLife, speeds, skips, extras, tree, home, housing, places, life, health];
+    const fish = row('Fish',
+      button('Give rod', () => { actions.giveRod(); note = ''; render(); }),
+      button('Bite now', () => {
+        note = actions.biteNow() ?? '';
+        if (note) render(); else close();
+      }));
+
+    const catches = row('Catch', ...RARITIES.map((rarity) =>
+      button(rarity.name, () => {
+        note = actions.catchRarity(rarity.id) ?? '';
+        if (note) render(); else close();
+      })));
+
+    const children = [newLife, speeds, skips, extras, tree, home, housing, places, fish, catches, life, health];
     if (note) {
       const message = document.createElement('p');
       message.className = 'dev-note';
@@ -155,8 +170,10 @@ export function createDevMenu(menu, gear, actions) {
     update() {
       if (menu.hidden) return;
       if (placesKey() !== shownPlaces) render();
-      const { stats, traits, goal, job, tree, place, life } = actions.readout();
-      const lines = [stats, traits, goal, job, tree, place, life];
+      const {
+        stats, traits, goal, job, tree, place, life, fishing,
+      } = actions.readout();
+      const lines = [stats, traits, goal, job, tree, place, fishing, life];
       const key = lines.join('|');
       if (key === shown) return;
       shown = key;

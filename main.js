@@ -1,7 +1,7 @@
 // main.js — Electron main process: creates the floating, frameless,
 // always-on-top companion window, remembers where the player left it,
-// reads/writes the game save file and the Book of past lives for the
-// renderer, lists the sprite
+// reads/writes the game save file, the Book of past lives and the fish
+// collection for the renderer, lists the sprite
 // PNGs in assets/sprites/, and tells it whether it's running from source
 // (for developer settings).
 
@@ -23,6 +23,11 @@ function saveFile() {
 // The Book of past lives: its own file, so it outlasts each life's save.
 function bookFile() {
   return path.join(app.getPath('userData'), 'past-lives.json');
+}
+
+// The fish collection: its own file too, kept across lives.
+function collectionFile() {
+  return path.join(app.getPath('userData'), 'collection.json');
 }
 
 // Returns the saved { x, y }, or {} to let Electron center the window.
@@ -143,6 +148,10 @@ ipcMain.on('save:write-sync', (event, data) => {
 ipcMain.handle('book:load', () => readJson(bookFile()));
 
 ipcMain.on('book:write', (event, data) => writeJson(bookFile(), data));
+
+// The fish collection: the first catch of each kind, across lives.
+ipcMain.handle('collection:load', () => readJson(collectionFile()));
+ipcMain.on('collection:write', (event, data) => writeJson(collectionFile(), data));
 
 app.whenReady().then(createWindow);
 app.on('window-all-closed', () => app.quit());

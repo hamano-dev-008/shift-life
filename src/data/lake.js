@@ -1,8 +1,9 @@
 // lake.js — The Lake's numbers and text: where the character can stand and
-// walk, the dock's click area and fishing spot, the water shimmer, and the
-// dock's bubble. Pure data: data/places.js and data/layout.js use it for
-// the place and the dock prop, ui/lake.js draws the shimmer, the renderer
-// shows the bubble.
+// walk, the dock's click area and fishing spot, where the bobber lands,
+// and the water shimmer. Pure data: data/places.js and data/layout.js use it for
+// the place and the dock prop, ui/lake.js draws the shimmer, ui/fishing.js
+// the line and bobber. Fishing itself is in data/activities.js and
+// data/fishing.js.
 //
 // The Lake's background is one picture, lake.png (assets/sprites/), drawn
 // at SCENE_SCALE from the window's bottom-left corner. Positions below are
@@ -28,6 +29,7 @@ export const LAKE_FEET_FROM_BOTTOM = 12;
 export const LAKE_WALK = { minX: 25, maxX: null };
 
 // The dock's prop id (its click area and visit spot; data/layout.js).
+// Clicking it opens the fishing menu (data/activities.js).
 export const DOCK_PROP = 'lake.dock';
 
 // The dock's click area, columns left..right and rows top..bottom (both
@@ -35,6 +37,10 @@ export const DOCK_PROP = 'lake.dock';
 // character stands when visiting the dock).
 export const DOCK = { left: 25, right: 80, top: 67, bottom: 71 };
 export const FISHING_SPOT_X = 27;
+
+// Where the bobber lands, cast to the left into the open water: the
+// column of its middle and the water row it floats on.
+export const BOBBER_SPOT = { x: 12, row: 69 };
 
 // The water shimmer: a few highlight pixels that slowly twinkle and drift
 // across the water, drawn in code over the background.
@@ -59,6 +65,3 @@ export const SHIMMER = {
   visible: 0.45,
   drift: [0.3, 0.9],
 };
-
-// Clicking the dock, until fishing exists.
-export const DOCK_BUBBLE = { text: 'Fishing coming soon!', seconds: 3 };

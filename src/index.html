@@ -19,6 +19,8 @@
     <div id="character-target" hidden></div>
     <!-- Invisible click target over the "!" bubble drawn on the canvas. -->
     <button id="event-bubble" title="Something's happening!" aria-label="Open event" hidden></button>
+    <!-- The same, over the "!" when a fish bites: click to reel it in. -->
+    <button id="bite-bubble" title="A bite! Reel it in" aria-label="Reel in" hidden></button>
     <div id="speech" hidden></div>
     <section id="event-card" class="panel" hidden>
       <button class="panel-close" title="Decide later" aria-label="Decide later">x</button>
@@ -43,6 +45,13 @@
       <h2 class="goal-title menu-title"></h2>
       <div class="menu-options"></div>
       <p class="menu-status"></p>
+    </section>
+    <!-- An activity's menu (the dock: fishing), and the fish collection. -->
+    <section id="activity-menu" class="panel scroll" hidden>
+      <button class="panel-close" title="Close" aria-label="Close">x</button>
+      <h2 class="goal-title menu-title"></h2>
+      <div class="menu-options"></div>
+      <div class="menu-status"></div>
     </section>
     <section id="go-menu" class="panel" hidden>
       <button class="panel-close" title="Close" aria-label="Close">x</button>

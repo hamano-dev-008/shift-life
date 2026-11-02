@@ -2,13 +2,15 @@
 // start a new life, change the clock speed, skip ahead, force an event,
 // add money, finish a busking session, grow a golden apple, rest a
 // minute, switch place, set the housing tier or jump to moving-out age
-// now, end the life now, set health, and a read-out of the character. The
-// menu (ui/devMenu.js) only calls these.
+// now, end the life now, set health, give a fishing rod, a bite now, a
+// catch of a chosen rarity now, and a read-out of the character. The menu
+// (ui/devMenu.js) only calls these.
 
 import { SPEEDS } from '../data/balance.js';
 import { STAT_TAGS } from '../data/stats.js';
 import { TRAIT_LABELS } from '../data/traits.js';
 import { DEATH, END_TEXT } from '../data/endOfLife.js';
+import { FISHING_TEXT } from '../data/fishing.js';
 import { changeStats, setStat, ageOf } from './character.js';
 import { startEvent } from './events.js';
 import { goalById } from './goals.js';
@@ -21,6 +23,8 @@ import { setTier, housingText } from './housing.js';
 import {
   startNewLife, endLife, canDie, isEnded, endOfLifeText,
 } from './endOfLife.js';
+import { giveItem, hasItem, activityById } from './activities.js';
+import { biteNow, catchNow, fishingLook } from './fishing.js';
 
 // Replaces the life with a newborn, in place (see startNewLife()), without
 // adding the old one to the Book. Save right after to wipe the old life
@@ -110,6 +114,27 @@ export function jumpToMoveOut(game) {
   return true;
 }
 
+// Gives the fishing rod for free. Returns whether it was new.
+export function giveFishingRod(game) {
+  return giveItem(game, 'fishing');
+}
+
+// A fish bites right now. Returns { note } when not fishing, else
+// { bit } (false if a fish is already on the line).
+export function fishBiteNow(game) {
+  const fishing = game.activities.current?.fishing;
+  if (!fishing) return { note: FISHING_TEXT.notFishing };
+  return { bit: biteNow(fishing) };
+}
+
+// Lands a fish of rarity `rarity` right now. Returns { note } when not
+// fishing, else { news } (its bubble).
+export function catchRarityNow(game, rarity) {
+  const fishing = game.activities.current?.fishing;
+  if (!fishing) return { note: FISHING_TEXT.notFishing };
+  return { news: catchNow(game, fishing, rarity) };
+}
+
 // Switches to place `id` at once, without walking (ending busking or
 // resting).
 export function goToPlace(game, id) {
@@ -120,7 +145,8 @@ export function goToPlace(game, id) {
 // A compact summary for the menu: "HP 80  JOY 70  IQ 35  $120",
 // "Bold · Shy", "Scholar, 3y (age 12)", "Developer 2/3, $170/yr",
 // "Tree: busking 2:10, 3 sess, apple 85m", "Place: My Yard, resting ·
-// Tent", "Life: -2 HP/yr from 50, next bday 4%".
+// Tent", "Life: -2 HP/yr from 50, next bday 4%", "Fish: rod, wait 0:42/1:30,
+// bucket 3 ($12), 5 caught".
 export function devReadout(game) {
   const { character, goals, clock } = game;
   const stats = Object.entries(character.stats).map(([id, value]) =>
@@ -134,7 +160,25 @@ export function devReadout(game) {
     tree: treeText(treeView(game)),
     place: `Place: ${currentPlace(game).name}${isResting(game) ? ', resting' : ''} · ${housingText(game)}`,
     life: endOfLifeText(game),
+    fishing: fishingText(game),
   };
+}
+
+function minutesSeconds(ms) {
+  const seconds = Math.floor(ms / 1000);
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
+}
+
+function fishingText(game) {
+  const rod = hasItem(game, activityById('fishing').item.id) ? 'rod' : 'no rod';
+  const { caught } = game.activities.totals.fishing;
+  const fishing = game.activities.current?.fishing;
+  if (!fishing) return `Fish: ${rod}, ${caught} caught`;
+  const total = fishing.bucket.reduce((sum, entry) => sum + entry.value, 0);
+  const phase = fishing.phase === 'waiting'
+    ? `wait ${minutesSeconds(fishing.phaseMs)}/${minutesSeconds(fishing.waitMs)}`
+    : fishingLook(fishing).phase;
+  return `Fish: ${phase}, bucket ${fishing.bucket.length} ($${total}), ${caught} caught`;
 }
 
 function treeText(view) {

@@ -102,7 +102,7 @@ test('ending a life stops busking, resting, events and the clock', () => {
   assert.equal(endLifeNow(game).note, 'This life has ended.');
 });
 
-test('the summary lists the goal, milestones, jobs, top title, money, home and apples', () => {
+test('the summary lists the goal, milestones, jobs, top title, money, home, apples and fish', () => {
   const game = lifeAt(78);
   game.character.name = 'Mia';
   game.character.traits = ['bold', 'social'];
@@ -125,6 +125,8 @@ test('the summary lists the goal, milestones, jobs, top title, money, home and a
     money: 4321,
     home: 'House',
     applesWon: 0,
+    // No collection in tests: no kinds yet.
+    fish: { caught: 0, count: 0, total: 8 },
   });
   // bold: 1 + 2x2 (both chef stints lean bold) = 5; social: 1 + 2x3 (all
   // three lean social) + 1 (Heart) = 8.

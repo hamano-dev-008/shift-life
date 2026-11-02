@@ -71,10 +71,9 @@ Early development. What works so far:
     left edge leads there, and back): a sunset lake with a wooden dock
     and a grassy shore. The character walks on the dock and the shore,
     never past the dock's tip, and the water shimmers softly. Anyone can
-    visit, babies included. Clicking the dock says "Fishing coming
-    soon!" (fishing is for a later version). Work trips leave by the
-    shore side. The Lake's numbers (where they walk, the dock, the
-    shimmer) are in `src/data/lake.js`.
+    visit, babies included. Work trips leave by the shore side. The
+    Lake's numbers (where they walk, the dock, the shimmer) are in
+    `src/data/lake.js`.
   - The place button (the map pin in the top bar) opens "Go to", listing
     the other places. Pick one and the character walks there, through
     any places in between (the Lake to the living room goes past the
@@ -103,6 +102,30 @@ Early development. What works so far:
   health (up to 100) until you pick "Get up". No new events come up
   while resting (the event timer waits). The numbers are in
   `src/data/home.js`.
+- Fishing at the Lake: from age 6, click the dock to open its menu.
+  - First "Buy a fishing rod - $30" (greyed out with "Need $X more"
+    until they can afford it).
+  - "Start fishing": the character walks to the end of the dock and
+    casts to the left. The bobber bobs on the water; after 30 seconds to
+    3 real minutes a fish bites, with a splash and a "!" over their head.
+    Click the "!" within a few seconds to reel in with better odds of a
+    rare fish; otherwise they reel it in themselves at normal odds. They
+    hold up the catch, it goes in the bucket, and they cast again.
+  - Catches: junk (an old boot, $0), common (carp, perch, $3-6),
+    uncommon (trout, catfish, $15), rare (salmon, pike, $50) and
+    legendary (the golden koi, $300). Left alone, fishing earns about $4
+    a real minute.
+  - The dock menu shows the bucket while fishing. "Stop fishing" sells
+    everything and shows the total. Travelling away sells it too.
+  - The fish collection (from the dock menu) records the first catch of
+    each kind, by whom and at what age. It's kept across lives, and the
+    life summary shows the count.
+  - While fishing no new events come up (the event timer waits) and
+    they don't go to work. Real time only: game speed doesn't change it
+    and it pauses while the app is closed.
+  The numbers are in `src/data/fishing.js`; the activity itself (where,
+  from what age, the rod) in `src/data/activities.js`, where future
+  activities can be added as data.
 - The Fortune Tree: from age 6, click the tree to open its menu:
   - "Play an instrument": the character sits under the tree with a
     guitar, notes floating up. Every 8 real minutes of playing pays $10
@@ -140,7 +163,8 @@ Early development. What works so far:
   - A moment later the life summary opens: a life title such as "The
     Steady Farmer" or "The Friendly Busker" (from their strongest trait
     and what their life was about), name and age, goal and milestones,
-    jobs and highest title, money, home and golden apples won. Close it
+    jobs and highest title, money, home, golden apples won and fish
+    (caught, and the collection's count). Close it
     and click the farewell bubble to see it again.
   - "Start a new life" on the summary starts a fresh baby at the
     parents' home.
@@ -148,6 +172,8 @@ Early development. What works so far:
     button in the top bar lists them (name, ages, life title); click one
     to read its summary. The Book is kept across new lives.
   The numbers and the title rules are in `src/data/endOfLife.js`.
+- The place name under the name label has the same light backing, so
+  it reads on any background.
 - The life is saved, so closing and reopening continues it. Time doesn't
   pass while the app is closed.
 
@@ -164,10 +190,11 @@ at one year a second), skip ahead 1 or 10 years, trigger an event, add
 $1,000, finish a busking session instantly, grow a golden apple now,
 rest a minute instantly, jump to age 18 to test moving out, set the
 housing tier (sleeping bag, tent, house), jump to any place without
-walking (the Lake included), end the life now (adults only), set health (0, 10, 50 or 100;
+walking (the Lake included), give a fishing rod, make a fish bite
+now, catch a fish of a chosen rarity now, end the life now (adults only), set health (0, 10, 50 or 100;
 0 ends an adult's life), and see the character's stats, traits, goal,
 job, tree progress, place, housing, yearly ageing and the chance of the
-life ending on the next birthday.
+life ending on the next birthday, and how fishing is going.
 It's hidden in packaged builds.
 
 Keyboard shortcuts (window focused): Ctrl+Shift+F toggles fast speed (the
@@ -177,7 +204,8 @@ only), Ctrl+Shift+A starts the goal's idle activity, and Ctrl+Shift+W
 sends the character off to work (if they have a job). You can also
 start a new life by closing the app and deleting
 `%APPDATA%\shift-life\save.json`. The Book of past lives is in
-`past-lives.json` next to it.
+`past-lives.json` next to it, and the fish collection in
+`collection.json`.
 
 **Adding sprites:** every graphic is drawn in code for now, but any of
 them can be replaced by your own pixel art, one at a time, without
@@ -186,6 +214,9 @@ code. Save a PNG in `assets/sprites/` named after what it replaces:
 `yard.sleepingBag.png`, `yard.tent.png`, `yard.house.png`, `home.wall.png`,
 `home.floor.png`, `home.window.png`, `home.door.png`, `home.sofa.png`,
 `lake.png` (the Lake's whole background, 107 x 80; there's one already),
+`fish.<id>.png` for the fish icons (`fish.boot`, `fish.carp`,
+`fish.perch`, `fish.trout`, `fish.catfish`, `fish.salmon`, `fish.pike`,
+`fish.goldenKoi`),
 `goldenApple.png` (drawn at the
 tree's scale unless it has its own `scale`, as the current 40 x 40 apple
 does, its middle on the spot set by `APPLE_SPOT` in
@@ -193,7 +224,8 @@ does, its middle on the spot set by `APPLE_SPOT` in
 `character.<body>.<animation>.png` (for example
 `character.adult.walk.png`; bodies are baby, toddler, child, teen,
 adult, elder; animations are idle, walk, sit, crawl, read, coins, wave,
-jog, busk, rest). Draw at 1 pixel per game pixel: the game scales it up crisply
+jog, busk, rest, fish). Draw at 1 pixel per game pixel: the game scales it up
+crisply
 (scenery at the scene scale, the character at its own scale). Add
 `.smile`, `.neutral` or `.frown` before `.png` for a version that
 matches the mood. For an animation, put the frames side by side in one
@@ -228,10 +260,11 @@ npm.cmd start        # launch the game
 
 In Git Bash, plain `npm` works. The first start downloads Electron, so it
 takes a little longer. Run `npm.cmd test` for interaction rules, pose
-checks, end-of-life logic and the Lake (Node 22.7+), and `npm.cmd run
-test:smoke` for isolated Electron click/renderer checks, including a
-whole goodbye, a new life and a visit to the Lake. The smoke check uses in-memory saves, leaving your life
-and Book untouched.
+checks, end-of-life logic, the Lake and fishing (Node 22.7+), and
+`npm.cmd run test:smoke` for isolated Electron click/renderer checks,
+including a whole goodbye, a new life, a visit to the Lake and a catch.
+The smoke check uses in-memory saves, leaving your life, Book and
+collection untouched.
 
 ## Project layout
 
