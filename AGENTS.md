@@ -53,13 +53,15 @@ Shift-Life/
 ├── package-lock.json  Locked dependency versions (commit it)
 ├── main.js            Electron main process: creates the frameless,
 │                      transparent, always-on-top 320x240 window, saves and
-│                      restores its position, handles window, save and
+│                      restores its position, moves it while the
+│                      renderer drags it, handles window, save and
 │                      Book of past lives and fish collection IPC,
 │                      lists the PNGs in
 │                      assets/sprites/, reports dev runs (!app.isPackaged);
 │                      only one copy runs (a second launch quits and
 │                      focuses the running window)
-├── preload.js         Exposes window.shiftLife { minimize, close, loadSave,
+├── preload.js         Exposes window.shiftLife { minimize, close,
+│                      getPosition, setPosition, endDrag, loadSave,
 │                      save, saveSync, loadBook, saveBook,
 │                      loadCollection, saveCollection, isDev,
 │                      listSprites } to the renderer via contextBridge
@@ -72,7 +74,7 @@ Shift-Life/
 │   │                  Go to and dev menus, life summary
 │   │                  card, Book of past lives, text bubble, top-right
 │   │                  buttons (goal, book, place, gear, -, x)
-│   ├── styles.css     Rounded frame, drag region, pixelated canvas, label,
+│   ├── styles.css     Rounded frame, pixelated canvas, label,
 │   │                  place name (with the label's backing), stats
 │   │                  panel, prop and wildlife click areas, the
 │   │                  ribbit, the reveal's click area, the activity
@@ -247,9 +249,13 @@ Shift-Life/
 │   │   ├── pastLives.js   The Book of past lives (book button): the list
 │   │   │                  of finished lives and each one's summary
 │   │   ├── devMenu.js     The dev settings menu (gear; dev runs only)
-│   │   └── statsPanel.js  Stats, job and traits panel under the name label
+│   │   ├── statsPanel.js  Stats, job and traits panel under the name label
+│   │   └── windowDrag.js  Dragging the window in JS (no OS drag
+│   │                      regions): the threshold, pointer capture,
+│   │                      moving once per frame, cancelling the click
 │   └── data/          Pure game data, no logic
-│       ├── interaction.js Poke dialogue, timing, thresholds and rewards
+│       ├── interaction.js Poke dialogue, timing, thresholds and rewards;
+│       │                  the window drag threshold
 │       ├── balance.js     Pacing (minutes per year, clock speeds), mood
 │       │                  thresholds, event gap, auto-decide wait, whim,
 │       │                  goal weights for decisions and event picks
@@ -346,7 +352,10 @@ Shift-Life/
                        activity bar, dev), smoke.cjs (Electron, real
                        mouse clicks: pokes, props and menus, every
                        place's prop click areas on top in every
-                       situation, busking and resting started by
+                       situation, a plain click on every prop in every
+                       place, no -webkit-app-region anywhere, window
+                       drags from the background, the character and
+                       the tree, busking and resting started by
                        clicks, end of life flow, the Lake and its
                        wildlife, fishing, the reveal, the activity bar)
 ```
@@ -601,7 +610,7 @@ How it works, for anyone extending it:
   - The place button (map pin, top bar) opens Go to (`ui/goMenu.js`),
     listing the other places that exist now; it's disabled, and the
     prop click areas hidden, while travelling.
-  - Click areas: the renderer puts an invisible no-drag button in
+  - Click areas: the renderer puts an invisible button in
     `#targets` over each of the place's `targets` (the prop's visible
     pixels, `propClickRect()`). Clicking an exit's prop (a house, the
     front door) travels through it; the tree opens its menu, anything
@@ -972,14 +981,35 @@ How it works, for anyone extending it:
   messages. `ui/interaction.js` applies a temporary expression and whole
   character-pixel wiggle without changing the animator. The renderer paints
   a shadow/effect-free hit mask with `drawCharacter(..., hitOnly)` and
-  places no-drag DOM runs only over opaque pixels, following each pose and
+  places DOM runs only over opaque pixels, following each pose and
   sprite frame. Short presses with little pointer movement count as pokes.
   Poke bubbles never queue, yield immediately to news/events, and do not
   hold the character home from work. Event buttons and menus remain above
   the character target.
-- **Dragging:** `#app` has `-webkit-app-region: drag`, so the whole window
-  background drags the window. Any element that needs clicks (buttons,
-  the character) must set `-webkit-app-region: no-drag`.
+- **Dragging:** the window is dragged in JS (`ui/windowDrag.js`), not by
+  OS drag regions. On Windows, `-webkit-app-region` drag regions are hit-
+  tested by the OS before the page sees the click; with no-drag areas
+  moving every frame (the character's runs, wildlife, bubbles, the
+  activity bar) they went stale and real clicks on props were taken as
+  window drags.
+  - Capture-phase pointer listeners on `#app`: a left press anywhere but
+    a panel, the top bar (`#controls`), the name label and stats, the
+    activity bar, the "!" bubbles, `#reveal-close` or a clickable
+    farewell bubble remembers the pointer's screen position and asks
+    main for the window's (`window:get-position`). Once the pointer has
+    moved more than `WINDOW_DRAG.threshold` (4) screen pixels
+    (`data/interaction.js`), it's a drag: `#app` takes pointer capture
+    (so fast moves aren't lost), and the window follows the pointer
+    through `window:set-position` (main's `setBounds` at the fixed
+    size), at most once per animation frame. On release main saves the
+    position (`window:drag-end`), with the same on-screen check at load.
+  - A press without movement stays a normal click. A drag that starts on
+    a prop, the character or a critter moves the window too, and is
+    then never a click: the release doesn't reach the target and the
+    click is swallowed, so no poke and no menu.
+  - **Rule:** never use `-webkit-app-region` (drag or no-drag) anywhere.
+    Clickable things need nothing special; the smoke test fails if any
+    element or stylesheet rule sets it.
 - **Click layers:** later elements in `#app` sit on top. From the bottom:
   the canvas, `#wildlife`, `#targets` (prop click areas),
   `#character-target`, the "!" bubbles, `#reveal-close` (only over the
@@ -997,7 +1027,11 @@ How it works, for anyone extending it:
     `document.elementFromPoint` that every place's prop click areas are
     on top at their middle: at rest, after travelling, with a menu
     closed, an event waiting, the activity bar up and a catch reveal
-    showing. When adding a layer or a place, add it to those checks.
+    showing; that a plain click on every prop in every place opens its
+    menu or starts a trip; and that press-and-moves (screen coordinates
+    via `globalX`/`globalY`) on the background, the character and the
+    tree move the window without a poke or a menu. When adding a layer
+    or a place, add it to those checks.
 - **Single instance:** `main.js` takes `app.requestSingleInstanceLock()`.
   A second launch quits at once, and the running copy restores, shows
   and focuses its window (`second-instance`), so two copies never stack

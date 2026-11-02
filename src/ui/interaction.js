@@ -44,7 +44,7 @@ export function createCharacterTarget(element, width, height, onPoke) {
       ctx.clearRect(0, 0, width, height);
       draw(ctx);
       const pixels = ctx.getImageData(0, 0, width, height).data;
-      // Only painted runs opt out of native dragging, preserving transparent gaps.
+      // Only painted runs take pokes, so clicks in transparent gaps reach what's behind.
       const rects = [];
       for (let y = 0; y < height; y++) {
         for (let x = 0; x < width; x++) {

@@ -3,7 +3,11 @@
 // (what the mouse would actually hit), and every place's prop click areas
 // are checked to be on top at their middle: at rest, after travelling,
 // while fishing with a catch reveal, with the activity bar up, with an
-// event waiting, and after a menu closes.
+// event waiting, and after a menu closes. A plain click on every prop in
+// every place does what it should (a menu, or a trip). Window dragging is
+// JS only: nothing uses -webkit-app-region, and press-and-moves on the
+// background, the character and the tree move the window (main gets the
+// positions) without poking or opening anything.
 const { app, BrowserWindow, ipcMain, protocol, net, nativeImage } = require('electron');
 const path = require('node:path');
 const assert = require('node:assert/strict');
@@ -27,6 +31,13 @@ ipcMain.on('book:write', (_, value) => { savedBook = value; });
 let savedCollection = null;
 ipcMain.handle('collection:load', () => savedCollection);
 ipcMain.on('collection:write', (_, value) => { savedCollection = value; });
+// Window dragging (ui/windowDrag.js): positions the renderer asks for.
+let win;
+const windowMoves = [];
+let dragEnds = 0;
+ipcMain.handle('window:get-position', () => { const [x, y] = win.getPosition(); return { x, y }; });
+ipcMain.on('window:set-position', (_, x, y) => { windowMoves.push({ x, y }); win.setPosition(x, y); });
+ipcMain.on('window:drag-end', () => { dragEnds += 1; });
 
 app.whenReady().then(async () => {
   protocol.handle('file', (request) => {
@@ -38,7 +49,7 @@ app.whenReady().then(async () => {
     }
     return net.fetch(request.url,{bypassCustomProtocolHandlers:true});
   });
-  const win = new BrowserWindow({ width: 320, height: 240, frame: false, transparent: true,
+  win = new BrowserWindow({ width: 320, height: 240, frame: false, transparent: true,
     webPreferences: { preload: path.resolve(__dirname, '../preload.js'),
       contextIsolation: true, nodeIntegration: false, sandbox: true, backgroundThrottling: false } });
   win.webContents.on('console-message', (event) => {
@@ -130,6 +141,90 @@ app.whenReady().then(async () => {
     return titles;
   }
   const pressProp = async (title) => click(await propPoint(title, `clicking ${title}`));
+  // A real press-and-move from client point `from`, by (dx, dy) screen
+  // pixels in steps, then release. Like a real mouse, the pointer's screen
+  // position is what moves: its spot in the window follows the window as
+  // it's dragged. Checks the window followed; returns where it ended.
+  async function dragFrom(from, dx, dy) {
+    const [startX, startY] = win.getPosition();
+    const screenX = startX + from.x;
+    const screenY = startY + from.y;
+    const at = (ox, oy) => {
+      const [wx, wy] = win.getPosition();
+      return { x: screenX + ox - wx, y: screenY + oy - wy, globalX: screenX + ox, globalY: screenY + oy };
+    };
+    const moves = windowMoves.length;
+    const ends = dragEnds;
+    win.webContents.sendInputEvent({ type: 'mouseDown', button: 'left', clickCount: 1, ...at(0, 0) });
+    await wait(50);
+    for (let i = 1; i <= 6; i++) {
+      win.webContents.sendInputEvent({ type: 'mouseMove', modifiers: ['leftButtonDown'],
+        ...at(Math.round(dx * i / 6), Math.round(dy * i / 6)) });
+      await wait(40);
+    }
+    win.webContents.sendInputEvent({ type: 'mouseUp', button: 'left', clickCount: 1, ...at(dx, dy) });
+    await wait(120);
+    const [endX, endY] = win.getPosition();
+    assert.ok(windowMoves.length > moves, 'main got no window positions while dragging');
+    assert.equal(dragEnds, ends + 1, 'the drag never ended');
+    assert.deepEqual({ x: endX, y: endY }, { x: startX + dx, y: startY + dy }, 'the window did not follow the pointer');
+    return { x: endX, y: endY };
+  }
+  // A point in the window where nothing but the scene is (the background).
+  const backgroundPoint = () => js(`(() => {
+    for (let y = 60; y < 200; y += 7) for (let x = 20; x < 300; x += 7) {
+      if (document.elementFromPoint(x, y) === document.querySelector('#scene')) return { x, y };
+    }
+    return null;
+  })()`);
+  // Every element's computed -webkit-app-region, and any stylesheet rule
+  // setting it: none may, so the OS never takes clicks as window drags.
+  const appRegions = () => js(`(() => {
+    const found = [...document.querySelectorAll('*')]
+      .map((el) => [el, getComputedStyle(el).getPropertyValue('-webkit-app-region')])
+      .filter(([, value]) => value && value !== 'none')
+      .map(([el, value]) => (el.id || el.tagName.toLowerCase()) + ': ' + value);
+    for (const sheet of document.styleSheets) {
+      let rules = [];
+      try { rules = [...sheet.cssRules]; } catch { continue; }
+      for (const rule of rules) if (/app-region/.test(rule.cssText)) found.push('rule: ' + rule.cssText);
+    }
+    return found;
+  })()`);
+  const devClick = (label) => js(`[...document.querySelectorAll("#dev-menu button")]
+    .find(b=>b.textContent===${JSON.stringify(label)}).click()`);
+  const dev = async (...labels) => {
+    await js('document.querySelector("#dev-btn").click()');
+    for (const label of labels) await devClick(label);
+    await js('if (!document.querySelector("#dev-menu").hidden) document.querySelector("#dev-btn").click()');
+    await wait(300);
+  };
+  const openPanels = () => js('[...document.querySelectorAll(".panel")].filter((p) => !p.hidden).map((p) => p.id)');
+  // A plain real click on every prop here does something: opens its menu
+  // (closed again), or starts a trip through it (ended by the dev Go to,
+  // back here).
+  async function clickEveryProp(when) {
+    const place = await js('document.querySelector("#place").textContent');
+    const titles = await checkProps(when);
+    for (const title of titles) {
+      await pressProp(title);
+      await wait(60);
+      const open = await openPanels();
+      if (open.length) {
+        assert.equal(open.length, 1, `${title} (${when}): opened ${open}`);
+        await press(`document.querySelector("#${open[0]} .panel-close")`);
+        assert.deepEqual(await openPanels(), []);
+        continue;
+      }
+      // Travelling, or already through (standing at a door, it's quick).
+      const went = await js(`document.querySelector("#go-btn").disabled
+        || document.querySelector("#place").textContent !== ${JSON.stringify(place)}`);
+      assert.equal(went, true, `${title} (${when}): a plain click did nothing`);
+      await dev(place);
+      assert.equal(await js('document.querySelector("#place").textContent'), place);
+    }
+    await checkProps(`${when}, after clicking every prop`);
+  }
   // Waits for a trip to end at place `name`.
   async function arrive(name) {
     for (let i = 0; i < 600; i++) {
@@ -143,6 +238,11 @@ app.whenReady().then(async () => {
   try {
     await win.loadFile(path.resolve(__dirname, '../src/index.html'));
     await wait(700);
+    // No OS drag regions anywhere (and the check does see one when set).
+    assert.deepEqual(await appRegions(), []);
+    await js('document.querySelector("#place").style.setProperty("-webkit-app-region", "drag")');
+    assert.equal((await appRegions()).length, 1, 'the -webkit-app-region check sees nothing');
+    await js('document.querySelector("#place").style.removeProperty("-webkit-app-region")');
     await click(await point());
     assert.equal(saved.character.stats.happiness, 51);
     assert.match(await js('document.querySelector("#speech").textContent'), /tickl|Hehe/);
@@ -155,14 +255,17 @@ app.whenReady().then(async () => {
     await click(await point());
     assert.equal(saved.character.stats.happiness, 50);
     assert.match(await js('document.querySelector("#speech").textContent'), /tickl|Hehe/);
-    // A drag beginning on the character must not count as a poke.
-    const p = await point();
-    win.webContents.sendInputEvent({ type: 'mouseDown', button: 'left', ...p });
-    win.webContents.sendInputEvent({ type: 'mouseMove', x: p.x + 20, y: p.y });
-    win.webContents.sendInputEvent({ type: 'mouseMove', ...p });
-    win.webContents.sendInputEvent({ type: 'mouseUp', button: 'left', ...p });
-    await wait(80);
+    // A drag beginning on the character moves the window and isn't a poke.
+    await dragFrom(await point(), 20, 0);
+    await dragFrom(await point(), -20, 0);
     assert.equal(saved.character.stats.happiness, 50);
+    // A press-and-move on the background moves the window; nothing opens.
+    const background = await backgroundPoint();
+    assert.ok(background, 'no background to drag');
+    await dragFrom(background, 30, 20);
+    await dragFrom(background, -30, -20);
+    assert.equal(saved.character.stats.happiness, 50);
+    assert.deepEqual(await openPanels(), []);
     // Check hit regions against every pose, including partial/off-screen art.
     const poseChecks = await js(`(async () => {
       const { drawCharacter } = await import('./ui/sprite.js');
@@ -193,7 +296,7 @@ app.whenReady().then(async () => {
     assert.equal(poseChecks, true);
     // Every prop's click area is on top at its middle, and real mouse
     // clicks open menus; an event supersedes poke chatter.
-    await checkProps("the Parents' Home at rest");
+    await clickEveryProp("the Parents' Home at rest");
     await pressProp('Sofa');
     assert.equal(await js('document.querySelector("#rest-menu").hidden'), false);
     await press('document.querySelector("#rest-menu .panel-close")');
@@ -224,14 +327,20 @@ app.whenReady().then(async () => {
     assert.equal(await js('document.querySelector("#go-btn").disabled'), true);
     assert.equal(saved.home.resting, false);
     await arrive("Parents' Yard");
-    await checkProps("the Parents' Yard after travelling there");
+    await clickEveryProp("the Parents' Yard after travelling there");
     // Go to the Fortune Tree with real clicks on the Go to menu, then busk
     // with real clicks on the tree and "Play an instrument".
     await press('document.querySelector("#go-btn")');
     await press(inPanel('#go-menu', 'Fortune Tree'));
     await arrive('Fortune Tree');
     assert.equal(saved.place, 'fortuneTree');
-    await checkProps('the Fortune Tree after travelling there');
+    await clickEveryProp('the Fortune Tree after travelling there');
+    // A press-and-move starting on the tree moves the window and doesn't
+    // open its menu; a plain click still does (below).
+    await dragFrom(await propPoint('Fortune Tree', 'dragging from it'), -25, 15);
+    assert.deepEqual(await openPanels(), []);
+    await dragFrom(await propPoint('Fortune Tree', 'dragging from it'), 25, -15);
+    assert.deepEqual(await openPanels(), []);
     await pressProp('Fortune Tree');
     assert.equal(await js('document.querySelector("#tree-menu").hidden'), false);
     await press(inPanel('#tree-menu', 'Play an instrument'));
@@ -257,8 +366,6 @@ app.whenReady().then(async () => {
         && parseInt(host.firstChild.style.left)===156;
     })()`), true);
     // End of life: a gentle stop, the summary card, the Book, a new life.
-    const devClick = (label) => js(`[...document.querySelectorAll("#dev-menu button")]
-      .find(b=>b.textContent===${JSON.stringify(label)}).click()`);
     await js('document.querySelector("#dev-btn").click()');
     await devClick('To 18');
     await wait(400);
@@ -294,7 +401,7 @@ app.whenReady().then(async () => {
     await wait(150);
     assert.equal(saved.place, 'lake');
     assert.equal(await js('document.querySelector("#place").textContent'), 'Lake');
-    await checkProps('the Lake at rest');
+    await clickEveryProp('the Lake at rest');
     const feet = await js(`Math.max(...[...document.querySelectorAll('#character-target span')]
       .map((run) => run.getBoundingClientRect().bottom))`);
     assert.ok(feet > 190 && feet <= 206, `feet at ${feet}`);
@@ -400,18 +507,13 @@ app.whenReady().then(async () => {
     await wait(800);
     // Grown up: My Yard with each housing tier, resting in the sleeping
     // bag (the activity bar up), and the own Home's sofa.
-    const dev = async (...labels) => {
-      await js('document.querySelector("#dev-btn").click()');
-      for (const label of labels) await devClick(label);
-      await js('if (!document.querySelector("#dev-menu").hidden) document.querySelector("#dev-btn").click()');
-      await wait(300);
-    };
     await dev('To 18');
     await wait(600);
     assert.equal(saved.housing.movedOut, true);
     await dev('My Yard');
     assert.equal(saved.place, 'myYard');
     assert.deepEqual(await checkProps('My Yard (sleeping bag)'), ['Sleeping bag']);
+    await clickEveryProp('My Yard (sleeping bag)');
     await pressProp('Sleeping bag');
     await press(inPanel('#rest-menu', 'Rest'));
     assert.equal(await js('document.querySelector("#rest-menu").hidden'), true);
@@ -420,20 +522,23 @@ app.whenReady().then(async () => {
     await checkProps('resting in the sleeping bag, with the activity bar up');
     await dev('Tent');
     assert.deepEqual(await checkProps('My Yard (tent)'), ['Tent']);
+    await clickEveryProp('My Yard (tent)');
     await dev('House');
     assert.deepEqual(await checkProps('My Yard (house)'), ['Go inside']);
+    await clickEveryProp('My Yard (house)');
     await pressProp('Go inside');
     await arrive('Home');
     assert.equal(saved.place, 'myHome');
-    await checkProps('Home after travelling there');
+    await clickEveryProp('Home after travelling there');
     await pressProp('Sofa');
     await press(inPanel('#rest-menu', 'Rest'));
     assert.equal(await js('document.querySelector("#rest-menu").hidden'), true);
     await wait(1500);
     assert.equal(saved.home.resting, true);
     await checkProps('Home, resting with the activity bar up');
+    assert.deepEqual(await appRegions(), []);
     assert.deepEqual(errors, []);
-    console.log('PASS: native gentle/rapid clicks, spam, calming, moving hit regions, drag rejection, 25 poses, offscreen, prop/event priority, real clicks on props and menus, prop click areas on top in every place (at rest, after travel, menus closed, an event waiting, the activity bar, a catch reveal), rest/travel/busking preserved, transparent sprite, end of life, summary, Book, new life, the Lake (frogs, butterflies), fishing (rod, bite, catch, reveal, collection, activity bar, selling); no renderer errors.');
+    console.log('PASS: no -webkit-app-region anywhere, JS window drags (background, character, tree: the window follows, no poke, no menu), plain clicks on every prop in every place, native gentle/rapid clicks, spam, calming, moving hit regions, drag rejection, 25 poses, offscreen, prop/event priority, real clicks on props and menus, prop click areas on top in every place (at rest, after travel, menus closed, an event waiting, the activity bar, a catch reveal), rest/travel/busking preserved, transparent sprite, end of life, summary, Book, new life, the Lake (frogs, butterflies), fishing (rod, bite, catch, reveal, collection, activity bar, selling); no renderer errors.');
   } catch (error) {
     console.error(error);
     process.exitCode = 1;

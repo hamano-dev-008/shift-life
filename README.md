@@ -14,7 +14,8 @@ Built with Electron and plain JavaScript.
 Early development. What works so far:
 
 - A small floating window (320x240, frameless, rounded, always on top).
-  Drag it by its background; minimize or close it with the buttons in the
+  Drag it by its background (or by the character or a prop: a press that
+  moves is a drag, never a click); minimize or close it with the buttons in the
   top-right corner. It reopens where you left it.
 - A pixel character is born with a random name and look. They wander
   around wherever they are (see Places below), sometimes stopping by
@@ -27,7 +28,7 @@ Early development. What works so far:
   three seconds annoy them (-1 happiness once); more pokes keep them
   annoyed. Leave them alone for five seconds to calm down. Poke chatter
   yields to events and important news, and their current activity continues.
-  Only painted character pixels respond; empty background still drags.
+  Only painted character pixels respond; clicks in the gaps reach what's behind.
 - Each character has stats (health, happiness, smarts, money) and is born
   with 2-3 personality traits (bold or careful, social or shy, curious or
   lazy). Hover the name label to see them; click it to keep the panel open.

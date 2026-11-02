@@ -10,11 +10,12 @@
 // reveal card, the fish collection), the Lake's wildlife (frogs and
 // butterflies, their click areas and the ribbit), the activity bar
 // (what's running, with Stop), the Book of past lives, the dev settings
-// menu (dev runs only) and saving.
+// menu (dev runs only), dragging the window (in JS) and saving.
 
 import { POKE } from './data/interaction.js';
 import { createInteraction, calmInteraction, pokeCharacter } from './game/interaction.js';
 import { createCharacterTarget, reactionPose } from './ui/interaction.js';
+import { enableWindowDrag } from './ui/windowDrag.js';
 import { createClock, startClock } from './game/clock.js';
 import { ageOf, lifeStageOf, expressionOf, setStat } from './game/character.js';
 import {
@@ -1012,5 +1013,6 @@ async function start() {
 
 document.getElementById('minimize-btn').addEventListener('click', () => window.shiftLife.minimize());
 document.getElementById('close-btn').addEventListener('click', () => window.shiftLife.close());
+enableWindowDrag(document.getElementById('app'), window.shiftLife);
 
 start();

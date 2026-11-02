@@ -23,9 +23,8 @@ body {
   height: 100%;
   border-radius: 12px;
   overflow: hidden;
-  /* Dragging anywhere on the background moves the window. Anything that
-     needs clicks must opt out with -webkit-app-region: no-drag. */
-  -webkit-app-region: drag;
+  /* Dragging the window is done in JS (ui/windowDrag.js): never use
+     -webkit-app-region, it swallows clicks on Windows. */
 }
 
 #scene {
@@ -46,7 +45,6 @@ body {
   background: rgba(255, 255, 255, 0.45);
   /* Hover shows the stats panel; click pins it. */
   cursor: pointer;
-  -webkit-app-region: no-drag;
 }
 
 #label:empty {
@@ -79,7 +77,6 @@ body {
   border: none;
   background: transparent;
   cursor: pointer;
-  -webkit-app-region: no-drag;
 }
 
 #targets button:focus {
@@ -93,7 +90,6 @@ body {
   border: none;
   background: transparent;
   cursor: pointer;
-  -webkit-app-region: no-drag;
 }
 
 #wildlife button:focus {
@@ -119,7 +115,6 @@ body {
   right: 6px;
   display: flex;
   gap: 4px;
-  -webkit-app-region: no-drag;
 }
 
 #controls button {
@@ -209,7 +204,6 @@ body {
   border: none;
   background: transparent;
   cursor: pointer;
-  -webkit-app-region: no-drag;
 }
 
 #event-bubble:focus,
@@ -225,7 +219,6 @@ body {
   border: none;
   background: transparent;
   cursor: pointer;
-  -webkit-app-region: no-drag;
 }
 
 #reveal-close:focus {
@@ -253,7 +246,6 @@ body {
   white-space: nowrap;
   color: #3d3a4b;
   background: #fffaf0;
-  -webkit-app-region: no-drag;
 }
 
 #activity-bar .bar-stop {
@@ -343,7 +335,6 @@ body {
   color: #3d3a4b;
   background: #fffaf0;
   box-shadow: 0 3px 0 rgba(61, 58, 75, 0.25);
-  -webkit-app-region: no-drag;
 }
 
 .panel .event-prompt {
@@ -631,7 +622,6 @@ body {
   position: absolute;
   pointer-events: auto;
   cursor: pointer;
-  -webkit-app-region: no-drag;
 }
 
 /* The goodbye bubble at the end of a life: soft lavender. Once the
@@ -647,7 +637,6 @@ body {
 #speech.farewell.clickable {
   pointer-events: auto;
   cursor: pointer;
-  -webkit-app-region: no-drag;
 }
 
 #speech .hint {

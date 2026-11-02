@@ -1,5 +1,6 @@
 // main.js — Electron main process: creates the floating, frameless,
-// always-on-top companion window, remembers where the player left it,
+// always-on-top companion window, moves it while the renderer drags it
+// (no OS drag regions), remembers where the player left it,
 // reads/writes the game save file, the Book of past lives and the fish
 // collection for the renderer, lists the sprite
 // PNGs in assets/sprites/, and tells it whether it's running from source
@@ -99,6 +100,30 @@ ipcMain.on('window:minimize', (event) => {
 
 ipcMain.on('window:close', (event) => {
   BrowserWindow.fromWebContents(event.sender)?.close();
+});
+
+// Window dragging is done by the renderer (ui/windowDrag.js), not by
+// -webkit-app-region: it asks where the window is when a press starts,
+// sends where it should be once per frame while dragging, and says when
+// the drag ends so the position is saved.
+ipcMain.handle('window:get-position', (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  if (!win) return null;
+  const [x, y] = win.getPosition();
+  return { x, y };
+});
+
+ipcMain.on('window:set-position', (event, x, y) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  if (!win || !Number.isFinite(x) || !Number.isFinite(y)) return;
+  // setBounds with the fixed size: setPosition alone can grow the window
+  // when it crosses between monitors with different scaling.
+  win.setBounds({ x: Math.round(x), y: Math.round(y), width: WINDOW_WIDTH, height: WINDOW_HEIGHT });
+});
+
+ipcMain.on('window:drag-end', (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  if (win) savePosition(win);
 });
 
 // True when running from source (npm start) rather than a packaged build;
