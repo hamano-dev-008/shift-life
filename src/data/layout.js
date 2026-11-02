@@ -6,6 +6,7 @@
 
 import { LAKE_ART, DOCK, DOCK_PROP, FISHING_SPOT_X } from './lake.js';
 import { WELL, WELL_PROP } from './fortuneTreeDecor.js';
+import { FARM_ART, PADDIES, PADDY_WATER } from './farm.js';
 
 // Overall scene scale: screen pixels per scene pixel. Whole numbers only,
 // so pixels stay crisp. Sizes everything except the character.
@@ -61,6 +62,19 @@ export const PROPS = {
     base: LAKE_ART.height - DOCK.bottom,
     visitOffset: FISHING_SPOT_X - DOCK.left - 1,
   },
+  // The Farm's rice paddies are part of its background picture too: each
+  // is its water's click area (PADDIES and PADDY_WATER in data/farm.js,
+  // in the picture's pixels) and the spot on the path in front of its
+  // middle. Not visited on a whim.
+  ...Object.fromEntries(PADDIES.map((paddy) => [paddy.id, {
+    edge: 'left',
+    margin: paddy.left + 1,
+    width: paddy.right - paddy.left - 1,
+    height: PADDY_WATER.bottom - PADDY_WATER.top - 1,
+    base: FARM_ART.height - PADDY_WATER.bottom,
+    visitOffset: Math.floor((paddy.left + paddy.right) / 2) - paddy.left - 1,
+    visit: false,
+  }])),
 };
 
 // How close to the window edges the character's center may wander.

@@ -25,9 +25,13 @@ import {
 } from './activities.js';
 import { existingPlaces, placeView, routeBetween } from './places.js';
 import { hasArrived } from './stay.js';
+import { FARM_PLACE } from '../data/farm.js';
+import {
+  canFarm, paddiesFor, currentFarmJob, startFarmJob, stopFarmJob,
+} from './farm.js';
 
 const MINUTE_MS = 60000;
-const KINDS = ['fish', 'busk', 'rest', 'visit'];
+const KINDS = ['fish', 'busk', 'rest', 'visit', 'plant', 'weed', 'harvest'];
 
 function between([min, max], random) {
   return min + random() * (max - min);
@@ -117,6 +121,9 @@ export function possibleChoices(game) {
     } else if (kind === 'rest') {
       if (health >= (lazy ? choice.lazyHealthBelow : choice.healthBelow)) continue;
       place = restPlace(game);
+    } else if (choice.farm) {
+      if (!canFarm(game) || !paddiesFor(game, kind).length) continue;
+      place = FARM_PLACE;
     } else {
       const others = existingPlaces(game).filter((p) => p.id !== game.place && reachable(game, p.id));
       if (others.length) place = others;
@@ -191,13 +198,18 @@ export function endPlanNow(game) {
 function planRunning(game, plan) {
   if (plan.kind === 'fish') return currentActivity(game)?.id === AUTONOMY_CHOICES.fish.activity;
   if (plan.kind === 'busk') return isPlaying(game);
+  if (AUTONOMY_CHOICES[plan.kind].farm) return currentFarmJob(game)?.action === plan.kind;
   return isResting(game);
 }
 
 // Starts the plan's thing here. Returns whether it started.
 function startPlanned(game, plan) {
-  if (isDoingActivity(game) || isPlaying(game) || isResting(game)) return false;
+  if (isDoingActivity(game) || isPlaying(game) || isResting(game) || currentFarmJob(game)) return false;
   if (plan.kind === 'fish') return startActivity(game, AUTONOMY_CHOICES.fish.activity);
+  if (AUTONOMY_CHOICES[plan.kind].farm) {
+    const [paddy] = paddiesFor(game, plan.kind);
+    return Boolean(paddy) && startFarmJob(game, paddy, plan.kind);
+  }
   if (plan.kind === 'busk') return game.place === FORTUNE_TREE_PLACE && startPlaying(game);
   return placeView(game, game.place).scenery.some((name) => name in REST_SEATS) && startResting(game);
 }
@@ -206,6 +218,10 @@ function startPlanned(game, plan) {
 // fishing; a short line otherwise), or null.
 function stopPlanned(game, plan) {
   if (plan.kind === 'fish') return stopActivity(game);
+  if (AUTONOMY_CHOICES[plan.kind].farm) {
+    stopFarmJob(game);
+    return null;
+  }
   const stopped = plan.kind === 'busk' ? stopPlaying(game) : stopResting(game);
   const text = AUTONOMY_TEXT.done[plan.kind];
   return stopped && text ? { text, deltas: {}, celebrate: false } : null;
@@ -238,6 +254,8 @@ export function updateAutonomy(game, realMs, { travelling = false } = {}) {
     return { ...result, changed: true };
   }
   if (!planRunning(game, plan)) return drop();
+  // A farm job is over when it's done (game/farm.js), not by time.
+  if (AUTONOMY_CHOICES[plan.kind].farm) return result;
   if (!hasArrived(game)) return result;
   plan.leftMs -= realMs;
   if (plan.leftMs > 0) return result;

@@ -11,6 +11,7 @@ import { BUTTERFLIES } from '../data/lakeLife.js';
 import { WORK_TRIP_TEXT } from '../data/animation.js';
 import { REST_DEV_TEXT } from '../data/home.js';
 import { AUTONOMY_TEXT } from '../data/autonomy.js';
+import { FARM_TEXT } from '../data/farm.js';
 
 function button(text, onClick, className = '') {
   const node = document.createElement('button');
@@ -50,8 +51,9 @@ function row(label, ...children) {
 // returns null, or a note such as "Only at the Lake."), workTrips()
 // (whether the "Work trips" setting is on), setWorkTrips(on), ownPlans()
 // and setOwnPlans(on) (the "Let them choose" setting), planNow() (they
-// choose something to do now; returns null or a note), readout()
-// (returns { stats, traits, goal, job, tree, place, life, fishing, plan }),
+// choose something to do now; returns null or a note), growPaddies()
+// and givePaddies() (the Farm), readout() (returns { stats, traits,
+// goal, job, tree, place, life, fishing, farm, plan }),
 // speed() (current speed id), onOpen() }.
 export function createDevMenu(menu, gear, actions) {
   const body = menu.querySelector('.dev-body');
@@ -188,8 +190,12 @@ export function createDevMenu(menu, gear, actions) {
       if (note) render(); else close();
     }));
 
+    const farm = row('Farm',
+      button(FARM_TEXT.devGrow, () => { actions.growPaddies(); note = ''; render(); }),
+      button(FARM_TEXT.devGive, () => { actions.givePaddies(); note = ''; render(); }));
+
     const children = [newLife, speeds, skips, extras, tree, home, housing, places, fish, catches, reveals,
-      wild, workTrips, ownPlans, life, health];
+      wild, farm, workTrips, ownPlans, life, health];
     if (note) {
       const message = document.createElement('p');
       message.className = 'dev-note';
@@ -219,9 +225,9 @@ export function createDevMenu(menu, gear, actions) {
       if (menu.hidden) return;
       if (placesKey() !== shownPlaces) render();
       const {
-        stats, traits, goal, job, tree, place, life, fishing, plan,
+        stats, traits, goal, job, tree, place, life, fishing, farm, plan,
       } = actions.readout();
-      const lines = [stats, traits, goal, job, tree, place, fishing, plan, life];
+      const lines = [stats, traits, goal, job, tree, place, fishing, farm, plan, life];
       const key = lines.join('|');
       if (key === shown) return;
       shown = key;

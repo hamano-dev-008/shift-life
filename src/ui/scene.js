@@ -4,7 +4,8 @@
 // parents' house or the housing tier (ui/housing.js); at Home the wall, floor, window, door and sofa (ui/room.js);
 // at the Lake its background and the water shimmer (ui/lake.js); at the
 // Fortune Tree its background picture (or sky and grass) and the wishing
-// well.
+// well; at the Farm its background picture (or sky, grass and the
+// code-drawn path and paddies, ui/farm.js).
 // Each piece uses its sprite (ui/assets.js) when there is one, or the
 // code-drawn art. Still pieces are drawn once to offscreen canvases
 // copied in every frame; animated sprites and live pieces (the shimmer)
@@ -19,6 +20,8 @@ import { drawSleepingBag, drawTent } from './housing.js';
 import { drawWall, drawFloor, drawHomeWindow, drawHomeDoor, drawSofa } from './room.js';
 import { drawLake, drawShimmer } from './lake.js';
 import { DOCK_PROP } from '../data/lake.js';
+import { FARM_BACKGROUND, FARM_BACKGROUND_FALLBACK, PADDIES } from '../data/farm.js';
+import { drawFarmGround } from './farm.js';
 import { TREE_BACKGROUND, TREE_BACKGROUND_FALLBACK, WELL_PROP } from '../data/fortuneTreeDecor.js';
 import { getSprite, isAnimated, frameAtTime, drawSprite } from './assets.js';
 
@@ -317,6 +320,12 @@ const SCENERY = [
   // The Fortune Tree's picture; sky and grass without it.
   background(TREE_BACKGROUND, null, TREE_BACKGROUND_FALLBACK),
   prop(WELL_PROP, drawWell),
+  // The Farm's picture; sky, grass and a code-drawn path and paddies
+  // without it. The paddies are part of it: only their click areas and
+  // the spots in front of them (the rice is drawn by ui/farm.js).
+  background(FARM_BACKGROUND, null, FARM_BACKGROUND_FALLBACK),
+  background('farm.ground', drawFarmGround),
+  ...PADDIES.map((paddy) => prop(paddy.id, NO_ART)),
 ];
 
 function createCanvas(layout) {

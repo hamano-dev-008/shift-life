@@ -4,7 +4,8 @@
 // minute, switch place, set the housing tier or jump to moving-out age
 // now, end the life now, set health, give a fishing rod, a bite now, a
 // catch of a chosen rarity now, preview a rarity's reveal card, and a
-// read-out of the character. The menu (ui/devMenu.js) only calls these.
+// read-out of the character (with the Farm's paddies; growing and giving
+// them are in game/farm.js). The menu (ui/devMenu.js) only calls these.
 
 import { SPEEDS } from '../data/balance.js';
 import { STAT_TAGS } from '../data/stats.js';
@@ -27,6 +28,7 @@ import { giveItem, hasItem, activityById } from './activities.js';
 import {
   biteNow, catchNow, fishingLook, bucketTotals, previewCatch,
 } from './fishing.js';
+import { farmText } from './farm.js';
 
 // Replaces the life with a newborn, in place (see startNewLife()), without
 // adding the old one to the Book. Save right after to wipe the old life
@@ -169,6 +171,7 @@ export function devReadout(game) {
     place: `Place: ${currentPlace(game).name}${isResting(game) ? ', resting' : ''} · ${housingText(game)}`,
     life: endOfLifeText(game),
     fishing: fishingText(game),
+    farm: farmText(game),
   };
 }
 

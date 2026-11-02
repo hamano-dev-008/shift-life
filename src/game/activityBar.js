@@ -8,12 +8,14 @@
 // data/home.js.
 
 import { ACTIVITY_BAR_TEXT } from '../data/activities.js';
+import { FARM_TEXT } from '../data/farm.js';
 import { TREE_TEXT } from '../data/fortuneTree.js';
 import { REST_TEXT, REST_SPOT_NAMES } from '../data/home.js';
 import { currentActivity, stopActivity } from './activities.js';
 import { bucketTotals } from './fishing.js';
 import { isPlaying, stopPlaying, treeView } from './fortuneTree.js';
 import { isResting, stopResting, restView } from './home.js';
+import { currentFarmJob, stopFarmJob } from './farm.js';
 import { restSpotOf } from './places.js';
 import { isOnTheWay } from './stay.js';
 
@@ -27,7 +29,7 @@ function clockTime(ms) {
   return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
 }
 
-// What the bar shows now: { kind ('activity', 'busking' or 'resting'),
+// What the bar shows now: { kind ('activity', 'farm', 'busking' or 'resting'),
 // text, stop (the button's label), onTheWay (still walking to the spot) },
 // or null when nothing is running (or the life has ended).
 export function activityBarView(game) {
@@ -40,6 +42,7 @@ export function activityBarView(game) {
 // The bar's text while walking to the spot of what's running (`kind`).
 function onTheWayText(game, kind) {
   if (kind === 'busking') return TREE_TEXT.onTheWay;
+  if (kind === 'farm') return FARM_TEXT.onTheWay;
   if (kind === 'resting') {
     const seat = REST_SPOT_NAMES[restSpotOf(game)] ?? REST_SPOT_NAMES['home.sofa'];
     return fill(REST_TEXT.onTheWay, { seat });
@@ -57,6 +60,8 @@ function runningView(game) {
     const values = fishing ? bucketTotals(fishing) : {};
     return { kind: 'activity', text: fill(activity.text.bar ?? activity.name, values), stop, onTheWay: false };
   }
+  const job = currentFarmJob(game);
+  if (job) return { kind: 'farm', text: FARM_TEXT.bar[job.action], stop, onTheWay: false };
   if (isPlaying(game)) {
     const tree = treeView(game);
     return {
@@ -78,6 +83,7 @@ function runningView(game) {
 // to show: fishing's sale, or null) }.
 export function stopFromBar(game) {
   if (currentActivity(game)) return { stopped: true, news: stopActivity(game) };
+  if (stopFarmJob(game)) return { stopped: true, news: null };
   if (stopPlaying(game)) return { stopped: true, news: null };
   if (stopResting(game)) return { stopped: true, news: null };
   return { stopped: false, news: null };

@@ -111,6 +111,13 @@ import { LAKE_PLACE, BOBBER_SPOT, DOCK_PROP } from './data/lake.js';
 import { WILDLIFE_CLICK, LAKE_LIFE_TEXT } from './data/lakeLife.js';
 import { createGoMenu } from './ui/goMenu.js';
 import { loadSprites } from './ui/assets.js';
+import { FARM_PLACE, PADDIES, FARM_JOBS } from './data/farm.js';
+import {
+  buyPaddy, startFarmJob, currentFarmJob, updateFarm, paddyView, paddiesLook,
+  growAllNextStage, giveAllPaddies,
+} from './game/farm.js';
+import { drawFarmCrops } from './ui/farm.js';
+import { createFarmMenu } from './ui/farmMenu.js';
 import {
   createAnimator, updateAnimator, poseOf, startActivityNow, goToWorkNow, gaitOf,
   travelTo, hasExited, enterScene, placeIn, setLayout, stopTravelling, hasSettled,
@@ -283,7 +290,7 @@ async function start() {
     if (except !== 'event') closeEventCard();
     for (const [id, panel] of [['goal', goalMenu], ['tree', treeMenu], ['rest', restMenu],
       ['activity', activityMenu], ['go', goMenu], ['summary', summaryCard], ['book', bookMenu],
-      ['dev', devMenu]]) {
+      ['farm', farmMenu], ['dev', devMenu]]) {
       if (id !== except) panel?.close();
     }
   }
@@ -376,6 +383,24 @@ async function start() {
     },
     onOpen: () => closePanels('activity'),
   });
+  // Clicking a rice paddy at the Farm opens its menu: buy it, plant rice,
+  // pull weeds or harvest (game/farm.js). A job starts once the character
+  // has walked to the path in front of the paddy.
+  const farmMenu = createFarmMenu(document.getElementById('farm-menu'), {
+    act: (id, action) => {
+      if (action === 'buy') {
+        const news = buyPaddy(game, id);
+        if (!news) return;
+        showNews(news);
+        saveGame(game);
+        return;
+      }
+      playerTookOver();
+      if (startFarmJob(game, id, action)) saveGame(game);
+    },
+    onOpen: () => closePanels('farm'),
+  });
+  const PADDY_IDS = new Set(PADDIES.map((paddy) => paddy.id));
   // Stops an activity before leaving the place (travelling, the dev
   // menu's Go to), showing the sale if there was one.
   function stopActivityToLeave() {
@@ -472,6 +497,17 @@ async function start() {
     if (!rect) return null;
     maskCtx.fillStyle = '#000';
     maskCtx.fillRect(rect.left, rect.top, rect.width, rect.height);
+    return layout.scale;
+  }
+  // A rice paddy is part of the Farm's picture: its outline goes around
+  // its water (the click area) and the rice growing in it, redrawn every
+  // frame as the rice sways.
+  function paintPaddy(maskCtx, layout, id, seconds) {
+    const rect = propClickRect(layout, id);
+    if (!rect) return null;
+    maskCtx.fillStyle = '#000';
+    maskCtx.fillRect(rect.left, rect.top, rect.width, rect.height);
+    drawFarmCrops(maskCtx, layout, paddiesLook(game).filter((look) => look.id === id), seconds);
     return layout.scale;
   }
   // Which outline was drawn this frame ('prop:<id>', 'critter:<id>',
@@ -592,6 +628,10 @@ async function start() {
     const activityNews = updateActivities(game, realMs);
     activityNews.forEach(showActivityNews);
     if (activityNews.some((news) => news.collected)) saveCollection(game.collection);
+    // The rice grows in real time wherever they are; a job at a paddy
+    // counts once they're there (game/farm.js).
+    const farmNews = updateFarm(game, realMs);
+    farmNews.forEach(showNews);
     const moved = updatePlaces(game);
     if (moved) showNews(moved);
     // Their own plan: started once they're in its place, stopped by
@@ -602,7 +642,7 @@ async function start() {
     checkFirstSteps();
     const aged = game.character.stats.health !== health;
     if (result || reached.length || jobNews.length || treeNews.length || rested || moved || aged
-      || activityNews.length || own.changed) {
+      || activityNews.length || farmNews.length || own.changed) {
       saveGame(game);
     }
   }, LIFE_TICK_MS);
@@ -666,6 +706,8 @@ async function start() {
       restMenu.toggle();
     } else if (activity) {
       activityMenu.toggle(activity.id);
+    } else if (PADDY_IDS.has(id) && scene.place.id === FARM_PLACE) {
+      farmMenu.toggle(id);
     } else if (id === WELL_PROP) {
       showPropBubble(id, WELL_TEXT.bubble, WELL_BUBBLE_SECONDS);
     }
@@ -920,6 +962,15 @@ async function start() {
         facing: activity.facing === 'left' ? -1 : 1,
       };
     }
+    const job = currentFarmJob(game);
+    if (job && place.id === FARM_PLACE && layout.props[job.paddy]) {
+      return {
+        x: layout.props[job.paddy].visitX,
+        mode: 'doing',
+        activity: FARM_JOBS[job.action].animation,
+        facing: 1,
+      };
+    }
     if (place.id === FORTUNE_TREE_PLACE && isPlaying(game) && layout.props[TREE_PROP]) {
       return { x: layout.props[TREE_PROP].visitX, mode: 'busking' };
     }
@@ -1089,11 +1140,19 @@ async function start() {
       // They choose something to do now, skipping the wait.
       planNow: () => {
         if (game.endOfLife.ended || trip || currentPlan(game) || isPlaying(game) || isResting(game)
-          || isDoingActivity(game)) {
+          || isDoingActivity(game) || currentFarmJob(game)) {
           return AUTONOMY_TEXT.notNow;
         }
         restPreview = null;
         return beginOwnPlan(performance.now()) ? null : AUTONOMY_TEXT.nothing;
+      },
+      // The Farm: every owned paddy's rice to its next stage (an empty
+      // one planted free), and every paddy owned.
+      growPaddies: () => {
+        if (growAllNextStage(game)) saveGame(game);
+      },
+      givePaddies: () => {
+        if (giveAllPaddies(game)) saveGame(game);
       },
       readout: () => ({ ...devReadout(game), plan: autonomyText(game, choosing, performance.now()) }),
       onOpen: () => closePanels('dev'),
@@ -1147,7 +1206,8 @@ async function start() {
       || Boolean(currentPlan(game));
     // Their own plans: left alone long enough (nothing running, nothing
     // showing, not away), now and then they choose something to do.
-    const running = isPlaying(game) || isResting(game) || isDoingActivity(game);
+    const running = isPlaying(game) || isResting(game) || isDoingActivity(game)
+      || Boolean(currentFarmJob(game));
     const idle = !busy && !running && !restPreview && !farewell && !isAtWork(animator);
     if (mayChoose(choosing, now, { enabled: settings.ownPlans, idle })) beginOwnPlan(now);
     updateAnimator(animator, dt, stage, gaitOf(age), {
@@ -1182,6 +1242,9 @@ async function start() {
     // Cleared first: sprites may have see-through pixels.
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     scene.scenery.draw(ctx, now / 1000);
+    // The Farm's rice and weeds over the paddies' water, behind the
+    // character (and under a paddy's hover outline).
+    if (place.id === FARM_PLACE) drawFarmCrops(ctx, layout, paddiesLook(game), now / 1000);
     // The hover outline goes with the thing it's around: a prop's just
     // over the scenery (so the character and leaves pass in front of it),
     // a critter's just over the wildlife, the character's just over the
@@ -1191,9 +1254,12 @@ async function start() {
     let outlined = '';
     if (hovered?.kind === 'prop') {
       const seconds = now / 1000;
-      const drawn = hoverOutline.draw(ctx, (maskCtx) => (hovered.id === DOCK_PROP
-        ? paintDock(maskCtx, layout) : drawPropAlone(maskCtx, layout, hovered.id, seconds)),
-      seconds, `${sceneKey(place)}:${hovered.id}:${propArtFrame(hovered.id, seconds)}`);
+      const paddy = PADDY_IDS.has(hovered.id);
+      const drawn = hoverOutline.draw(ctx, (maskCtx) => {
+        if (hovered.id === DOCK_PROP) return paintDock(maskCtx, layout);
+        if (paddy) return paintPaddy(maskCtx, layout, hovered.id, seconds);
+        return drawPropAlone(maskCtx, layout, hovered.id, seconds);
+      }, seconds, paddy ? null : `${sceneKey(place)}:${hovered.id}:${propArtFrame(hovered.id, seconds)}`);
       if (drawn) outlined = `prop:${hovered.id}`;
     }
     // The Fortune Tree's wind and golden leaves falling, then a ready
@@ -1312,6 +1378,8 @@ async function start() {
         collection: activity.rewards.catches ? collectionView(game.collection) : null,
       };
     });
+    const paddyOpen = farmMenu.paddy();
+    farmMenu.update(paddyOpen && place.id === FARM_PLACE && !trip && !ended ? paddyView(game, paddyOpen) : null);
     goMenu.update(place, existingPlaces(game), Boolean(trip) || Boolean(ended));
     updateActivityBar(trip ? null : activityBarView(game));
     bookMenu.update(bookView(book));

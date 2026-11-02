@@ -11,6 +11,8 @@ import { REST_SEATS } from '../data/home.js';
 import { stopPlaying } from './fortuneTree.js';
 import { stopResting } from './home.js';
 import { stopActivity, currentActivity } from './activities.js';
+import { stopFarmJob } from './farm.js';
+import { FARM_PLACE } from '../data/farm.js';
 import { meetsRequirement, showsPiece, updateHousing } from './housing.js';
 
 // The place's data as written, whether or not it exists right now.
@@ -95,7 +97,8 @@ export function leavePlace(game) {
   const stoppedPlaying = stopPlaying(game);
   const stoppedResting = stopResting(game);
   const stoppedActivity = Boolean(stopActivity(game));
-  return stoppedPlaying || stoppedResting || stoppedActivity;
+  const stoppedJob = stopFarmJob(game);
+  return stoppedPlaying || stoppedResting || stoppedActivity || stoppedJob;
 }
 
 // Makes sure the character is somewhere that exists, and doing only what
@@ -115,6 +118,7 @@ export function settlePlace(game) {
   if (game.place !== FORTUNE_TREE_PLACE) stopPlaying(game);
   if (!restSpotOf(game)) stopResting(game);
   if (currentActivity(game) && currentActivity(game).place !== game.place) stopActivity(game);
+  if (game.place !== FARM_PLACE) stopFarmJob(game);
   return moved;
 }
 

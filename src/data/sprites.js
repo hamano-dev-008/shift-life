@@ -62,6 +62,20 @@
 //             lake.butterfly.<color> (white, yellow, orange, blue), used
 //             as is. Bottom edge on the butterfly's row, `anchorX` on its
 //             middle. The code-drawn one is 3 x 3, no outline.
+//   The Farm (data/farm.js):
+//     farm.background  The whole background (sky, the three rice
+//             paddies, the path, the barn), 107 x 80, drawn from the
+//             window's bottom-left corner like the Lake's. Positions in
+//             data/farm.js (the paddies' water, the path) are in its
+//             pixels. Without it: sky, grass and a code-drawn path and
+//             paddies (farm.ground).
+//     farm.rice.seedling, farm.rice.young, farm.rice.ripe  The rice in a
+//             paddy at each stage, tiled across the paddy's water from
+//             its left column, the tile's bottom edge on the water's
+//             bottom row (PADDY_WATER); taller tiles reach up above the
+//             water. farm.rice.ripe may have frames (the sway, by time).
+//     farm.weeds  Weeds in a paddy, drawn once near its middle on the
+//             water's bottom row, over the rice.
 //   My Yard shows one housing tier (data/housing.js) at a time:
 //     yard.sleepingBag  On the grass near the right edge
 //             (PROPS['yard.sleepingBag']); code-drawn with outline 24 x 6,
@@ -108,9 +122,10 @@
 //                  activity (read, coins, wave, jog), busk (sitting
 //                  under the Fortune Tree playing an instrument), fish
 //                  (standing on the dock with the rod; the line, bobber
-//                  and catch are drawn over it either way), or
+//                  and catch are drawn over it either way),
 //                  rest (lying on the sofa, sleeping bag or in the tent;
-//                  drawn raised to the seat)
+//                  drawn raised to the seat), or plant, weed and harvest
+//                  (at a rice paddy; harvest swings a sickle)
 //     Drawn facing right (mirrored when facing left), with the frame's
 //     bottom edge one row below the feet (the outline's row) and column
 //     `anchorX` on the character's center. A sprite replaces the whole

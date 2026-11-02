@@ -21,6 +21,7 @@ import { createHousingState, currentTier } from './housing.js';
 import { leavePlace } from './places.js';
 import { createActivityState } from './activities.js';
 import { createAutonomyState } from './autonomy.js';
+import { createFarmState } from './farm.js';
 import { collectionCount } from './fishing.js';
 
 const BOOK_VERSION = 1;
@@ -317,6 +318,7 @@ export function startNewLife(game, options = {}) {
   game.endOfLife = createEndOfLifeState();
   game.activities = createActivityState();
   game.autonomy = createAutonomyState();
+  game.farm = createFarmState();
   return game;
 }
 

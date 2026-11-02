@@ -69,14 +69,16 @@ Early development. What works so far:
 - Own plans: left alone (no clicks on the game for 5 minutes, nothing
   going on), now and then (every 20-60 real minutes) the character
   picks something to do by themselves: fishing (with a rod), busking,
-  a nap when their health is low (sooner if lazy), or a walk to
-  another place. Their goal and traits tip the choice (Fortune fishes
-  and busks, Healthy rests and walks, a lazy one naps, a social one
-  busks, a curious one wanders; a Free spirit is the least
-  predictable). A short bubble says what they've decided ("Going
-  fishing!"), they walk there, it starts on arrival like any other,
+  a nap when their health is low (sooner if lazy), a walk to another
+  place, or work on the Farm's rice paddies (planting, pulling weeds,
+  harvesting, whenever one needs it). Their goal and traits tip the
+  choice (Fortune fishes, busks and farms, Healthy rests, walks and
+  farms, a lazy one naps and rarely farms, a social one busks, a
+  curious one wanders; a Free spirit is the least predictable). A
+  short bubble says what they've decided ("Going fishing!", "Time to
+  plant rice!"), they walk there, it starts on arrival like any other,
   shows in the activity bar, and after 10-40 real minutes they stop by
-  themselves (selling the bucket). Anything you start or stop, or
+  themselves (selling the bucket); a farm job ends when it's done. Anything you start or stop, or
   sending them somewhere, overrides their plan. The "Let them choose"
   setting (On/Off, in the dev menu next to Work trips for now, saved)
   turns this off. Everything is tunable in `src/data/autonomy.js`.
@@ -104,6 +106,11 @@ Early development. What works so far:
     "ribbit!" and hops; click a butterfly and it flutters away. Either
     cheers the character up a little (+1 happiness, at most once every
     30 seconds). It's all in `src/data/lakeLife.js`.
+  - The Farm is to the right of the yard (the Parents' Yard growing up,
+    My Yard after moving out; walking off the yard's right edge leads
+    there, and back): three rice paddies along a dirt path, with a red
+    barn. It's open on the left only; the path stops short of the right
+    edge. Anyone can visit; farming starts at 10 (see below).
   - The place button (the map pin in the top bar) opens "Go to", listing
     the other places. Pick one and the character walks there, through
     any places in between (the Lake to the living room goes past the
@@ -144,6 +151,22 @@ Early development. What works so far:
   health (up to 100) until you pick "Get up". No new events come up
   while resting (the event timer waits). The numbers are in
   `src/data/home.js`.
+- Rice farming at the Farm: from age 10, click a paddy to open its menu.
+  The character walks to the path in front of it first; nothing happens
+  until they're there (the activity bar says "Walking to the paddy...",
+  then "Planting rice..." and so on, with Stop).
+  - Paddy 1 is theirs from the start; paddy 2 costs $100 and paddy 3
+    $250 (the first click on one offers it).
+  - "Plant rice - $5": seedlings appear in rows, turn into taller young
+    rice, and after 6 real hours (only while the game runs; game speed
+    doesn't change it) the paddy is golden, its heads bending and
+    gently swaying.
+  - Once while it grows, weeds may come up: "Pull weeds" adds 20% to
+    the harvest.
+  - "Harvest" (when golden): a few swings of a sickle, then the rice
+    sells for $25 ($30 weeded) with a bubble, and the paddy goes back
+    to plain water.
+  - The numbers and text are in `src/data/farm.js`.
 - Fishing at the Lake: from age 6, click the dock to open its menu.
   - First "Buy a fishing rod - $30" (greyed out with "Need $X more"
     until they can afford it).
@@ -261,11 +284,13 @@ housing tier (sleeping bag, tent, house), jump to any place without
 walking (the Lake included), give a fishing rod, make a fish bite
 now, catch a fish of a chosen rarity now, preview the catch reveal
 card for each rarity, add a butterfly (or a blue one) or make a frog
-croak or hop at the Lake, turn work trips on or off, turn "Let them
+croak or hop at the Lake, grow every paddy at the Farm to its next
+stage or give all three paddies, turn work trips on or off, turn "Let them
 choose" on or off or have them choose something now, end the life now (adults only), set health (0, 10, 50 or 100;
 0 ends an adult's life), and see the character's stats, traits, goal,
 job, tree progress, place, housing, yearly ageing and the chance of the
-life ending on the next birthday, and how fishing is going.
+life ending on the next birthday, how fishing is going, and each
+paddy at the Farm.
 It's hidden in packaged builds.
 
 Keyboard shortcuts (window focused): Ctrl+Shift+F toggles fast speed (the
@@ -286,6 +311,11 @@ code. Save a PNG in `assets/sprites/` named after what it replaces:
 `yard.sleepingBag.png`, `yard.tent.png`, `yard.house.png`, `home.wall.png`,
 `home.floor.png`, `home.window.png`, `home.door.png`, `home.sofa.png`,
 `lake.png` (the Lake's whole background, 107 x 80; there's one already),
+`farm.background.png` (the Farm's whole background, 107 x 80; there's
+one already), `farm.rice.seedling.png`, `farm.rice.young.png` and
+`farm.rice.ripe.png` (rice in a paddy, tiled across its water; the
+ripe one may have frames for the sway), `farm.weeds.png` (weeds in a
+paddy),
 `fortuneTree.background.png` (the Fortune Tree's whole background, 107 x
 80, drawn from the bottom-left corner instead of the sky and grass;
 there's one already), `fortuneTree.well.png` (the wishing well; the
@@ -305,7 +335,7 @@ tree's scale, its middle on the spot set by `APPLE_SPOT` in
 `character.<body>.<animation>.png` (for example
 `character.adult.walk.png`; bodies are baby, toddler, child, teen,
 adult, elder; animations are idle, walk, sit, crawl, read, coins, wave,
-jog, busk, rest, fish). Draw at 1 pixel per game pixel: the game scales it up
+jog, busk, rest, fish, plant, weed, harvest). Draw at 1 pixel per game pixel: the game scales it up
 crisply
 (scenery at the scene scale, the character at its own scale). Add
 `.smile`, `.neutral` or `.frown` before `.png` for a version that
@@ -341,14 +371,16 @@ npm.cmd start        # launch the game
 
 In Git Bash, plain `npm` works. The first start downloads Electron, so it
 takes a little longer. Run `npm.cmd test` for interaction rules, pose
-checks, end-of-life logic, the Lake, its wildlife and fishing (Node
+checks, end-of-life logic, the Lake, its wildlife and fishing, the
+Farm's rice paddies (Node
 22.7+), and
 `npm.cmd run test:smoke` for isolated Electron click/renderer checks
 with real mouse clicks (every place's clickable things are checked to
 be on top, and busking and resting are started by clicking the tree and
 the sofa), including a whole goodbye, a new life, a visit to the Lake (a frog's
 ribbit), a catch
-with its reveal card, and the activity bar's Stop.
+with its reveal card, the activity bar's Stop, and planting and
+harvesting rice at the Farm.
 The smoke check uses in-memory saves, leaving your life, Book and
 collection untouched.
 

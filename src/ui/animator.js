@@ -75,6 +75,7 @@ export function createAnimator(layout) {
     destination: null, // prop id, 'work', 'stay' or 'exit' being walked to, or null
     travelling: false, // walking out of the place (travelTo())
     stayMode: null, // 'busking' or 'resting' once at the stay spot
+    stayX: null, // the stay spot being walked to or stayed at
     stayLift: 0, // canvas pixels the figure is raised while staying
     stayActivity: null, // the pose's activity while 'doing' (e.g. 'fish')
     stayFacing: 0, // which way to face while staying (0: as they arrive)
@@ -341,7 +342,10 @@ function updateStay(anim, dt, stage, stay) {
   anim.stayActivity = stay.activity ?? null;
   anim.stayFacing = stay.facing ?? 0;
   anim.stayBed = stay.bed ?? null;
-  if (anim.mode === stay.mode) {
+  // Staying there already; a new spot for the same mode (another rice
+  // paddy) means walking over to it.
+  const sameSpot = anim.stayX !== null && Math.abs(stay.x - anim.stayX) < 1;
+  if (anim.mode === stay.mode && sameSpot) {
     if (anim.stayFacing) anim.facing = anim.stayFacing;
     anim.activityTime += dt;
     return;
@@ -352,10 +356,11 @@ function updateStay(anim, dt, stage, stay) {
     anim.gridX = Math.round(anim.x / anim.layout.characterScale);
   }
   if (STAY_MODES.includes(anim.mode)) anim.mode = 'idle';
-  const heading = anim.destination === 'stay' && ['walking', 'turning', 'plopped'].includes(anim.mode);
+  const heading = anim.destination === 'stay' && sameSpot && ['walking', 'turning', 'plopped'].includes(anim.mode);
   if (!heading) {
     anim.activity = null;
     anim.jogging = false;
+    anim.stayX = stay.x;
     if (Math.abs(stay.x - anim.x) < anim.layout.scale) {
       startStay(anim);
       return;
@@ -373,9 +378,11 @@ function updateStay(anim, dt, stage, stay) {
 // passed to updateAnimator()) and settled into its pose: sitting under
 // the tree, lying down, at the activity's spot facing its way. The
 // renderer reports it to the game (game/stay.js), which only then starts
-// counting.
+// counting. Settled at another spot (a different rice paddy) doesn't
+// count.
 export function hasSettled(anim, stay) {
-  return Boolean(stay) && !anim.travelling && anim.mode === stay.mode;
+  return Boolean(stay) && !anim.travelling && anim.mode === stay.mode
+    && anim.stayX !== null && Math.abs(stay.x - anim.stayX) < 1;
 }
 
 // Stops staying (or heading off to stay): gets up and carries on.

@@ -19,6 +19,7 @@ import {
 } from '../data/appearance.js';
 import { ACTIVITY_LOOPS } from '../data/animation.js';
 import { BUSK_LOOPS } from '../data/fortuneTree.js';
+import { FARM_LOOPS } from '../data/farm.js';
 import {
   REST_LOOPS, REST_BLANKET, REST_PILLOW, REST_FACE, REST_PREVIEW_BED, SLEEPING_BAG_COLORS,
 } from '../data/home.js';
@@ -74,6 +75,13 @@ const TUBE = '#4a4e69';
 const STETHOSCOPE_BELL = '#c9ccd6';
 const STRAP = '#7a4a2a';
 const BAG = '#9c6236';
+// Farming (pure art): a rice seedling and a pulled weed in the hand, the
+// sickle's wooden handle and steel blade.
+const SEEDLING = '#7fcf5a';
+const WEED = '#3c6b2a';
+const SICKLE_HANDLE = '#8b5a3c';
+const SICKLE_BLADE = '#d9dde8';
+const SICKLE_EDGE = '#9aa0ad';
 const BAG_FLAP = '#7a4a2a';
 
 // Busking: a wooden guitar and musical notes.
@@ -628,6 +636,28 @@ function drawActivityArm(px, shape, look, col, bodyTop, pose) {
         px(col + 1, bodyTop + sleeve, 2, 1, look.skin);
       }
       return true;
+    case 'plant':
+    case 'weed': {
+      // Reaching down in front: planting dips the hand to the water and
+      // back; pulling weeds tugs it up.
+      const beat = pose.activity === 'plant' ? FARM_LOOPS.plant : FARM_LOOPS.weed;
+      const low = Math.floor(pose.activityTime / beat) % 2 === 0;
+      const lift = pose.activity === 'weed' ? (low ? 0 : 2) : (low ? 0 : 1);
+      px(col, bodyTop + 1, 1, sleeve, look.shirt);
+      px(col + 1, bodyTop + sleeve + 1 - lift, 1, shape.body - sleeve, look.skin);
+      return true;
+    }
+    case 'harvest': {
+      // The sickle arm: raised forward, then swung down low.
+      const down = Math.floor(pose.activityTime / FARM_LOOPS.swing) % 2 === 1;
+      px(col, bodyTop + 1, 1, sleeve, look.shirt);
+      if (down) {
+        px(col + 1, bodyTop + sleeve + 1, 2, 1, look.skin);
+      } else {
+        px(col + 1, bodyTop + sleeve - 1, 1, 2, look.skin);
+      }
+      return true;
+    }
     case 'wave': {
       // Shoulder, elbow out, hand up beside the face rocking side to side.
       const rock = Math.floor(pose.activityTime / WAVE_BEAT) % 2;
@@ -674,6 +704,37 @@ function drawActivityExtras(px, shape, armCol, bodyTop, headLeft, headTop, pose)
       px(left + 2, top, 1, 1, HEART);
       px(left, top + 1, 3, 1, HEART);
       px(left + 1, top + 2, 1, 1, HEART);
+      break;
+    }
+    case 'plant':
+    case 'weed': {
+      // A seedling going in, or a weed coming out, in the hand.
+      const beat = pose.activity === 'plant' ? FARM_LOOPS.plant : FARM_LOOPS.weed;
+      const low = Math.floor(t / beat) % 2 === 0;
+      const lift = pose.activity === 'weed' ? (low ? 0 : 2) : (low ? 0 : 1);
+      const bottom = bodyTop + shape.body - lift;
+      const color = pose.activity === 'plant' ? SEEDLING : WEED;
+      px(armCol + 2, bottom - 1, 1, 2, color);
+      if (pose.activity === 'weed' && !low) px(armCol + 3, bottom, 1, 1, WEED);
+      break;
+    }
+    case 'harvest': {
+      // The sickle: a handle in the hand and a curved blade, held up then
+      // swung down through the rice.
+      const down = Math.floor(t / FARM_LOOPS.swing) % 2 === 1;
+      if (down) {
+        const row = handRow + 1;
+        px(armCol + 3, row, 1, 1, SICKLE_HANDLE);
+        px(armCol + 4, row, 1, 1, SICKLE_BLADE);
+        px(armCol + 5, row + 1, 1, 1, SICKLE_BLADE);
+        px(armCol + 4, row + 2, 1, 1, SICKLE_EDGE);
+      } else {
+        const row = handRow - 2;
+        px(armCol + 1, row, 1, 1, SICKLE_HANDLE);
+        px(armCol + 1, row - 1, 1, 1, SICKLE_BLADE);
+        px(armCol + 2, row - 2, 2, 1, SICKLE_BLADE);
+        px(armCol + 3, row - 1, 1, 1, SICKLE_EDGE);
+      }
       break;
     }
     case 'jog': {

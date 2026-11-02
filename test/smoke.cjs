@@ -798,9 +798,66 @@ app.whenReady().then(async () => {
     await wait(100);
     assert.equal(savedSettings.ownPlans, true);
     await js('if (!document.querySelector("#dev-menu").hidden) document.querySelector("#dev-btn").click()');
+    // The Farm: three paddies' click areas on top, each opening its menu;
+    // feet on the path; paddy 2 offered for sale; the dev Give paddies;
+    // the hover outline on a paddy; planting only once at the paddy (the
+    // bar says so), the dev Grow paddies to ripe, and the harvest's
+    // bubble and pay.
+    await dev('Farm');
+    assert.equal(saved.place, 'farm');
+    assert.equal(await js('document.querySelector("#place").textContent'), 'Farm');
+    assert.deepEqual(await checkProps('the Farm at rest'), ['Rice paddy 1', 'Rice paddy 2', 'Rice paddy 3']);
+    await clickEveryProp('the Farm at rest');
+    const farmFeet = await js(`Math.max(...[...document.querySelectorAll('#character-target span')]
+      .map((run) => run.getBoundingClientRect().bottom))`);
+    assert.ok(farmFeet > 215 && farmFeet <= 228, `feet at ${farmFeet} on the Farm`);
+    await pressProp('Rice paddy 2');
+    await wait(60);
+    assert.deepEqual(await openPanels(), ['farm-menu']);
+    assert.match(await js('document.querySelector("#farm-menu").textContent'), /Rice paddy 2.*Buy this paddy - \$100/s);
+    await press('document.querySelector("#farm-menu .panel-close")');
+    await dev('Give paddies', `Add $1,000`);
+    assert.deepEqual(Object.values(saved.farm.paddies).map((paddy) => paddy.owned), [true, true, true]);
+    await checkHoverProp('Rice paddy 1', 'prop:farm.paddy1');
+    await moveTo(await backgroundPoint());
+    const farmMoney = saved.character.stats.money;
+    await pressProp('Rice paddy 1');
+    await wait(60);
+    await press(inPanel('#farm-menu', 'Plant rice - $5'));
+    assert.deepEqual(await openPanels(), [], 'planting closes the paddy menu');
+    await wait(100);
+    assert.equal(saved.farm.job.action, 'plant');
+    assert.equal(await untilThere('Walking to the paddy...'), 'Planting rice...');
+    await checkProps('planting, with the activity bar up');
+    for (let i = 0; i < 100 && saved.farm.job; i++) await wait(100);
+    assert.equal(saved.farm.job, null, 'planting never finished');
+    assert.ok(saved.farm.paddies['farm.paddy1'].crop, 'nothing planted');
+    assert.equal(saved.character.stats.money, farmMoney - 5);
+    await dev('Grow paddies', 'Grow paddies');
+    const paddyMenu = () => js('document.querySelector("#farm-menu").textContent');
+    await pressProp('Rice paddy 1');
+    await wait(60);
+    assert.match(await paddyMenu(), /Harvest - \$(25|30).*Golden and ready!/s);
+    await press(`[...document.querySelectorAll("#farm-menu button")].find((b) => b.textContent.startsWith("Harvest"))`);
+    assert.equal(await untilThere('Walking to the paddy...'), 'Harvesting...');
+    for (let i = 0; i < 100 && saved.farm.harvested < 1; i++) await wait(100);
+    assert.equal(saved.farm.harvested, 1, 'never harvested');
+    assert.equal(saved.farm.paddies['farm.paddy1'].crop, null, 'the paddy is not water again');
+    assert.equal(saved.character.stats.money, farmMoney - 5 + saved.farm.earned);
+    let harvestSaid = '';
+    for (let i = 0; i < 150 && !/Sold the rice for \$(25|30)/.test(harvestSaid); i++) {
+      harvestSaid = await js('document.querySelector("#speech").hidden ? "" : document.querySelector("#speech").textContent');
+      await wait(100);
+    }
+    assert.match(harvestSaid, /Harvest!.*Sold the rice for \$(25|30)/s);
+    await checkProps('the Farm after a harvest');
+    await js('document.querySelector("#dev-btn").click()');
+    await wait(100);
+    assert.match(await js('document.querySelector("#dev-menu .dev-readout").textContent'), /Farm: 1:empty 2:young 3:young/);
+    await js('document.querySelector("#dev-btn").click()');
     assert.deepEqual(await appRegions(), []);
     assert.deepEqual(errors, []);
-    console.log(`PASS: the Fortune Tree's wishing well (its bubble, click area apart from the tree's, drags from it and the background), activities start only on arrival (walking to the tree from the far side, then "Busking - 0:00"; the sofa; the dock), no -webkit-app-region anywhere, JS window drags (background, character, tree: the window follows, no poke, no menu), plain clicks on every prop in every place, native gentle/rapid clicks, spam, calming, moving hit regions, drag rejection, 25 poses, offscreen, prop/event priority, real clicks on props and menus, prop click areas on top in every place (at rest, after travel, menus closed, an event waiting, the activity bar, a catch reveal), rest/travel/busking preserved, transparent sprite, end of life, summary, Book, new life, the Lake (frogs, butterflies), fishing (rod, bite, catch, reveal, collection, activity bar, selling), work trips (the setting saved, "Off to work!", the "At work" label calling them back), the Fortune Tree's wind (Gust now there only; props still on top with the apple glowing in a gust), the hover outline (tree, character, sofa, dock: shown while hovering, gone on leaving, none with a menu open, clicks unchanged, no native tooltips), the dev Rest now (lying down asleep where they are, outlined on hover, up again), their own plans (Let them choose On by default next to Work trips, saved; Choose now says what and shows in the read-out; Off ends it); no renderer errors.`);
+    console.log(`PASS: the Fortune Tree's wishing well (its bubble, click area apart from the tree's, drags from it and the background), activities start only on arrival (walking to the tree from the far side, then "Busking - 0:00"; the sofa; the dock), no -webkit-app-region anywhere, JS window drags (background, character, tree: the window follows, no poke, no menu), plain clicks on every prop in every place, native gentle/rapid clicks, spam, calming, moving hit regions, drag rejection, 25 poses, offscreen, prop/event priority, real clicks on props and menus, prop click areas on top in every place (at rest, after travel, menus closed, an event waiting, the activity bar, a catch reveal), rest/travel/busking preserved, transparent sprite, end of life, summary, Book, new life, the Lake (frogs, butterflies), fishing (rod, bite, catch, reveal, collection, activity bar, selling), work trips (the setting saved, "Off to work!", the "At work" label calling them back), the Fortune Tree's wind (Gust now there only; props still on top with the apple glowing in a gust), the hover outline (tree, character, sofa, dock: shown while hovering, gone on leaving, none with a menu open, clicks unchanged, no native tooltips), the dev Rest now (lying down asleep where they are, outlined on hover, up again), their own plans (Let them choose On by default next to Work trips, saved; Choose now says what and shows in the read-out; Off ends it), the Farm (paddies on top and opening their menu, feet on the path, buying offered, Give paddies, the hover outline, planting on arrival, Grow paddies, the harvest's bubble and pay); no renderer errors.`);
   } catch (error) {
     console.error(error);
     process.exitCode = 1;

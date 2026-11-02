@@ -11,11 +11,13 @@
 
 import { PLACE_ACTIVITIES } from '../data/activities.js';
 
-// What's running that needs its spot: 'activity:<id>', 'busking',
-// 'resting', or null. An activity comes first, as in the activity bar.
+// What's running that needs its spot: 'activity:<id>', 'farm:<paddy>'
+// (a job at a rice paddy), 'busking', 'resting', or null. An activity
+// comes first, as in the activity bar.
 export function stayKey(game) {
   const activity = game.activities?.current;
   if (activity) return `activity:${activity.id}`;
+  if (game.farm?.job) return `farm:${game.farm.job.paddy}`;
   if (game.fortuneTree?.playing) return 'busking';
   if (game.home?.resting) return 'resting';
   return null;

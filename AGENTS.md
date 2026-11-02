@@ -40,11 +40,14 @@ with **Electron and plain JavaScript**.
 > coin toss is coming soon), the
 > Parents' Yard and Home (resting on the sofa) while growing up, then
 > from 18 My Yard (sleeping bag, tent or house, bought by the player)
-> and their own Home. From 50 health fades with age; the life ends
+> and their own Home; right of the yard, the Farm (three rice paddies,
+> one owned and two to buy: planting from 10, rice growing over 6 real
+> hours, weeds to pull now and then, harvesting with a sickle; the
+> character walks to the paddy first, and may farm on their own). From 50 health fades with age; the life ends
 > gently (no health left, or a yearly chance from 70 up to 100) with a
 > life summary, goes into the Book of past lives, and a new life can
 > begin. The life, the Book and the fish collection are saved between
-> launches. While fishing, busking or resting a bar at the bottom says
+> launches. While fishing, busking, resting or farming a bar at the bottom says
 > what's happening, with Stop. Items marked
 > *(planned)* don't exist yet; follow the planned layout when adding them,
 > and update this section whenever files are added, moved, or removed.
@@ -80,7 +83,7 @@ Shift-Life/
 │   │                  Lake wildlife's click areas and the ribbit, the
 │   │                  remark over a clicked prop (the wishing well), the
 │   │                  activity bar, goal, tree, rest, activity (dock),
-│   │                  Go to and dev menus, life summary
+│   │                  paddy (farm), Go to and dev menus, life summary
 │   │                  card, Book of past lives, text bubble, top-right
 │   │                  buttons (goal, book, place, gear, -, x)
 │   ├── styles.css     Rounded frame, pixelated canvas, label,
@@ -107,7 +110,10 @@ Shift-Life/
 │   │                  dove at the bobber), the Fortune Tree's wind,
 │   │                  falling leaves, the apple's glow, swing, pick
 │   │                  flash and sparkles, the wishing well's
-│   │                  bubble, own plans (when they choose, the
+│   │                  bubble, the Farm (paddy clicks and menu, the
+│   │                  rice growing on the life tick, drawing the
+│   │                  crops, a paddy's hover outline, the farming
+│   │                  pose's spot), own plans (when they choose, the
 │   │                  bubble, the trip, the player taking over),
 │   │                  work trips (when they may leave,
 │   │                  "Off to work!", the "At work" place label
@@ -129,7 +135,8 @@ Shift-Life/
 │   │   │                  unsaved), what they can choose and its weight
 │   │   │                  (goal, traits, whim), the plan (saved): going,
 │   │   │                  starting in its place, counting once arrived,
-│   │   │                  stopping by themselves, calling it off
+│   │   │                  stopping by themselves (a farm job when it's
+│   │   │                  done), calling it off
 │   │   ├── lakeLife.js    Clicking the Lake's wildlife: +1 happiness on
 │   │   │                  a real-time cooldown (unsaved)
 │   │   ├── clock.js       Real-time clock: in-game years, speed, stopped
@@ -171,6 +178,13 @@ Shift-Life/
 │   │   │                  hold, fade, a click fading it sooner, the
 │   │   │                  legendary flash and turning rays) and its text
 │   │   │                  (banner, name, size and value, badges, junk)
+│   │   ├── farm.js        The Farm's rice paddies: owning and buying
+│   │   │                  them, the age to farm, planting ($5), real-time
+│   │   │                  growth (seedlings, young, ripe), weeds once,
+│   │   │                  the harvest's pay (+20% weeded), the jobs at a
+│   │   │                  paddy (plant, weed, harvest; counting once
+│   │   │                  arrived), the paddy menu's view, how they
+│   │   │                  look, dev grow/give, the read-out line
 │   │   ├── activityBar.js The activity bar: what's running (an
 │   │   │                  activity, busking, resting), its text (the
 │   │   │                  bucket for fishing; "on the way" while
@@ -198,7 +212,8 @@ Shift-Life/
 │   │   │                  to 18, end life now, set health, give a rod,
 │   │   │                  a bite now, catch a rarity now, preview a
 │   │   │                  rarity's reveal card, read-out (job,
-│   │   │                  tree, place, housing, fishing, life)
+│   │   │                  tree, place, housing, fishing, the Farm,
+│   │   │                  life)
 │   │   └── save.js        Save format (versioned) and load/save calls,
 │   │                      for the life, the Book of past lives, the
 │   │                      fish collection and the player settings
@@ -244,8 +259,9 @@ Shift-Life/
 │   │   ├── animator.js    Wandering, prop visits, goal activities,
 │   │   │                  trips off-screen to work and back (by an open
 │   │   │                  side, only when allowed; called back), staying put
-│   │   │                  to busk or rest (and saying when they've
-│   │   │                  settled there), sitting for good (eyes
+│   │   │                  to busk, rest or do something (and saying when
+│   │   │                  they've settled there; a new spot, such as
+│   │   │                  another paddy, means walking over), sitting for good (eyes
 │   │   │                  closing) when a life ends, walking out of a
 │   │   │                  place and into the next,
 │   │   │                  turning, the walk cycle, breathing, blinking;
@@ -256,7 +272,9 @@ Shift-Life/
 │   │   │                  where one exists, otherwise in code, including
 │   │   │                  activity props (book, coins, hearts, sweat),
 │   │   │                  job items (hats, tie, apron, lab coat...),
-│   │   │                  busking (guitar, notes) and resting (asleep:
+│   │   │                  busking (guitar, notes), farming (planting a
+│   │   │                  seedling, tugging a weed, swinging a sickle)
+│   │   │                  and resting (asleep:
 │   │   │                  the head turned on its side on a pillow,
 │   │   │                  closed eyes, a blanket or the sleeping bag,
 │   │   │                  z's); where bubbles go over the head; all
@@ -303,6 +321,12 @@ Shift-Life/
 │   │   │                  the rarity's color, the fish big, banner,
 │   │   │                  name, size, value, badges, sparkles, the
 │   │   │                  legendary flash), fading; its queue
+│   │   ├── farm.js        Draws the Farm's rice over the paddies'
+│   │   │                  water (seedlings in rows, young, ripe and
+│   │   │                  swaying; weeds), sprite or code, and the
+│   │   │                  code-drawn ground without the picture
+│   │   ├── farmMenu.js    A rice paddy's menu: buy, plant, pull weeds,
+│   │   │                  harvest, and how the rice is doing
 │   │   ├── farewell.js    The goodbye's fade: a pale veil over the scene,
 │   │   │                  thickening in steps
 │   │   ├── lifeSummary.js The life summary card ("Start a new life"), and
@@ -310,7 +334,8 @@ Shift-Life/
 │   │   ├── pastLives.js   The Book of past lives (book button): the list
 │   │   │                  of finished lives and each one's summary
 │   │   ├── devMenu.js     The dev settings menu (gear; dev runs only),
-│   │   │                  with the Work trips setting for now
+│   │   │                  with the Work trips setting for now, and the
+│   │   │                  Farm row (Grow paddies, Give paddies)
 │   │   ├── statsPanel.js  Stats, job and traits panel under the name label
 │   │   ├── hoverOutline.js The white outline around the interactable
 │   │   │                  thing under the pointer: which thing
@@ -335,8 +360,9 @@ Shift-Life/
 │       │                  own plans on)
 │       ├── autonomy.js    The character's own plans: the quiet minutes,
 │       │                  how often, how long, the choices (minimum age,
-│       │                  resting's health thresholds), goal and trait
-│       │                  weights, whim, bubble and setting text
+│       │                  resting's health thresholds; planting,
+│       │                  weeding, harvesting), goal and trait weights,
+│       │                  whim, bubble and setting text
 │       ├── endOfLife.js   Ageing loss by home, when a life ends (ages,
 │       │                  chances), goodbye timing, life title rules
 │       │                  (trait adjectives, nouns), Book size, text
@@ -345,6 +371,14 @@ Shift-Life/
 │       │                  props, own feet row and walking limits),
 │       │                  where a new life starts, the default place,
 │       │                  travel distances, Go to text
+│       ├── farm.js        The Farm: its place id, background and
+│       │                  fallback, feet row, walking limits, minimum
+│       │                  age, the paddies' water rows and columns and
+│       │                  prices, rice (seed cost, growth hours, stages,
+│       │                  weeds, pay), the jobs' times and animations,
+│       │                  the poses' beats, the crops' colors and sway,
+│       │                  the code-drawn ground, menu, bar, bubble and
+│       │                  dev text
 │       ├── activities.js  Place activities (fishing so far): place,
 │       │                  prop, facing, minimum age, item and price,
 │       │                  how long it runs, rewards, event freeze,
@@ -430,7 +464,8 @@ Shift-Life/
 ├── assets/
 │   └── sprites/       Pixel-art PNGs that replace code-drawn art (tree.png,
 │                      goldenApple.png, lake.png,
-│                      fortuneTree.background.png, fish.<id>.png so far)
+│                      fortuneTree.background.png, farm.background.png,
+│                      fish.<id>.png so far)
 │                      and a short README
 └── test/              interaction.test.mjs (rules/poses), endOfLife.test.mjs
                        (ageing, endings, summary, Book, new life),
@@ -468,7 +503,20 @@ Shift-Life/
                        once arrived, stopping by itself and selling the
                        bucket; a visit ending on arrival; the player's
                        stop, calling it off, the setting off; events
-                       still frozen; saving), lying.test.mjs (the sleeping pose: head
+                       still frozen; saving), farm.test.mjs (the
+                       Farm: right of the parents' yard or My Yard,
+                       open on the left, feet on the path, walking
+                       limits; the paddies' click areas over their
+                       water and spots in front; owning and buying;
+                       farming from 10; planting $5; 6 hours through
+                       seedlings, young and ripe, only by the ms
+                       passed; weeds once and +20%; the harvest $25
+                       and back to water; a job only counting once
+                       arrived, the bar and Stop; leaving cancels;
+                       saving; dev grow and give; own plans to plant,
+                       weed and harvest, weighted by goal and lazy;
+                       walking from one paddy to another before it
+                       counts; sprite names), lying.test.mjs (the sleeping pose: head
                        on the pillow at the left end, the shirt only at
                        the shoulders, the blanket chest to past the feet
                        with their bump, breathing 1 pixel, the mouth's
@@ -498,6 +546,11 @@ Shift-Life/
                        them choose" setting (On by default, next to
                        Work trips, saved) and the dev "Choose now"
                        (its bubble, the read-out, Off ending it),
+                       the Farm (paddies on top, each opening its
+                       menu, feet on the path, buying offered, Give
+                       paddies, a paddy's hover outline, planting on
+                       arrival with the bar, Grow paddies, the
+                       harvest's bubble and pay, the read-out),
                        the hover outline on the tree, the character,
                        the sofa and the dock: shown while hovering (the
                        canvas's data-hover and white pixels drawn),
@@ -554,7 +607,9 @@ How it works, for anyone extending it:
     of `data/sprites.js`: `sky`, `grass`, `tree`, `yard.house`,
     `home.wall`, `home.floor`, `home.window`, `home.door`, `home.sofa`,
     `lake`, `lake.frog`, `lake.butterfly` (or `lake.butterfly.<color>`),
-    `fortuneTree.background`, `fortuneTree.well`, `fortuneTree.leaf`
+    `fortuneTree.background`, `fortuneTree.well`, `fortuneTree.leaf`,
+    `farm.background`, `farm.rice.seedling`, `farm.rice.young`,
+    `farm.rice.ripe`, `farm.weeds`
     (scene pixels, drawn at `SCENE_SCALE`), `goldenApple` (4 frames
     of 8 x 6, at the tree's scale) and
     `character.<body>.<animation>` with an optional `.<expression>`
@@ -740,7 +795,8 @@ How it works, for anyone extending it:
   entered through the house's front door. From 18 the parents' places
   are gone and My Yard (`myYard`) is beside the tree, with Home
   (`myHome`, the own living room) once they own the house. The Lake is
-  there at every age.
+  there at every age, and so is the Farm (`farm`), right of the
+  Parents' Yard and then of My Yard (see **Farm**).
   - A place can have its own feet row (`feetFromBottom`, rows above the
     window bottom; default `FEET_FROM_BOTTOM`) and walking limits
     (`walk: { minX, maxX }`, scene pixels; null keeps `WANDER_MARGIN`).
@@ -844,12 +900,80 @@ How it works, for anyone extending it:
       `rewardWildlifeClick()` (`game/lakeLife.js`), at most once per
       `cooldownMs` of real time (30s, shared by all), like the pokes.
       No clicks while travelling or once the life has ended.
-  - Work trips work the same everywhere (out the nearest side and back).
+  - Work trips work the same everywhere (out the nearest open side and
+    back; at the Farm always the left).
   - A new place needs an entry in `PLACES` (with exits both ways), any
     new scenery pieces in `SCENERY` (`ui/scene.js`, with code-drawn
     art) and props in `PROPS` (`data/layout.js`), and its sprite names
     in `data/sprites.js`. Place-specific features check the place id
     (`FORTUNE_TREE_PLACE`) or the props it shows (`REST_SEATS`).
+- **Farm** (`data/farm.js`, `game/farm.js`, drawn by `ui/farm.js`, the
+  menu `ui/farmMenu.js`): rice paddies right of the yard.
+  - The place (`FARM_PLACE`, `farm` in `PLACES`): exits `left` to the
+    Parents' Yard and to My Yard (whichever exists), and those yards
+    have `right` exits to it; nothing on the right. Any age can visit.
+    Its background is `farm.background` (107 x 80, from the window's
+    bottom-left corner, like the Lake's; without it sky, grass and the
+    code-drawn `farm.ground`: the path and the paddies' banks and
+    water). Positions in `data/farm.js` are in the picture's pixels (x
+    from the left, rows from the top). The dirt path is rows 72-76:
+    feet on row 75 (`FARM_FEET_FROM_BOTTOM`, 5); `FARM_WALK` keeps them
+    from the right edge (x 100), the left is open.
+  - Paddies (`PADDIES`: x 1-20, 22-37, 39-57; water rows 65-69,
+    `PADDY_WATER`) are props in `PROPS` with no art of their own (they're
+    in the picture): the click area over the water and the visit spot
+    on the path in front of the middle (`visit: false`). Paddy 1 is
+    owned from the start; 2 and 3 cost `price` ($100, $250).
+  - `game.farm`: `{ paddies: { <id>: { owned, crop } }, job, harvested,
+    earned }`. A crop is `{ ms, weedsAt, weeds, weeded }` (real ms grown;
+    when weeds come up, or null; up now; pulled); the job `{ paddy,
+    action, ms }`. Saved; `restoreFarmState()` fills in anything
+    missing (a save from before the Farm gets a fresh one).
+  - Clicking a paddy at the Farm opens its menu (`paddyView()`): under
+    `FARM_MIN_AGE` (10) "come back later"; not owned, "Buy this paddy -
+    $X" (disabled, with "Need $X more", when too dear; buying keeps the
+    menu open, now offering planting); water, "Plant rice - $5"; weeds
+    up, "Pull weeds"; ripe, "Harvest - $25" (or $30); and the status
+    (the stage and time left, weeds, weeded). Choosing a job closes the
+    menu and calls the plan off (`playerTookOver()`).
+  - Jobs (`startFarmJob()`, only at the Farm, one at a time, replacing
+    one under way): the renderer's `stayFor()` sends the character to
+    the paddy's spot (`stay` mode `'doing'`, the job's `animation`,
+    facing right). It only counts once they've arrived (**On the
+    way**; `stayKey()` is `'farm:<paddy>'`, so another paddy needs a
+    new arrival and the animator walks over); then after
+    `FARM_JOBS[action].seconds` (4, 3, 3 real seconds) it's done:
+    planting takes $5 and starts a crop, pulling weeds sets `weeded`,
+    harvesting pays `harvestPay()` (`RICE.pay` $25, plus `weedBonus`
+    20% if weeded), counts `harvested`/`earned` and leaves water. Each
+    shows a bubble ("Rice planted!", "Weeds pulled!", "Harvest! Sold
+    the rice for $25."). A job that can't be done any more (no money,
+    nothing to harvest) or away from the Farm is dropped; leaving the
+    place stops it; the activity bar shows it ("Walking to the
+    paddy...", then "Planting rice..."; Stop ends it, nothing done).
+    Events aren't frozen for a few seconds' job.
+  - Growing (`updateFarm(game, realMs)` on the life tick, real time
+    only: game speed doesn't change it and nothing grows while the app
+    is closed): every crop grows wherever the character is, over
+    `RICE.growHours` (6) real hours: seedlings, young from
+    `RICE.young` (a third), ripe at the end. When planted, weeds are
+    set to come up with `weedChance` at a random point in `weedsAt`
+    (shares of the growth), once at most.
+  - Drawing (`drawFarmCrops()`, after the scenery, before a paddy's
+    hover outline and the character): seedlings as tiny tufts in two
+    staggered rows, young rice as taller green stalks, ripe rice golden
+    with heads bending one way then the other (`RICE_ART.swayEvery`,
+    each stalk a little later), weeds as three dark bushy clumps with
+    yellow-green leaves; each stage the `farm.rice.<stage>` sprite tiled
+    across the water if there is one, weeds `farm.weeds`. A paddy's
+    hover outline goes around its water and its rice (`paintPaddy()`).
+  - Poses (`ui/sprite.js`, beats in `FARM_LOOPS`): planting, the arm
+    reaches down and dips with a seedling; weeding, it tugs a weed up;
+    harvesting, a sickle (handle and blade) is held up and swung down.
+  - Own plans can plant, weed and harvest (see **Own plans**).
+  - Dev menu, Farm row: "Grow paddies" (`growAllNextStage()`: every
+    owned paddy one stage on; water is planted free) and "Give paddies"
+    (`giveAllPaddies()`); the read-out's farm line (`farmText()`).
 - **Fortune Tree decoration** (`data/fortuneTreeDecor.js`; behavior in
   `ui/treeDecor.js`, drawing in `ui/treeDecorArt.js` and `ui/props.js`):
   - Background: the place's first scenery piece is
@@ -1189,10 +1313,12 @@ How it works, for anyone extending it:
   - Chosen, they walk to the spot (`stayOf()` in the renderer, the
     animator's `stay`). Each frame the renderer asks the animator whether
     they've arrived and settled into the pose (`hasSettled(anim,
-    stay)`: in the stay mode, not travelling) and tells the game
-    (`reportArrival(game, arrived)`). `game.stay.arrived` holds the key
+    stay)`: in the stay mode at that spot (`anim.stayX`), not
+    travelling) and tells the game (`reportArrival(game, arrived)`). A
+    new spot for the same mode (another rice paddy) walks them over
+    first. `game.stay.arrived` holds the key
     of what they've arrived at (`stayKey()`: `'activity:<id>'`,
-    `'busking'` or `'resting'`), so switching to something else needs a
+    `'farm:<paddy>'`, `'busking'` or `'resting'`), so switching to something else needs a
     new arrival, and a false report (got up, pulled away) clears it.
     `hasArrived()` and `isOnTheWay()` read it.
   - On the way nothing counts: `updateFortuneTree()` doesn't advance the
@@ -1227,12 +1353,16 @@ How it works, for anyone extending it:
     activity's age; at the Lake), busking (from `TREE_MIN_AGE`; at the
     Fortune Tree), resting (only below `healthBelow` (70) health, or
     `lazyHealthBelow` (90) when lazy; at the nearest place with a rest
-    spot, here first) and visiting another place that exists (from 3),
-    each from its `minAge`, only if there's a way there. `choosePlan()`
+    spot, here first), visiting another place that exists (from 3),
+    and at the Farm planting, pulling weeds or harvesting (from 10,
+    `farm: true`, when a paddy needs it: `paddiesFor()`; planting needs
+    the money for seed), each from its `minAge`, only if there's a way
+    there. `choosePlan()`
     weights each by `AUTONOMY_CHOICES` weight, the active goal's
-    multipliers (`AUTONOMY_GOALS`: Fortune fishing and busking, Healthy
-    resting and walking about...), each trait's (`AUTONOMY_TRAITS`: lazy
-    rests, social busks, curious visits...), and a whim (each times 1
+    multipliers (`AUTONOMY_GOALS`: Fortune fishing, busking and
+    farming, Healthy resting, walking about and farming...), each
+    trait's (`AUTONOMY_TRAITS`: lazy rests and rarely farms, social
+    busks, curious visits...), and a whim (each times 1
     to 1 + `whim`; Free spirit varies most).
   - How: `beginOwnPlan()` (renderer) says `AUTONOMY_TEXT.going` (passing
     chatter, like "Off to work!"), stores the plan (`startPlan()`:
@@ -1240,7 +1370,9 @@ How it works, for anyone extending it:
     saved) and starts a normal trip if it's elsewhere. On the life tick
     `updateAutonomy()`: once in the place and not travelling it starts
     the thing the normal way (`startActivity()`, `startPlaying()`,
-    `startResting()`; a visit is then over), stage `'doing'`; it only
+    `startResting()`, `startFarmJob()` at the first paddy that needs
+    it; a visit is then over), stage `'doing'`; a farm job's plan ends
+    when the job is done (its own bubble), with no time limit; otherwise it only
     counts once they've arrived at the spot (**On the way**), then
     `leftMs` (`AUTONOMY_DURATION_MINUTES`, 10-40 real minutes) runs down
     and they stop by themselves (fishing sells the bucket; busking and
@@ -1249,7 +1381,7 @@ How it works, for anyone extending it:
     always. After a reload the plan carries on (a trip doesn't: a plan
     still going elsewhere is dropped).
   - The player first: anything the player starts or stops (the tree,
-    rest and activity menus, the bar's Stop, Go to, a door or edge
+    rest, activity and paddy menus, the bar's Stop, Go to, a door or edge
     trip, the dev Go to) calls the plan off (`playerTookOver()` ->
     `cancelPlan()`), leaving things as the player made them, and the
     next plan waits a fresh spell. A plan whose thing stopped, whose
@@ -1267,7 +1399,7 @@ How it works, for anyone extending it:
   `CHARACTER_SCALE`), gently pulsing in opacity (`pulse`).
   - What: every prop with a click area (`#targets`: the tree, the
     wishing well, houses, front doors, the sofa, sleeping bag, tent, the
-    dock), the Lake's frogs and butterflies (`#wildlife`), and the
+    dock, the rice paddies), the Lake's frogs and butterflies (`#wildlife`), and the
     character (`#character-target`'s runs). One at a time: each frame
     the renderer takes the topmost element under the pointer
     (`document.elementFromPoint()`, the pointer tracked with
@@ -1287,7 +1419,9 @@ How it works, for anyone extending it:
   - The dock has no art of its own: its silhouette is the pixels inside
     `DOCK` whose color is in `DOCK_COLORS` (`data/lake.js`), from
     lake.png or the code-drawn Lake (`drawDockSilhouette()` in
-    `ui/lake.js`); with none found, its click area is outlined.
+    `ui/lake.js`); with none found, its click area is outlined. A rice
+    paddy's silhouette is its click area (the water) plus the rice in
+    it, redrawn every frame (it sways).
   - Order: a prop's outline is drawn just after the scenery (so the
     character, leaves and the apple pass in front), a critter's just
     after the wildlife, the character's just after the character; all
@@ -1321,14 +1455,16 @@ How it works, for anyone extending it:
     unless fishing), preview a rarity's reveal card ("Reveal" row: a
     made-up catch from `previewCatch()`, nothing changes), at the Lake
     add a butterfly or a rare blue one, make a frog croak or hop
-    ("Wildlife" row; "Only at the Lake." elsewhere), the player's
+    ("Wildlife" row; "Only at the Lake." elsewhere), grow every owned
+    paddy to its next stage and give every paddy ("Farm" row), the player's
     "Work trips" setting (On/Off, saved; here until there's a player
     settings menu), the "Let them choose" setting (On/Off, saved) with
     "Choose now" (they pick something to do at once), End
     life now (adults only, otherwise a note; plays the goodbye), set
     health (0, 10, 50, 100; 0 ends an adult's life on the next tick), and
     a read-out of stats, traits, goal, job, the tree, the place and
-    housing, fishing (the wait, the bucket, fish caught), their own plan
+    housing, fishing (the wait, the bucket, fish caught), the Farm
+    (each paddy's stage and weeds, the job, harvests), their own plan
     (or the wait for the next), and the yearly
     ageing and the next birthday's chance (or how
     the life ended). The dev New life doesn't add the old life to the
@@ -1433,22 +1569,23 @@ How it works, for anyone extending it:
     would put the window off every connected screen.
   - `save.json` holds the life: `{ version, clock: { years }, character,
     events, goals, jobs, place, fortuneTree, home, housing, endOfLife,
-    activities, autonomy }`.
+    activities, autonomy, farm }`.
     `character` includes
     `stats` and `traits`; `events`
     holds `nextAt`, the `pending` event, how often each was `seen`,
     `lastId`, and `frozenAt` (while busking or resting); `goals` holds the `active` goal, `since` and `nextDriftAt`,
     `pastYears` per goal, and reached `milestones` ({ goal, id, age });
     `jobs` is described under **Jobs** above; `place`, `fortuneTree`,
-    `home`, `housing`, `endOfLife`, `activities` and `autonomy` under
-    **Places**, **Fortune Tree**, **Resting**, **Housing**, **End of
-    life**, **Activities and fishing** and **Own plans**.
+    `home`, `housing`, `endOfLife`, `activities`, `autonomy` and `farm`
+    under **Places**, **Fortune Tree**, **Resting**, **Housing**, **End
+    of life**, **Activities and fishing**, **Own plans** and **Farm**.
     The renderer autosaves every 10s and saves synchronously on
     `beforeunload`, so every way of closing is covered. `main.js` writes
     via a temp file and rename.
   - New optional fields can keep the version if `restore*()` fills in a
     default (as `stats`, `traits`, `events`, `goals`, `jobs`, `place`,
-    `fortuneTree`, `home`, `housing`, `endOfLife` and `activities` do (ageing starts
+    `fortuneTree`, `home`, `housing`, `endOfLife`, `activities`,
+    `autonomy` and `farm` do (ageing starts
     from the age at load); older saves'
     `mood` becomes happiness). For breaking changes, bump `SAVE_VERSION` in
     `game/save.js` and handle old versions. Right now an unrecognised save

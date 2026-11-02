@@ -5,6 +5,9 @@
 
 import { LAKE_PLACE, LAKE_FEET_FROM_BOTTOM, LAKE_WALK, DOCK_PROP } from './lake.js';
 import { TREE_BACKGROUND, WELL_PROP, WELL_TEXT } from './fortuneTreeDecor.js';
+import {
+  FARM_PLACE, FARM_BACKGROUND, FARM_FEET_FROM_BOTTOM, FARM_WALK, PADDIES, FARM_TEXT,
+} from './farm.js';
 
 // Each place has:
 //   id        Unique and saved; don't rename one once it has shipped.
@@ -32,7 +35,8 @@ import { TREE_BACKGROUND, WELL_PROP, WELL_TEXT } from './fortuneTreeDecor.js';
 //             character through it; resting props (REST_SEATS in
 //             data/home.js) open the rest menu; the tree opens its menu;
 //             the Lake's dock opens its activity menu; the wishing well
-//             shows its bubble (data/fortuneTreeDecor.js).
+//             shows its bubble (data/fortuneTreeDecor.js); a rice paddy
+//             opens its menu (data/farm.js).
 //   feetFromBottom  Optional: rows above the window bottom where the
 //             character's feet rest here (default FEET_FROM_BOTTOM in
 //             data/layout.js). Bubbles, pokes and the shadow follow it.
@@ -42,7 +46,8 @@ import { TREE_BACKGROUND, WELL_PROP, WELL_TEXT } from './fortuneTreeDecor.js';
 //             A side with a limit is closed: work trips use the other.
 //
 // The row outdoors, left to right: Lake, Fortune Tree, then the Parents'
-// Yard (or My Yard). The Go to menu lists places in this order.
+// Yard (or My Yard), then the Farm. The Go to menu lists places in this
+// order.
 export const PLACES = [
   {
     id: LAKE_PLACE,
@@ -70,7 +75,7 @@ export const PLACES = [
     requires: 'parents',
     gone: 'myYard',
     scenery: ['sky', 'grass', 'parents.house'],
-    exits: [{ to: 'fortuneTree', via: 'left' }, { to: 'home', via: 'parents.house' }],
+    exits: [{ to: 'fortuneTree', via: 'left' }, { to: 'home', via: 'parents.house' }, { to: FARM_PLACE, via: 'right' }],
     targets: { 'parents.house': 'Go inside' },
   },
   {
@@ -88,7 +93,7 @@ export const PLACES = [
     requires: 'movedOut',
     gone: 'fortuneTree',
     scenery: ['sky', 'grass', 'yard.sleepingBag', 'yard.tent', 'yard.house'],
-    exits: [{ to: 'fortuneTree', via: 'left' }, { to: 'myHome', via: 'yard.house' }],
+    exits: [{ to: 'fortuneTree', via: 'left' }, { to: 'myHome', via: 'yard.house' }, { to: FARM_PLACE, via: 'right' }],
     targets: { 'yard.sleepingBag': 'Sleeping bag', 'yard.tent': 'Tent', 'yard.house': 'Go inside' },
   },
   {
@@ -99,6 +104,20 @@ export const PLACES = [
     scenery: ['home.wall', 'home.floor', 'home.window', 'home.door', 'home.sofa'],
     exits: [{ to: 'myYard', via: 'home.door' }],
     targets: { 'home.sofa': 'Sofa', 'home.door': 'Go outside' },
+  },
+  {
+    id: FARM_PLACE,
+    name: 'Farm',
+    // The background picture (sky, the paddies, the path, the barn), and
+    // the paddies (part of the picture; their click areas and the spots
+    // on the path in front of them). The rice is drawn over the water by
+    // the renderer (ui/farm.js).
+    scenery: [FARM_BACKGROUND, ...PADDIES.map((paddy) => paddy.id)],
+    feetFromBottom: FARM_FEET_FROM_BOTTOM,
+    walk: FARM_WALK,
+    // Beside the parents' yard while growing up, then My Yard.
+    exits: [{ to: 'yard', via: 'left' }, { to: 'myYard', via: 'left' }],
+    targets: Object.fromEntries(PADDIES.map((paddy, i) => [paddy.id, FARM_TEXT.paddyNames[i]])),
   },
 ];
 
