@@ -39,4 +39,14 @@ export const REST_TEXT = {
   full: 'Fully rested!',
   // The activity bar while resting.
   bar: 'Resting - Health {health}/{max}',
+  // The activity bar while walking to the rest spot; {seat} from
+  // REST_SPOT_NAMES.
+  onTheWay: 'Going to the {seat}...',
+};
+
+// What each rest spot is called in running text.
+export const REST_SPOT_NAMES = {
+  'home.sofa': 'sofa',
+  'yard.sleepingBag': 'sleeping bag',
+  'yard.tent': 'tent',
 };

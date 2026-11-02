@@ -336,6 +336,15 @@ function updateStay(anim, dt, stage, stay) {
   }
 }
 
+// Whether the character has arrived at `stay`'s spot (the same `stay`
+// passed to updateAnimator()) and settled into its pose: sitting under
+// the tree, lying down, at the activity's spot facing its way. The
+// renderer reports it to the game (game/stay.js), which only then starts
+// counting.
+export function hasSettled(anim, stay) {
+  return Boolean(stay) && !anim.travelling && anim.mode === stay.mode;
+}
+
 // Stops staying (or heading off to stay): gets up and carries on.
 function stopStay(anim) {
   if (STAY_MODES.includes(anim.mode)) {

@@ -40,8 +40,9 @@ import {
 import { upgradeView, buyUpgrade } from './game/housing.js';
 import {
   updateActivities, activityById, activityAt, activityView, buyItem, startActivity, stopActivity, currentActivity,
-  activityFreezesEvents,
+  isDoingActivity,
 } from './game/activities.js';
+import { reportArrival, hasArrived, stayFreezesEvents } from './game/stay.js';
 import { reelIn, fishingLook, collectionView } from './game/fishing.js';
 import { activityBarView, stopFromBar } from './game/activityBar.js';
 import { createWildlifeReward, rewardWildlifeClick } from './game/lakeLife.js';
@@ -83,7 +84,7 @@ import { createGoMenu } from './ui/goMenu.js';
 import { loadSprites } from './ui/assets.js';
 import {
   createAnimator, updateAnimator, poseOf, startActivityNow, goToWorkNow, gaitOf,
-  travelTo, hasExited, enterScene, placeIn, setLayout, stopTravelling,
+  travelTo, hasExited, enterScene, placeIn, setLayout, stopTravelling, hasSettled,
 } from './ui/animator.js';
 import { drawCharacter, figureHeight, fishingHand } from './ui/sprite.js';
 import {
@@ -305,9 +306,10 @@ async function start() {
       if (startActivity(game, id)) saveGame(game);
     },
     stop: () => {
+      if (!isDoingActivity(game)) return;
+      // Called off on the way with nothing caught: no bubble.
       const news = stopActivity(game);
-      if (!news) return;
-      showNews(news);
+      if (news) showNews(news);
       saveGame(game);
     },
     onOpen: () => closePanels('activity'),
@@ -467,7 +469,9 @@ async function start() {
       lifeEnded();
       return;
     }
-    const freeze = isPlaying(game) || isResting(game) || activityFreezesEvents(game);
+    // Busking, resting and activities only freeze events once the
+    // character is at the spot (game/stay.js).
+    const freeze = stayFreezesEvents(game);
     const result = updateEvents(game, { holdAutoDecide: eventCard.isOpen(), freeze });
     if (result) showResult(result);
     const reached = updateGoals(game);
@@ -903,16 +907,22 @@ async function start() {
     followMapChanges();
     const { ended } = game.endOfLife;
     if (ended && !farewell) startFarewell(now);
+    const stay = stayOf();
     updateAnimator(animator, dt, stage, gaitOf(age), {
-      activity: activeActivity(game), employed: isEmployed(game), needed, stay: stayOf(),
+      activity: activeActivity(game), employed: isEmployed(game), needed, stay,
     });
+    // Busking, resting or an activity only counts once the character has
+    // walked to its spot and settled in (game/stay.js; not saved, so after
+    // a load they walk there again).
+    reportArrival(game, hasSettled(animator, stay) && stay.mode !== 'farewell');
     updateTrip();
     const { place, layout } = scene;
     calmInteraction(interaction, now);
     const reaction = reactionPose(poseOf(animator, stage), interaction, now, layout.characterScale);
     // Fishing: how it looks now (cast, waiting, a bite, reeling, the
-    // catch), for the arm and the rod, line and bobber.
-    const fishing = game.activities.current?.fishing ?? null;
+    // catch), for the arm and the rod, line and bobber; only once at the
+    // dock (on the way there's no cast, rod or bite yet).
+    const fishing = hasArrived(game) ? game.activities.current?.fishing ?? null : null;
     const look = fishing ? fishingLook(fishing) : null;
     const pose = reaction.pose.activity === 'fish' ? { ...reaction.pose, fishing: look } : reaction.pose;
     const expression = reaction.expression ?? expressionOf(game.character);

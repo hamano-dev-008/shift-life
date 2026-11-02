@@ -32,10 +32,13 @@
 //   text       Menu and bubble text. {item} is the item's name, {price}
 //              and {amount} dollars, {age} an age, {name} the character's
 //              name. `bar` is the activity bar's text while it runs (for
-//              catches, {count} in the bucket and its {total} dollars).
+//              catches, {count} in the bucket and its {total} dollars);
+//              `onTheWay` the bar's text while walking to the spot.
 //
-// Work trips never happen while doing an activity (the character stays
-// at the spot), and travelling stops it.
+// An activity only starts once the character has reached its spot
+// (game/stay.js): on the way nothing counts (time, rewards, bites) and
+// events aren't frozen yet. Work trips never happen while doing an
+// activity (the character stays at the spot), and travelling stops it.
 //
 // A future activity is a new entry here, a place and prop to do it at,
 // and its animation, e.g.:
@@ -70,6 +73,7 @@ export const PLACE_ACTIVITIES = {
       stop: 'Stop fishing',
       done: { heading: 'Fishing', text: 'All done.' },
       bar: 'Fishing - {count} fish - ${total}',
+      onTheWay: 'Heading to the dock...',
     },
   },
 };

@@ -2,11 +2,13 @@
 // tent to slowly restore health over real time (passed in by the
 // renderer, so game speed doesn't change it and it pauses while the app
 // is closed). How fast depends on where (restMinutes() in
-// game/housing.js). Numbers and text live in data/home.js.
+// game/housing.js). Nothing counts until the character is lying on it
+// (game/stay.js). Numbers and text live in data/home.js.
 
 import { REST_HEALTH, REST_HEALTH_MAX } from '../data/home.js';
 import { changeStats } from './character.js';
 import { restMinutes } from './housing.js';
+import { hasArrived } from './stay.js';
 
 const MINUTE_MS = 60 * 1000;
 // A saved rest time is never trusted past this (it's well over any rate).
@@ -63,10 +65,15 @@ function restoreHealth(game) {
 
 // Call regularly with the real time passed since the last call, in ms
 // (capped by the caller, so a sleeping PC doesn't count). Returns the
-// health gained.
+// health gained. Nothing counts on the way to the rest spot.
 export function updateHome(game, realMs) {
+  if (!game.home.resting || !hasArrived(game)) return 0;
+  return rest(game, realMs);
+}
+
+// Rests `realMs` more. Returns the health gained.
+function rest(game, realMs) {
   const home = game.home;
-  if (!home.resting) return 0;
   const period = restPeriodMs(game);
   home.restMs += realMs;
   let gained = 0;
@@ -81,7 +88,7 @@ export function updateHome(game, realMs) {
 // were resting.
 export function restOneMinute(game) {
   if (!game.home.resting) return false;
-  updateHome(game, MINUTE_MS);
+  rest(game, MINUTE_MS);
   return true;
 }
 

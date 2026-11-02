@@ -144,7 +144,13 @@ Shift-Life/
 │   │   │                  (banner, name, size and value, badges, junk)
 │   │   ├── activityBar.js The activity bar: what's running (an
 │   │   │                  activity, busking, resting), its text (the
-│   │   │                  bucket for fishing), and stopping it
+│   │   │                  bucket for fishing; "on the way" while
+│   │   │                  walking to the spot), and stopping it
+│   │   ├── stay.js        The "on the way" stage shared by busking,
+│   │   │                  resting and activities: whether the character
+│   │   │                  has reached the spot (unsaved game.stay, from
+│   │   │                  the animator via the renderer), and the event
+│   │   │                  freeze, which only starts on arrival
 │   │   ├── fortuneTree.js The Fortune Tree: busking sessions and pay,
 │   │   │                  the golden apple (growth, pick chance, pick),
 │   │   │                  real-time timers, the tree menu's view, life
@@ -202,8 +208,9 @@ Shift-Life/
 │   │   │                  ripples and splashes; click boxes to canvas
 │   │   ├── animator.js    Wandering, prop visits, goal activities,
 │   │   │                  trips off-screen to work and back (by an open
-│   │                  side), staying put
-│   │   │                  to busk or rest, sitting for good (eyes
+│   │   │                  side), staying put
+│   │   │                  to busk or rest (and saying when they've
+│   │   │                  settled there), sitting for good (eyes
 │   │   │                  closing) when a life ends, walking out of a
 │   │   │                  place and into the next,
 │   │   │                  turning, the walk cycle, breathing, blinking;
@@ -273,8 +280,9 @@ Shift-Life/
 │       ├── activities.js  Place activities (fishing so far): place,
 │       │                  prop, facing, minimum age, item and price,
 │       │                  how long it runs, rewards, event freeze,
-│       │                  animation, menu and activity bar text (format
-│       │                  in the file); the bar's Stop label
+│       │                  animation, menu and activity bar text (and
+│       │                  on the way; format in the file); the bar's
+│       │                  Stop label
 │       ├── fishing.js     Fishing: bite wait, bite window, reel/show/
 │       │                  cast times, rarities (weights, click bonus),
 │       │                  the fish, their values and sizes, how size
@@ -294,13 +302,14 @@ Shift-Life/
 │       │                  its cooldown, hit padding, ribbit text
 │       ├── home.js        Resting numbers and text: what can be rested
 │       │                  on and its seat height, rest health gain, z's,
-│       │                  rest menu
+│       │                  rest menu and bar text, rest spots' names
 │       ├── housing.js     Moving-out age, housing tiers (name, price,
 │       │                  prop, rest rate), the parents' rest rate,
 │       │                  upgrade and bubble text
 │       ├── fortuneTree.js Fortune Tree numbers and text: min age,
 │       │                  session length and pay, apple timing, pick
-│       │                  chance and reward, apple spot, busking loops
+│       │                  chance and reward, apple spot, busking loops,
+│       │                  bar text
 │       ├── traits.js      Personality trait pairs, how many a newborn gets
 │       ├── goals.js       Life goals: stat, yearly drift, activity,
 │       │                  milestones (format documented in the file)
@@ -349,14 +358,19 @@ Shift-Life/
                        rod, bites, odds, earnings, sizes, selling,
                        collection and records, saving, a data-only
                        activity, the reveal's timing and text, the
-                       activity bar, dev), smoke.cjs (Electron, real
+                       activity bar, dev), stay.test.mjs (on the way:
+                       busking, resting and fishing count nothing, pay
+                       nothing, get no bites and don't freeze events
+                       until arrival; the bar's text; Stop on the way;
+                       arrival isn't saved), smoke.cjs (Electron, real
                        mouse clicks: pokes, props and menus, every
                        place's prop click areas on top in every
                        situation, a plain click on every prop in every
                        place, no -webkit-app-region anywhere, window
                        drags from the background, the character and
                        the tree, busking and resting started by
-                       clicks, end of life flow, the Lake and its
+                       clicks, walking to the tree from the far side
+                       before busking starts, end of life flow, the Lake and its
                        wildlife, fishing, the reveal, the activity bar)
 ```
 
@@ -701,14 +715,17 @@ How it works, for anyone extending it:
     pose is `lying` with `activity: 'rest'`, raised `lift` canvas
     pixels so the figure lies on it (`REST_SEATS` scene pixels above
     the prop's base), with z's rising. No wandering, activities or work
-    trips.
+    trips. Nothing counts until they're lying there (**On the way**,
+    below): the bar says "Going to the sofa..." (`REST_TEXT.onTheWay`,
+    `REST_SPOT_NAMES`).
   - Every `restMinutes(game)` real minutes (`game/housing.js`: the
     parents' sofa before moving out, then the tier's rate) adds
     `REST_HEALTH` health, up to `REST_HEALTH_MAX`, through the same
     real-time life tick as the Fortune Tree (`updateHome()`); resting
     carries on at full health until "Get up". Getting up drops the time
     towards the next gain.
-  - Events are frozen while resting, as while busking (below).
+  - Events are frozen while resting (once lying down), as while busking
+    (below).
   - `settlePlace()` ends busking away from the Fortune Tree and resting
     where there's no rest spot (e.g. a save from elsewhere).
 - **Housing:** `game.housing` holds `movedOut` and the `tier` id.
@@ -751,9 +768,12 @@ How it works, for anyone extending it:
     the character to the tree's visit spot (coming back from work if
     away) and sits them there playing (`activity: 'busk'` in the pose):
     no wandering, activities or work trips, even when something needs
-    them on screen. Travelling elsewhere stops busking.
+    them on screen. Travelling elsewhere stops busking. The session only
+    counts once they're sitting there (**On the way**, below; the bar
+    says "Walking to the tree..." until then).
   - Event freeze: while playing (or resting, or doing an activity with
-    `freezeEvents`, such as fishing),
+    `freezeEvents`, such as fishing), once at the spot
+    (`stayFreezesEvents()` in `game/stay.js`),
     `updateEvents(game, { freeze: true })`
     starts nothing and records `events.frozenAt`. On the first update
     after, `nextAt` and a waiting event's `shownAt` move forward by the
@@ -838,8 +858,10 @@ How it works, for anyone extending it:
     `settlePlace()` ends an activity away from its place.
   - While one runs the animator stays put (`stay` mode `'doing'`, with
     the pose's `activity` and `facing`): it walks to the prop's visit
-    spot, faces that way and stays; no wandering or work trips. Events
-    are frozen when `freezeEvents` is set.
+    spot, faces that way and stays; no wandering or work trips. Once
+    there (**On the way**, below) `updateActivities()` runs it, and
+    events are frozen when `freezeEvents` is set. The bar says the
+    activity's `text.onTheWay` ("Heading to the dock...") until then.
   - The activity bar (`#activity-bar`, `game/activityBar.js`): while an
     activity, busking or resting runs, a small bar at the bottom of the
     window (below the feet row, centered) says what's happening (text
@@ -916,6 +938,35 @@ How it works, for anyone extending it:
     biggest). The view shows "Biggest: 54 cm (Mia)". The renderer
     loads it at start, keeps it through new lives and saves it when it
     changes.
+- **On the way:** an activity only starts once the character has reached
+  its spot. Busking, resting and place activities share this
+  (`game/stay.js`), so a new activity in `data/activities.js` gets it
+  with no extra code.
+  - Chosen, they walk to the spot (`stayOf()` in the renderer, the
+    animator's `stay`). Each frame the renderer asks the animator whether
+    they've arrived and settled into the pose (`hasSettled(anim,
+    stay)`: in the stay mode, not travelling) and tells the game
+    (`reportArrival(game, arrived)`). `game.stay.arrived` holds the key
+    of what they've arrived at (`stayKey()`: `'activity:<id>'`,
+    `'busking'` or `'resting'`), so switching to something else needs a
+    new arrival, and a false report (got up, pulled away) clears it.
+    `hasArrived()` and `isOnTheWay()` read it.
+  - On the way nothing counts: `updateFortuneTree()` doesn't advance the
+    session (the apple still grows), `updateHome()` gains nothing,
+    `updateActivities()` does nothing (no time, periodic or finishing
+    rewards, no cast or bite), and `stayFreezesEvents()` is false, so
+    events keep coming. The renderer doesn't draw the rod, line and
+    bobber or the bite's "!" until arrival.
+  - On arrival the timers start from zero (nothing has run yet), the
+    event freeze starts and the bar switches to its normal text; fishing
+    casts then.
+  - Stop (the bar's or the menu's) calls it off on the way: nothing is
+    paid, and fishing sells nothing and shows no bubble (a bucket kept
+    from before a reload still sells).
+  - Arrival isn't saved (`game.stay` isn't in the save): after loading,
+    the character walks to the spot again and it resumes, with its saved
+    progress, on arrival. The dev actions (finish a session, rest a
+    minute, a bite, a catch) still work on the way.
 - **Stats panel:** hovering the name label shows stats, the job (title,
   level, pay; "Looking" or "Retired" with the pension) from age 18, and
   traits; clicking it pins the panel open.

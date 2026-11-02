@@ -60,4 +60,6 @@ export const TREE_TEXT = {
   appleLost: { text: 'The apple slipped away...' },
   // The activity bar while busking; {time} and {total} as m:ss.
   bar: 'Busking - {time} of {total}',
+  // The activity bar while walking to the tree to play.
+  onTheWay: 'Walking to the tree...',
 };

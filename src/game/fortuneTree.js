@@ -3,13 +3,15 @@
 // grows on it every few real hours, with a pick chance that builds with
 // sessions played. Timers run on real time passed in by the renderer, so
 // game speed doesn't change them and they pause while the app is closed.
-// All numbers and text live in data/fortuneTree.js.
+// A session only counts once the character is sitting under the tree
+// (game/stay.js). All numbers and text live in data/fortuneTree.js.
 
 import {
   TREE_MIN_AGE, SESSION_MINUTES, SESSION_PAY, APPLE_EVERY_HOURS, PICK_CHANCE, APPLE_REWARD,
   TREE_TEXT,
 } from '../data/fortuneTree.js';
 import { ageOf, changeStats } from './character.js';
+import { hasArrived } from './stay.js';
 
 const SESSION_MS = SESSION_MINUTES * 60 * 1000;
 const APPLE_MS = APPLE_EVERY_HOURS * 60 * 60 * 1000;
@@ -126,12 +128,13 @@ export function pickApple(game) {
 
 // Call regularly with the real time passed since the last call, in ms
 // (capped by the caller, so a sleeping PC doesn't count). Advances the
-// session while playing and the apple while none is ready. Returns
-// bubbles to show, as [{ heading, text, deltas, celebrate }].
+// session while playing under the tree (not on the way there) and the
+// apple while none is ready. Returns bubbles to show, as [{ heading,
+// text, deltas, celebrate }].
 export function updateFortuneTree(game, realMs) {
   const tree = game.fortuneTree;
   const bubbles = [];
-  if (tree.playing) {
+  if (tree.playing && hasArrived(game)) {
     tree.sessionMs += realMs;
     while (tree.sessionMs >= SESSION_MS) {
       tree.sessionMs -= SESSION_MS;

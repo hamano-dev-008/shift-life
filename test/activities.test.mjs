@@ -21,6 +21,7 @@ import {
   createReveal, revealStage, revealLength, closeReveal, revealText,
 } from '../src/game/catchReveal.js';
 import { activityBarView, stopFromBar } from '../src/game/activityBar.js';
+import { arriveAtStay } from '../src/game/stay.js';
 import { startPlaying, isPlaying } from '../src/game/fortuneTree.js';
 import { startResting, isResting } from '../src/game/home.js';
 import { REVEAL_TIMES, REVEAL_RARITIES } from '../src/data/catchReveal.js';
@@ -101,6 +102,7 @@ test('fishing only starts at the Lake with a rod, and freezes events while it ru
   game.place = LAKE_PLACE;
   assert.equal(startActivity(game, 'fishing'), true);
   assert.equal(startActivity(game, 'fishing'), false);
+  arriveAtStay(game);
   assert.equal(activityFreezesEvents(game), true);
   assert.equal(activityView(game, 'fishing').toggle.label, 'Stop fishing');
   stopActivity(game);
@@ -111,6 +113,7 @@ test('a bite comes after a real-time wait; ignored, it reels in at normal odds, 
   const game = lifeAt(20);
   const random = seeded(7);
   startActivity(game, 'fishing', random);
+  arriveAtStay(game);
   const fishing = game.activities.current.fishing;
   const [min, max] = FISHING_TIMES.biteWait;
   assert.ok(fishing.waitMs >= min * SECOND && fishing.waitMs <= max * SECOND);
@@ -193,6 +196,7 @@ test('ignoring every bite earns about $4 a real minute', () => {
   const game = lifeAt(30, { money: 0 });
   const random = seeded(42);
   startActivity(game, 'fishing', random);
+  arriveAtStay(game);
   const minutes = 40 * 60;
   for (let ms = 0; ms < minutes * 60 * SECOND; ms += 2000) updateActivities(game, 2000, random);
   stopActivity(game);
@@ -216,6 +220,7 @@ test('stopping sells the bucket with the total in a bubble; travelling or leavin
   assert.equal(game.activities.totals.fishing.earned, sold.total);
 
   startActivity(game, 'fishing');
+  arriveAtStay(game);
   assert.equal(stopActivity(game).text, 'Nothing in the bucket to sell.');
 
   let money = game.character.stats.money;
@@ -305,6 +310,7 @@ test('a new activity needs only data: a fixed-time run with rewards', () => {
     game.character.stats.smarts = 10;
     assert.equal(activityById('testShift').runs.minutes, 2);
     assert.equal(startActivity(game, 'testShift'), true);
+    arriveAtStay(game);
     assert.equal(activityFreezesEvents(game), false);
     let bubbles = [];
     for (let ms = 0; ms < 2 * 60 * SECOND; ms += 2000) bubbles = bubbles.concat(updateActivities(game, 2000));
@@ -488,6 +494,7 @@ test('the activity bar: what is running, the bucket, and Stop as its own menu do
   assert.deepEqual(stopFromBar(game), { stopped: false, news: null });
 
   startActivity(game, 'fishing');
+  arriveAtStay(game);
   assert.equal(activityBarView(game).text, 'Fishing - 0 fish - $0');
   assert.equal(activityBarView(game).stop, 'Stop');
   catchRarityNow(game, 'uncommon');
@@ -502,12 +509,14 @@ test('the activity bar: what is running, the bucket, and Stop as its own menu do
 
   game.place = 'fortuneTree';
   startPlaying(game);
+  arriveAtStay(game);
   assert.equal(activityBarView(game).kind, 'busking');
   assert.equal(activityBarView(game).text, 'Busking - 0:00 of 8:00');
   assert.equal(stopFromBar(game).stopped, true);
   assert.equal(isPlaying(game), false);
 
   startResting(game);
+  arriveAtStay(game);
   game.character.stats.health = 64;
   assert.equal(activityBarView(game).text, 'Resting - Health 64/100');
   assert.deepEqual(stopFromBar(game), { stopped: true, news: null });

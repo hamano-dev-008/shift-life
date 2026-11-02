@@ -111,6 +111,10 @@ Early development. What works so far:
   window says what's happening (for fishing, "Fishing - 4 fish - $38")
   with a Stop button that works like the menu's (fishing sells the
   bucket).
+- Fishing, busking and resting only start once the character has walked
+  to the spot: until then the bar says "Walking to the tree...", "Going
+  to the sofa..." or "Heading to the dock...", nothing is earned, no
+  fish bite, and events keep coming. Stop on the way just calls it off.
 - Resting: click the sofa (or the sleeping bag or tent) and pick
   "Rest". The character lies down with little z's floating up, gaining
   health (up to 100) until you pick "Get up". No new events come up

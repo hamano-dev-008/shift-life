@@ -4,9 +4,12 @@
 // what the activity menu shows. Fishing's bites and catches come from
 // game/fishing.js. Timers run on real time passed in by the renderer, so
 // game speed doesn't change them and they pause while the app is closed.
+// Nothing counts (time, rewards, bites, the event freeze) until the
+// character has reached the activity's spot (game/stay.js).
 
 import { PLACE_ACTIVITIES } from '../data/activities.js';
 import { ageOf, changeStats } from './character.js';
+import { hasArrived } from './stay.js';
 import {
   createFishingState, restoreFishingState, updateFishing, sellBucket, fishingStatus,
 } from './fishing.js';
@@ -78,9 +81,9 @@ export function isDoingActivity(game) {
   return Boolean(game.activities.current);
 }
 
-// While it runs, no new events (see data/activities.js).
+// While it runs, once at its spot, no new events (see data/activities.js).
 export function activityFreezesEvents(game) {
-  return Boolean(currentActivity(game)?.freezeEvents);
+  return hasArrived(game) && Boolean(currentActivity(game)?.freezeEvents);
 }
 
 export function hasItem(game, itemId) {
@@ -136,12 +139,15 @@ export function startActivity(game, id, random = Math.random) {
 
 // Stops the activity running now: the bucket is sold, and an unfinished
 // period or fixed-time run gives nothing. Returns its bubble (the sale
-// for catches), or null if nothing was running.
+// for catches), or null if nothing was running, or if it's called off on
+// the way with nothing in the bucket (a bucket from before a reload still
+// sells).
 export function stopActivity(game) {
   const { current } = game.activities;
   if (!current) return null;
+  const arrived = hasArrived(game);
   game.activities.current = null;
-  if (current.fishing) return sellBucket(game, current.fishing);
+  if (current.fishing && (arrived || current.fishing.bucket.length)) return sellBucket(game, current.fishing);
   return null;
 }
 
@@ -152,12 +158,13 @@ function rewardBubble(game, stats, heading, text) {
 
 // Call regularly with the real ms passed since the last call (capped by
 // the caller, so a sleeping PC doesn't count). Runs the activity: catches,
-// periodic rewards, and the end of a fixed-time run. Returns bubbles to
-// show ([{ heading, text, detail, deltas, celebrate, collected }];
+// periodic rewards, and the end of a fixed-time run, once the character
+// has arrived at its spot (on the way, nothing advances). Returns bubbles
+// to show ([{ heading, text, detail, deltas, celebrate, collected }];
 // `collected` means the fish collection changed).
 export function updateActivities(game, realMs, random = Math.random) {
   const { current } = game.activities;
-  if (!current) return [];
+  if (!current || !hasArrived(game)) return [];
   const def = activityById(current.id);
   const bubbles = [];
   current.ms += realMs;

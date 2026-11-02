@@ -226,6 +226,25 @@ app.whenReady().then(async () => {
     await checkProps(`${when}, after clicking every prop`);
   }
   // Waits for a trip to end at place `name`.
+  const barText = () => js('document.querySelector("#activity-bar .bar-text").textContent');
+  // Waits while the activity bar says `onTheWay` (walking to the spot);
+  // returns what it says once they're there.
+  async function untilThere(onTheWay) {
+    let text = await barText();
+    for (let i = 0; i < 400 && text === onTheWay; i++) {
+      await wait(50);
+      text = await barText();
+    }
+    assert.notEqual(text, onTheWay, 'never got there');
+    return text;
+  }
+  // The middle of the character's painted pixels (canvas x), or null when
+  // they're off screen.
+  const characterX = () => js(`(() => {
+    const runs = [...document.querySelectorAll('#character-target span')].map((run) => run.getBoundingClientRect());
+    if (!runs.length) return null;
+    return (Math.min(...runs.map((r) => r.left)) + Math.max(...runs.map((r) => r.right))) / 2;
+  })()`);
   async function arrive(name) {
     for (let i = 0; i < 600; i++) {
       const done = await js(`!document.querySelector("#go-btn").disabled
@@ -315,10 +334,10 @@ app.whenReady().then(async () => {
     await pressProp('Sofa');
     await press(inPanel('#rest-menu', 'Rest'));
     assert.equal(await js('document.querySelector("#rest-menu").hidden'), true);
-    await wait(1500);
+    assert.match(await untilThere('Going to the sofa...'), /^Resting/);
     await click(await point());
     assert.equal(saved.home.resting, true);
-    assert.match(await js('document.querySelector("#activity-bar .bar-text").textContent'), /^Resting/);
+    assert.match(await barText(), /^Resting/);
     await checkProps('resting, with the activity bar up');
     // Travel keeps walking after a poke; resting ends only because of travel.
     await pressProp('Go outside');
@@ -334,21 +353,48 @@ app.whenReady().then(async () => {
     await press(inPanel('#go-menu', 'Fortune Tree'));
     await arrive('Fortune Tree');
     assert.equal(saved.place, 'fortuneTree');
-    await clickEveryProp('the Fortune Tree after travelling there');
+    // Busking only starts once the character is under the tree. Just in
+    // from the yard they're on the far (right) side: after "Play an
+    // instrument" the bar says they're walking, all the way over, and only
+    // once they've settled under the tree "Busking - 0:00".
+    const tree = await js(`(() => { const r = document.querySelector('#targets button[title="Fortune Tree"]')
+      .getBoundingClientRect(); return { left: r.left, right: r.right }; })()`);
+    let farX = null;
+    for (let i = 0; i < 60 && farX === null; i++) {
+      farX = await characterX();
+      if (farX === null) await wait(50);
+    }
+    assert.ok(farX > tree.right + 40, `not on the far side of the tree: at ${farX}, tree ${tree.left}-${tree.right}`);
+    await pressProp('Fortune Tree');
+    assert.equal(await js('document.querySelector("#tree-menu").hidden'), false);
+    await press(inPanel('#tree-menu', 'Play an instrument'));
+    assert.equal(saved.fortuneTree.playing, true);
+    const walked = [];
+    let busking = await barText();
+    for (let i = 0; i < 400 && busking === 'Walking to the tree...'; i++) {
+      walked.push(await characterX());
+      await wait(50);
+      busking = await barText();
+    }
+    assert.ok(walked.length >= 5, `the bar said walking only ${walked.length} times`);
+    assert.match(busking, /^Busking - 0:00 of /);
+    const underX = await characterX();
+    assert.ok(underX >= tree.left - 20 && underX <= tree.right + 20, `busking at ${underX}, not under the tree`);
+    assert.ok(walked[0] >= underX + 40, `walking started at ${walked[0]}, near the tree (${underX})`);
+    assert.ok(walked.every((x) => x >= underX - 1), 'the bar said busking only after they got there');
+    await wait(500);
+    assert.equal(await characterX(), underX, 'they stay under the tree');
+    await click(await point());
+    assert.equal(saved.fortuneTree.playing, true);
+    assert.match(await barText(), /^Busking/);
+    await checkProps('busking, with the activity bar up');
+    await clickEveryProp('the Fortune Tree, busking');
     // A press-and-move starting on the tree moves the window and doesn't
-    // open its menu; a plain click still does (below).
+    // open its menu; a plain click still does (above).
     await dragFrom(await propPoint('Fortune Tree', 'dragging from it'), -25, 15);
     assert.deepEqual(await openPanels(), []);
     await dragFrom(await propPoint('Fortune Tree', 'dragging from it'), 25, -15);
     assert.deepEqual(await openPanels(), []);
-    await pressProp('Fortune Tree');
-    assert.equal(await js('document.querySelector("#tree-menu").hidden'), false);
-    await press(inPanel('#tree-menu', 'Play an instrument'));
-    await wait(100);
-    await click(await point());
-    assert.equal(saved.fortuneTree.playing, true);
-    assert.match(await js('document.querySelector("#activity-bar .bar-text").textContent'), /^Busking/);
-    await checkProps('busking, with the activity bar up');
     // Load a synthetic transparent sprite to exercise the PNG drawing path.
     spriteFiles = ['character.child.idle.png'];
     assert.equal(await js(`(async () => {
@@ -449,10 +495,11 @@ app.whenReady().then(async () => {
     await press(inPanel('#activity-menu', 'Start fishing'));
     await wait(100);
     assert.equal(saved.activities.current.id, 'fishing');
-    await checkProps('fishing, with the activity bar up');
-    // The activity bar shows fishing and the empty bucket.
+    // Fishing starts at the dock: until then the bar says they're heading
+    // there; then fishing and the empty bucket.
     assert.equal(await js('document.querySelector("#activity-bar").hidden'), false);
-    assert.equal(await js('document.querySelector("#activity-bar .bar-text").textContent'), 'Fishing - 0 fish - $0');
+    assert.equal(await untilThere('Heading to the dock...'), 'Fishing - 0 fish - $0');
+    await checkProps('fishing, with the activity bar up');
     const bar = await js('JSON.stringify(document.querySelector("#activity-bar").getBoundingClientRect())');
     assert.ok(JSON.parse(bar).top > 205, `bar at ${bar}`);
     await js('document.querySelector("#dev-btn").click()');
@@ -538,7 +585,7 @@ app.whenReady().then(async () => {
     await checkProps('Home, resting with the activity bar up');
     assert.deepEqual(await appRegions(), []);
     assert.deepEqual(errors, []);
-    console.log('PASS: no -webkit-app-region anywhere, JS window drags (background, character, tree: the window follows, no poke, no menu), plain clicks on every prop in every place, native gentle/rapid clicks, spam, calming, moving hit regions, drag rejection, 25 poses, offscreen, prop/event priority, real clicks on props and menus, prop click areas on top in every place (at rest, after travel, menus closed, an event waiting, the activity bar, a catch reveal), rest/travel/busking preserved, transparent sprite, end of life, summary, Book, new life, the Lake (frogs, butterflies), fishing (rod, bite, catch, reveal, collection, activity bar, selling); no renderer errors.');
+    console.log('PASS: activities start only on arrival (walking to the tree from the far side, then "Busking - 0:00"; the sofa; the dock), no -webkit-app-region anywhere, JS window drags (background, character, tree: the window follows, no poke, no menu), plain clicks on every prop in every place, native gentle/rapid clicks, spam, calming, moving hit regions, drag rejection, 25 poses, offscreen, prop/event priority, real clicks on props and menus, prop click areas on top in every place (at rest, after travel, menus closed, an event waiting, the activity bar, a catch reveal), rest/travel/busking preserved, transparent sprite, end of life, summary, Book, new life, the Lake (frogs, butterflies), fishing (rod, bite, catch, reveal, collection, activity bar, selling); no renderer errors.');
   } catch (error) {
     console.error(error);
     process.exitCode = 1;
