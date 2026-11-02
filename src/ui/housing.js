@@ -4,15 +4,13 @@
 // for a tier. Sizes and positions come from the layout (data/layout.js);
 // where the character lies on each from REST_SEATS in data/home.js.
 
-import { REST_SEATS } from '../data/home.js';
+import { REST_SEATS, SLEEPING_BAG_COLORS } from '../data/home.js';
 import { drawProp } from './props.js';
 
-const BAG = '#5b7fc7';
-const BAG_DARK = '#46659f';
-const BAG_LIGHT = '#7d9ddb';
-const ZIP = '#d9dde8';
-const PILLOW = '#fffaf0';
-const PILLOW_SHADE = '#e6dccb';
+// The bag's colors are data: someone lying in it is covered in them too.
+const {
+  color: BAG, dark: BAG_DARK, light: BAG_LIGHT, zip: ZIP, pillow: PILLOW, pillowShade: PILLOW_SHADE,
+} = SLEEPING_BAG_COLORS;
 
 const TENT = '#e9a03b';
 const TENT_DARK = '#c47f22';

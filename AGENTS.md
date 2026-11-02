@@ -245,8 +245,15 @@ Shift-Life/
 │   │   │                  where one exists, otherwise in code, including
 │   │   │                  activity props (book, coins, hearts, sweat),
 │   │   │                  job items (hats, tie, apron, lab coat...),
-│   │   │                  busking (guitar, notes) and resting (z's); all
+│   │   │                  busking (guitar, notes) and resting (asleep:
+│   │   │                  the head turned on its side on a pillow,
+│   │   │                  closed eyes, a blanket or the sleeping bag,
+│   │   │                  z's); where bubbles go over the head; all
 │   │   │                  character drawing lives here
+│   │   ├── lying.js       The sleeping pose's shape, visual only (no
+│   │   │                  DOM, so tests run it): where the head, pillow,
+│   │   │                  shoulders and blanket go, the blanket's
+│   │   │                  breathing, when the mouth opens to an "o"
 │   │   ├── bubble.js      The "!" bubble (canvas art + click target) and
 │   │   │                  the text bubble, both following the head
 │   │   ├── eventCard.js   The event card: prompt and choice buttons
@@ -348,7 +355,11 @@ Shift-Life/
 │       │                  its cooldown, hit padding, ribbit text
 │       ├── home.js        Resting numbers and text: what can be rested
 │       │                  on and its seat height, rest health gain, z's,
-│       │                  rest menu and bar text, rest spots' names
+│       │                  how they lie on each bed (pillow end, pillow,
+│       │                  cover), the pillow, blanket, sleeping bag and
+│       │                  cheek colors, breathing and mouth timing,
+│       │                  rest menu and bar text, rest spots' names,
+│       │                  the dev "Rest now" text
 │       ├── housing.js     Moving-out age, housing tiers (name, price,
 │       │                  prop, rest rate), the parents' rest rate,
 │       │                  upgrade and bubble text
@@ -432,7 +443,13 @@ Shift-Life/
                        them home, 20-40 s away, calling back; nothing
                        but work trips and travel walks past the window
                        edges in any place, age or activity, poked or
-                       not), stay.test.mjs (on the way:
+                       not), lying.test.mjs (the sleeping pose: head
+                       on the pillow at the left end, the shirt only at
+                       the shoulders, the blanket chest to past the feet
+                       with their bump, breathing 1 pixel, the mouth's
+                       "o" every 4-6 s, every stage fitting the layer,
+                       every rest spot's bed, the bed reaching the
+                       pose), stay.test.mjs (on the way:
                        busking, resting and fishing count nothing, pay
                        nothing, get no bites and don't freeze events
                        until arrival; the bar's text; Stop on the way;
@@ -451,6 +468,8 @@ Shift-Life/
                        the Work trips setting, "Off to work!" and the
                        "At work" label calling them back, "Gust now" at
                        the Fortune Tree only, its props on top in a gust,
+                       the dev "Rest now" lying them down (wide and
+                       low, outlined on hover) and up again,
                        the hover outline on the tree, the character,
                        the sofa and the dock: shown while hovering (the
                        canvas's data-hover and white pixels drawn),
@@ -878,11 +897,38 @@ How it works, for anyone extending it:
     Get up, with progress and health, and in My Yard the next housing
     upgrade (below). Any age can rest.
   - While resting, the animator (`stay` option, mode `'resting'`) walks
-    the character to the rest spot's visit spot and lays them on it: the
-    pose is `lying` with `activity: 'rest'`, raised `lift` canvas
+    the character to the rest spot and lays them on it: the pose is
+    `lying` with `activity: 'rest'`, facing right, raised `lift` canvas
     pixels so the figure lies on it (`REST_SEATS` scene pixels above
-    the prop's base), with z's rising. No wandering, activities or work
-    trips. Nothing counts until they're lying there (**On the way**,
+    the prop's base), on `bed` (`REST_BEDS`): the renderer puts them so
+    the head's middle is `head` scene pixels from the prop's drawn left
+    edge (`lyingXForHead()`; the sleeping bag's own pillow, the sofa's
+    left end, the tent's left side). No wandering, activities or work
+    trips.
+  - Asleep (`drawLying()` in `ui/sprite.js`, laid out by
+    `lyingLayout()` in `ui/lying.js`): the head is the standing head
+    turned a quarter, crown toward the pillow end, so every hair style
+    and the elder's grey sit along the left and under the head; the
+    face looks up: a closed eye (a lid line curving down), a rosy cheek
+    (`REST_FACE`) and a small mouth on the face's top edge that opens to
+    a tiny "o" for `SLEEP_LOOPS.mouthOpen` every `mouthEvery` (4-6 s,
+    the same every run). With `pillow` a cream pillow (`REST_PILLOW`)
+    is under the head, raised `headLift`; the shirt shows only at the
+    shoulders; the blanket (`REST_BLANKET`, or the bag's colors,
+    `SLEEPING_BAG_COLORS`, when `cover` is `'bag'`) covers the chest to
+    just past the feet, with a bump for them, and its top edge over the
+    chest rises 1 pixel for half of every `SLEEP_LOOPS.breath` (1.8 s).
+    z's rise from the face. A hit mask (`hitOnly`: pokes, the hover
+    outline) leaves out the pillow and z's, so both follow the sleeping
+    shape; `figureHeight()` counts the raised head and `headX()` puts
+    bubbles over the head. Every life stage lies with its own shape (a
+    toddler too); a `character.<body>.rest` sprite still replaces the
+    whole figure.
+  - The dev menu's "Rest now" (Home row) lays them down asleep right
+    where they are (`REST_PREVIEW_BED`: pillow and blanket) to see the
+    pose: visual only (no health, no event freeze, no bar); pressing it
+    again (shown active), a trip, a new place, anything else that keeps
+    them somewhere or the end of the life gets them up. Nothing counts until they're lying there (**On the way**,
     below): the bar says "Going to the sofa..." (`REST_TEXT.onTheWay`,
     `REST_SPOT_NAMES`).
   - Every `restMinutes(game)` real minutes (`game/housing.js`: the
@@ -1184,7 +1230,9 @@ How it works, for anyone extending it:
     an adult without a job, even while busking), add $1,000, finish the
     busking session now (paid; "Not playing." otherwise), make a golden
     apple ready now, a gust of wind at the tree now ("Gust now"), rest one more real minute now ("Rest 1 min": any
-    health it earns; "Not resting." otherwise), jump to 18 ("To 18" in
+    health it earns; "Not resting." otherwise), lie down asleep where
+    they are to see the pose ("Rest now", again to get up; visual
+    only), jump to 18 ("To 18" in
     the Skip row: the clock moves to the 18th birthday and moving out
     follows on the next tick), set the housing tier directly (Sleeping
     bag, Tent, House; ends resting, leaves Home if the house goes; a

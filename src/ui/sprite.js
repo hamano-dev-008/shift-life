@@ -1,6 +1,6 @@
 // sprite.js — Draws the character as a small pixel sprite, in code,
 // with goal activity props, job items, the guitar and notes while
-// busking, lying down with floating z's while resting, and the arm
+// busking, asleep under a blanket with floating z's while resting, and the arm
 // holding the fishing rod (or raising the catch) while fishing; the rod,
 // line and catch themselves are drawn by ui/fishing.js from
 // fishingHand(). All character drawing lives here so it can be swapped for hand-drawn sprite
@@ -19,7 +19,10 @@ import {
 } from '../data/appearance.js';
 import { ACTIVITY_LOOPS } from '../data/animation.js';
 import { BUSK_LOOPS } from '../data/fortuneTree.js';
-import { REST_LOOPS } from '../data/home.js';
+import {
+  REST_LOOPS, REST_BLANKET, REST_PILLOW, REST_FACE, REST_PREVIEW_BED, SLEEPING_BAG_COLORS,
+} from '../data/home.js';
+import { lyingLayout, lyingHeadCenter } from './lying.js';
 import { createLayer, clearLayer, fill, outline, drawLayer } from './pixel.js';
 import { getSprite, frameAtTime, frameAtProgress, drawSprite } from './assets.js';
 
@@ -27,9 +30,9 @@ import { getSprite, frameAtTime, frameAtProgress, drawSprite } from './assets.js
 // the character's center; feet end just above the last row, which is left
 // for the outline.
 // Layer sizes and coordinates below are in character pixels.
-const LAYER_WIDTH = 24;
+const LAYER_WIDTH = 32;
 const LAYER_HEIGHT = 30;
-const ANCHOR = 12;
+const ANCHOR = 16;
 const FOOT_ROW = LAYER_HEIGHT - 1;
 
 // Mouth pixels as [col, row] offsets from the mouth's top-left.
@@ -98,10 +101,10 @@ const TODDLE_SWAY = [0, 1, 0, -1];
 
 const layer = createLayer(LAYER_WIDTH, LAYER_HEIGHT);
 
-// The body proportions in use: a toddler has their own; otherwise the
-// life stage's.
+// The body proportions in use: a toddler on their feet has their own;
+// otherwise (lying down too) the life stage's.
 function shapeOf(stage, pose) {
-  return CHARACTER_SHAPES[pose.gait === 'toddle' ? 'toddler' : stage];
+  return CHARACTER_SHAPES[pose.gait === 'toddle' && !pose.lying ? 'toddler' : stage];
 }
 
 function isCrawling(pose) {
@@ -112,10 +115,23 @@ function isCrawling(pose) {
 // counting hair), in character pixels, for placing bubbles above it.
 export function figureHeight(stage, pose) {
   const shape = shapeOf(stage, pose);
-  if (pose.lying) return shape.head + 1;
+  if (pose.lying) return (pose.bed ?? REST_PREVIEW_BED).headLift + shape.head;
   if (pose.sit) return shape.body + shape.head;
   if (isCrawling(pose)) return CRAWL_POSE.limbs + shape.body + CRAWL_POSE.headAbove;
   return shape.legs + shape.body + shape.head;
+}
+
+// The canvas x over the middle of the head, for bubbles: the pose's x,
+// or lying down, the sleeping head's (toward the pose's facing side).
+export function headX(stage, pose, scale) {
+  if (!pose.lying) return pose.x;
+  return pose.x + lyingHeadCenter(CHARACTER_SHAPES[stage]) * scale * (pose.facing === -1 ? -1 : 1);
+}
+
+// Where to put the pose's x so that, lying down facing right, the head's
+// middle is at canvas x `x` (a bed's pillow end).
+export function lyingXForHead(stage, x, scale) {
+  return x - lyingHeadCenter(CHARACTER_SHAPES[stage]) * scale;
 }
 
 // Animations whose sprite frames follow the walk cycle (distance walked)
@@ -378,25 +394,72 @@ function drawSitting(px, shape, stage, look, expression, pose) {
   if (busking && !pose.hitOnly) drawNotes(px, headLeft + shape.head + 1, headTop + 2, pose.activityTime);
 }
 
-// Lying on the back, resting: the head propped up at the back end with
-// eyes closed, the torso and legs stretched out forward along the bottom
-// row, toes up, a hand at the side, and z's floating up from the head.
+// Asleep on the back (resting), laid out by lyingLayout() (ui/lying.js):
+// head at the left end on its pillow (pose.bed's; REST_PREVIEW_BED
+// without one), the shirt at the shoulders, a blanket (or the sleeping
+// bag) from the chest down with the feet making a bump, its top edge over
+// the chest rising and falling with each breath, and z's floating up from
+// the face. The pillow and z's aren't part of the figure, so a hit mask
+// (pose.hitOnly) leaves them out.
 function drawLying(px, shape, stage, look, expression, pose) {
-  const torso = shape.body + 1;
-  const length = shape.head + torso + shape.legs;
-  const left = -Math.floor(length / 2);
-  const thick = Math.ceil(shape.width / 2);
-  const torsoLeft = left + shape.head;
-  const legsLeft = torsoLeft + torso;
-  const bare = stage === 'baby';
+  const bed = pose.bed ?? REST_PREVIEW_BED;
+  const t = pose.activityTime ?? 0;
+  const lay = lyingLayout(shape, bed, t);
+  const { body } = lay;
+  const row = (up) => FOOT_ROW - up; // rows counted up from the bottom
+  if (lay.pillow && !pose.hitOnly) {
+    const { left, width, rows } = lay.pillow;
+    px(left, row(rows - 2), width, rows - 1, REST_PILLOW.color);
+    px(left + 1, row(rows - 1), width - 2, 1, REST_PILLOW.color);
+    px(left, row(0), width, 1, REST_PILLOW.shade);
+  }
+  const { left, width, top } = lay.shoulders;
+  px(left, row(top), width, top + 1, look.shirt);
+  const cover = bed.cover === 'bag' ? SLEEPING_BAG_COLORS : REST_BLANKET;
+  for (const { col, top: up } of lay.blanket) {
+    px(col, row(up), 1, up + 1, cover.color);
+    px(col, row(up), 1, 1, cover.light);
+    px(col, row(0), 1, 1, cover.dark);
+  }
+  drawLyingHead(px, shape, stage, look, body.left, row(lay.headTop), lay.mouthOpen);
+  if (!pose.hitOnly) drawZs(px, body.left + body.head - 1, row(lay.headTop) - 2, t);
+}
 
-  px(torsoLeft, FOOT_ROW - thick + 1, torso, thick, look.shirt);
-  px(torsoLeft + Math.floor(torso / 2), FOOT_ROW - thick + 2, 1, 1, look.skin);
-  px(legsLeft, FOOT_ROW - 1, shape.legs, 2, bare ? look.skin : PANTS_COLOR);
-  px(legsLeft + shape.legs - 1, FOOT_ROW - 2, 1, 1, bare ? look.skin : SHOE_COLOR);
-  const headTop = FOOT_ROW - shape.head;
-  drawHead(px, shape, stage, look, left, headTop, true, expression);
-  if (!pose.hitOnly) drawZs(px, left + shape.head - 1, headTop - 1, pose.activityTime);
+// The sleeping head, turned on its side to lie along the body: the crown
+// toward the left (the pillow end) with the hair there and around the
+// back of the head, underneath; the face up and a little toward the
+// viewer: closed eyes as small curved lines, rosy cheeks and a small
+// relaxed mouth, now and then a tiny "o" (`mouthOpen`). It's the standing
+// head (drawHead()) turned a quarter: standing (col, row) is lying
+// (row, size - 1 - col), so every hair style (and the elder's grey) keeps
+// its shape.
+function drawLyingHead(px, shape, stage, look, headLeft, headTop, mouthOpen) {
+  const size = shape.head;
+  const at = (col, row, w, h, color) => px(headLeft + col, headTop + row, w, h, color);
+  const turned = (col, row, w, h, color) => at(row, size - col - w, h, w, color);
+
+  at(0, 0, size, size, look.skin);
+  const hairColor = stage === 'elder' ? ELDER_HAIR_COLOR : look.hair;
+  const hairStyle = stage === 'baby' ? 'tuft' : look.hairStyle;
+  drawHair((col, row, w, h) => turned(col, row, w, h, hairColor), hairStyle, size);
+
+  // The face, seen from the side as it looks up: a closed eye (a lid
+  // line curving down from the brow) with a rosy cheek beside it, and
+  // the mouth on the face's top edge by the chin.
+  const eyeCol = Math.floor(size / 2) - 1;
+  const eyeRow = 2;
+  at(eyeCol - 1, eyeRow, 1, 1, EYE_COLOR);
+  at(eyeCol, eyeRow + 1, 2, 1, EYE_COLOR);
+  at(eyeCol + 2, eyeRow + 2, 1, 1, REST_FACE.cheek);
+  const mouthColor = brightness(look.skin) < 0.4 ? MOUTH_COLOR_LIGHT : MOUTH_COLOR;
+  // On the face's top edge, between the nose and the chin: a small
+  // closed mouth, or a tiny "o" a little deeper and wider.
+  if (mouthOpen) {
+    at(size - 2, 0, 1, 2, mouthColor);
+    at(size - 1, 1, 1, 1, mouthColor);
+  } else {
+    at(size - 2, 0, 1, 1, mouthColor);
+  }
 }
 
 // Sleepy z's: one starts every REST_LOOPS.z seconds with its bottom row at

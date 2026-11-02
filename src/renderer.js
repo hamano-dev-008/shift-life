@@ -74,9 +74,9 @@ import { CRAWL_UNTIL_AGE, FIRST_STEPS } from './data/infant.js';
 import { TRAVEL, PLACE_TEXT } from './data/places.js';
 import { FAREWELL, END_TEXT } from './data/endOfLife.js';
 import { FORTUNE_TREE_PLACE, TREE_PROP } from './data/fortuneTree.js';
-import { REST_SEATS } from './data/home.js';
+import { REST_SEATS, REST_BEDS, REST_PREVIEW_BED, REST_DEV_TEXT } from './data/home.js';
 import {
-  computeLayout, createScenery, propClickRect, drawPropAlone, propArtFrame,
+  computeLayout, createScenery, propClickRect, propRect, drawPropAlone, propArtFrame,
 } from './ui/scene.js';
 import { createHoverOutline, hoverTargetOf } from './ui/hoverOutline.js';
 import { drawDockSilhouette } from './ui/lake.js';
@@ -111,7 +111,9 @@ import {
   travelTo, hasExited, enterScene, placeIn, setLayout, stopTravelling, hasSettled,
   takeLeftForWork, isAtWork, callBackFromWork,
 } from './ui/animator.js';
-import { drawCharacter, figureHeight, fishingHand } from './ui/sprite.js';
+import {
+  drawCharacter, figureHeight, fishingHand, headX, lyingXForHead,
+} from './ui/sprite.js';
 import {
   bubbleBottomY, drawEventBubble, placeOver, placeSpeech, formatDeltas, formatRaise,
 } from './ui/bubble.js';
@@ -659,9 +661,16 @@ async function start() {
     pokeSpeech = true;
   }
 
+  // The dev menu's "Rest now": lying down asleep where they are, to see
+  // the pose (visual only: no health, no event freeze), { x }; null when
+  // not. Anything else that keeps them somewhere, a trip, a new place or
+  // the end of the life ends it.
+  let restPreview = null;
+
   // Switches the screen to the current place as it is now: its scene,
   // name and click areas (each over a prop's visible pixels).
   function showPlace() {
+    restPreview = null;
     scene = sceneFor(currentPlace(game));
     shownView = viewKey(scene.place);
     targets.replaceChildren(...Object.entries(scene.place.targets).map(([id, title]) => {
@@ -736,6 +745,7 @@ async function start() {
     if (!route) return;
     stopActivityToLeave();
     if (leavePlace(game)) saveGame(game);
+    restPreview = null;
     trip = { route, to };
     closePanels();
     headForExit();
@@ -775,6 +785,7 @@ async function start() {
   let openedEnded = Boolean(game.endOfLife.ended);
   function startFarewell(now) {
     trip = null;
+    restPreview = null;
     stopTravelling(animator);
     const { wanderMinX, wanderMaxX } = scene.layout;
     const after = openedEnded ? FAREWELL.summaryAfterLoad : FAREWELL.summaryAfter;
@@ -833,9 +844,18 @@ async function start() {
 
   // Where the character stays put, if anywhere: sitting at the end of a
   // life, under the tree while busking, on the sofa, sleeping bag or tent
-  // while resting, at an activity's spot (the fishing spot) facing its
-  // way.
-  function stayOf() {
+  // while resting (asleep facing right, the head on the bed's pillow
+  // end), at an activity's spot (the fishing spot) facing its way, or
+  // where the dev menu's "Rest now" laid them down.
+  function stayOf(stage) {
+    const stay = stayFor(stage);
+    if (stay) restPreview = null;
+    if (restPreview) {
+      return { x: restPreview.x, mode: 'resting', facing: 1, bed: REST_PREVIEW_BED };
+    }
+    return stay;
+  }
+  function stayFor(stage) {
     const { place, layout } = scene;
     if (farewell) return { x: farewell.x, mode: 'farewell' };
     const activity = currentActivity(game);
@@ -854,7 +874,14 @@ async function start() {
     const bed = spot && layout.props[spot];
     if (isResting(game) && bed) {
       const seatY = bed.baseY - REST_SEATS[spot] * layout.scale;
-      return { x: bed.visitX, mode: 'resting', lift: layout.feetY - seatY };
+      const pillowX = propRect(layout, spot).left + REST_BEDS[spot].head * layout.scale;
+      return {
+        x: lyingXForHead(stage, pillowX, layout.characterScale),
+        mode: 'resting',
+        lift: layout.feetY - seatY,
+        facing: 1,
+        bed: REST_BEDS[spot],
+      };
     }
     return null;
   }
@@ -908,6 +935,20 @@ async function start() {
         saveGame(game);
         return true;
       },
+      // Lies down asleep where they are, or gets up again (visual only).
+      // Returns a note when they can't, else null.
+      restNow: () => {
+        if (restPreview) {
+          restPreview = null;
+          return null;
+        }
+        if (game.endOfLife.ended || trip) return REST_DEV_TEXT.cantNow;
+        if (stayFor(lifeStageOf(ageOf(game.character, game.clock.years)))) return REST_DEV_TEXT.busy;
+        const { wanderMinX, wanderMaxX } = scene.layout;
+        restPreview = { x: Math.min(Math.max(animator.x, wanderMinX), wanderMaxX) };
+        return null;
+      },
+      restingNow: () => Boolean(restPreview),
       goTo: (id) => {
         if (game.endOfLife.ended) return;
         trip = null;
@@ -1019,7 +1060,7 @@ async function start() {
     followMapChanges();
     const { ended } = game.endOfLife;
     if (ended && !farewell) startFarewell(now);
-    const stay = stayOf();
+    const stay = stayOf(stage);
     // Work trips: only with a job and the setting on, at most one per
     // cooldown, never soon after a click, and not while anything is
     // showing (a menu, card, the stats, a bubble, a catch reveal, the
@@ -1168,14 +1209,15 @@ async function start() {
     const biting = fishing?.phase === 'bite' && !ended;
     const speaking = Boolean(farewell) || (now < speechUntil && !biting && !revealing);
     speech.hidden = !speaking;
-    if (speaking) placeSpeech(speech, layout, pose.x, bubbleY);
+    const overHead = headX(stage, pose, layout.characterScale);
+    if (speaking) placeSpeech(speech, layout, overHead, bubbleY);
     const showAlert = Boolean(game.events.pending) && !speaking && !biting && !revealing && !eventCard.isOpen();
     eventBubble.hidden = !showAlert;
     if (showAlert) {
-      placeOver(eventBubble, drawEventBubble(ctx, layout, pose.x, bubbleY, animator.time));
+      placeOver(eventBubble, drawEventBubble(ctx, layout, overHead, bubbleY, animator.time));
     }
     biteBubble.hidden = !biting;
-    if (biting) placeOver(biteBubble, drawEventBubble(ctx, layout, pose.x, bubbleY, animator.time));
+    if (biting) placeOver(biteBubble, drawEventBubble(ctx, layout, overHead, bubbleY, animator.time));
     statsPanel.update(game.character, careerView(game));
     const goals = goalView(game);
     goalMenu.update(ended ? { ...goals, unlocked: false } : goals);

@@ -78,6 +78,7 @@ export function createAnimator(layout) {
     stayLift: 0, // canvas pixels the figure is raised while staying
     stayActivity: null, // the pose's activity while 'doing' (e.g. 'fish')
     stayFacing: 0, // which way to face while staying (0: as they arrive)
+    stayBed: null, // what they lie on while resting ({ pillow, cover, headLift })
     lastVisited: null,
     pauseLeft: randomIn([1, 3]),
     gridX: Math.round(x / layout.characterScale), // position in whole character pixels
@@ -339,6 +340,7 @@ function updateStay(anim, dt, stage, stay) {
   anim.stayLift = stay.lift ?? 0;
   anim.stayActivity = stay.activity ?? null;
   anim.stayFacing = stay.facing ?? 0;
+  anim.stayBed = stay.bed ?? null;
   if (anim.mode === stay.mode) {
     if (anim.stayFacing) anim.facing = anim.stayFacing;
     anim.activityTime += dt;
@@ -484,7 +486,7 @@ export function placeIn(anim, layout) {
 // is the only way they leave the window other than travelling.
 // `needed`: something wants them on screen (an event, a bubble), so they
 // don't leave, and come back if they're out. `stay`: while busking or
-// resting, { x, mode, lift, activity, facing }: they go to canvas x `x`
+// resting, { x, mode, lift, activity, facing, bed }: they go to canvas x `x`
 // and stay in `mode` ('busking', 'resting', 'farewell' or 'doing'), with
 // no wandering, activities or work trips; `lift` raises the figure that
 // many canvas pixels (lying on the sofa); while 'doing', `activity` is
@@ -583,7 +585,8 @@ function walkPose(p, stride) {
 // (a crawler at rest, a toddler who plopped, busking, or the end of a
 // life, eyes closed); `gaze` is -1 while looking back over the shoulder;
 // `wobble` shifts the sitting upper body sideways. `lying` means lying down (resting on the sofa), raised `lift`
-// canvas pixels above the feet row. `activity` is the activity being done
+// canvas pixels above the feet row, on `bed` (REST_BEDS in data/home.js:
+// the pillow, the blanket or sleeping bag, and how high the head lies). `activity` is the activity being done
 // (null when none; 'busk' while busking, sitting; 'rest' while resting,
 // lying; a place activity's animation, e.g. 'fish', standing) and
 // `activityTime` how long it has been going, in seconds.
@@ -612,6 +615,7 @@ export function poseOf(anim, stage) {
     walk: walking ? walkPose(anim.steps % (4 * stride), stride) : null,
     lying: resting,
     lift: resting ? anim.stayLift : 0,
+    bed: resting ? anim.stayBed : null,
     activity: busking ? 'busk' : resting ? 'rest' : doingStay ? anim.stayActivity : doing ? anim.activity : null,
     activityTime: doing || staying ? anim.activityTime : 0,
     time: anim.time,

@@ -9,6 +9,7 @@ import { HOUSING_TIERS, MOVE_OUT_AGE } from '../data/housing.js';
 import { RARITIES } from '../data/fishing.js';
 import { BUTTERFLIES } from '../data/lakeLife.js';
 import { WORK_TRIP_TEXT } from '../data/animation.js';
+import { REST_DEV_TEXT } from '../data/home.js';
 
 function button(text, onClick, className = '') {
   const node = document.createElement('button');
@@ -36,7 +37,8 @@ function row(label, ...children) {
 // (returns whether an event started), addMoney(n), finishSession()
 // (returns whether a busking session was playing), appleNow(), gustNow()
 // (returns null, or a note such as "Only at the Fortune Tree."), finishRest()
-// (returns whether they were resting), goTo(placeId), place() (current
+// (returns whether they were resting), restNow() (lies down asleep where
+// they are, or gets up; returns null or a note), restingNow(), goTo(placeId), place() (current
 // place id), places() (the places that exist now, { id, name }),
 // setTier(tierId), tier() (current housing tier id), toMoveOut()
 // (returns whether the clock moved), endLife() (returns null, or a note
@@ -115,7 +117,11 @@ export function createDevMenu(menu, gear, actions) {
           note = 'Not resting.';
         }
         render();
-      }));
+      }),
+      button(REST_DEV_TEXT.button, () => {
+        note = actions.restNow() ?? '';
+        if (note) render(); else close();
+      }, actions.restingNow() ? 'active' : ''));
 
     const housing = row('Housing', ...HOUSING_TIERS.map((tier) =>
       button(tier.name, () => { actions.setTier(tier.id); render(); },

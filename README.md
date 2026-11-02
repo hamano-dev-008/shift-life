@@ -121,7 +121,11 @@ Early development. What works so far:
   to the sofa..." or "Heading to the dock...", nothing is earned, no
   fish bite, and events keep coming. Stop on the way just calls it off.
 - Resting: click the sofa (or the sleeping bag or tent) and pick
-  "Rest". The character lies down with little z's floating up, gaining
+  "Rest". The character lies down asleep, head on the pillow (the
+  sleeping bag's own, or a small cream one on the sofa and by the
+  tent), eyes closed and tucked under a blanket (in the sleeping bag,
+  the bag itself) that rises and falls as they breathe, now and then
+  their mouth opening to a tiny "o", with little z's floating up, gaining
   health (up to 100) until you pick "Get up". No new events come up
   while resting (the event timer waits). The numbers are in
   `src/data/home.js`.
@@ -236,7 +240,8 @@ the speed (normal, fast at about one year every 5 seconds, or very fast
 at one year a second), skip ahead 1 or 10 years, trigger an event, add
 $1,000, finish a busking session instantly, grow a golden apple now,
 blow a gust of wind at the Fortune Tree,
-rest a minute instantly, jump to age 18 to test moving out, set the
+rest a minute instantly, lie them down asleep where they are to see
+the resting pose ("Rest now"), jump to age 18 to test moving out, set the
 housing tier (sleeping bag, tent, house), jump to any place without
 walking (the Lake included), give a fishing rod, make a fish bite
 now, catch a fish of a chosen rarity now, preview the catch reveal
