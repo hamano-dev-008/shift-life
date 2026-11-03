@@ -203,6 +203,35 @@ app.whenReady().then(async () => {
     await wait(300);
   };
   const openPanels = () => js('[...document.querySelectorAll(".panel")].filter((p) => !p.hidden).map((p) => p.id)');
+  // Watches every frame (the canvas's data-transition) until
+  // transitionsSeen(): which transitions came ('pan', 'fade'), how long
+  // each pan lasted, and anything clickable while one was under way (prop
+  // or wildlife click areas, the character during a pan, Go to).
+  const watchTransitions = () => js(`(() => {
+    const log = window.__transitions = { kinds: [], clickable: [], pans: [], done: false };
+    let last = '';
+    let panSince = 0;
+    const step = (now) => {
+      if (log.done) return;
+      const kind = document.querySelector('#scene').dataset.transition || '';
+      if (kind !== last) {
+        if (kind) log.kinds.push(kind);
+        if (kind === 'pan') panSince = now;
+        if (last === 'pan') log.pans.push((now - panSince) / 1000);
+      }
+      if (kind) {
+        const targets = document.querySelector('#targets');
+        if (!targets.hidden && targets.childElementCount) log.clickable.push(kind + ': prop click areas');
+        if (!document.querySelector('#wildlife').hidden) log.clickable.push(kind + ': wildlife');
+        if (kind === 'pan' && document.querySelector('#character-target span')) log.clickable.push('pan: the character');
+        if (!document.querySelector('#go-btn').disabled) log.clickable.push(kind + ': Go to');
+      }
+      last = kind;
+      requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  })()`);
+  const transitionsSeen = () => js('(() => { const log = window.__transitions; log.done = true; return log; })()');
   const propBubbleShown = () => js('!document.querySelector("#prop-bubble").hidden');
   async function untilPropBubbleGone() {
     for (let i = 0; i < 80 && await propBubbleShown(); i++) await wait(50);
@@ -353,19 +382,35 @@ app.whenReady().then(async () => {
     assert.match(await barText(), /^Resting/);
     await checkProps('resting, with the activity bar up');
     // Travel keeps walking after a poke; resting ends only because of travel.
+    // Going out of the front door fades (Parallax on by default), with
+    // nothing clickable until it's over.
+    await watchTransitions();
     await pressProp('Go outside');
     await wait(100);
     await click(await point());
     assert.equal(await js('document.querySelector("#go-btn").disabled'), true);
     assert.equal(saved.home.resting, false);
     await arrive("Parents' Yard");
+    const door = await transitionsSeen();
+    assert.deepEqual(door.kinds, ['fade'], 'the front door should fade');
+    assert.deepEqual(door.clickable, [], 'clickable during the door fade');
+    assert.equal(await js('document.querySelector("#scene").dataset.transition'), '');
     await clickEveryProp("the Parents' Yard after travelling there");
     // Go to the Fortune Tree with real clicks on the Go to menu, then busk
     // with real clicks on the tree and "Play an instrument".
     await press('document.querySelector("#go-btn")');
+    await watchTransitions();
     await press(inPanel('#go-menu', 'Fortune Tree'));
     await arrive('Fortune Tree');
     assert.equal(saved.place, 'fortuneTree');
+    // Off the yard's left side the view pans (about 1.2 s); nothing can be
+    // clicked and the character waits past the edge until it's over.
+    const pan = await transitionsSeen();
+    assert.deepEqual(pan.kinds, ['pan'], 'the trip to the tree should pan');
+    assert.equal(pan.pans.length, 1);
+    assert.ok(pan.pans[0] > 1 && pan.pans[0] < 1.8, `the pan took ${pan.pans[0]} s`);
+    assert.deepEqual(pan.clickable, [], 'clickable during the pan');
+    assert.equal(await js('document.querySelector("#targets").hidden'), false, 'click areas back after the pan');
     // Busking only starts once the character is under the tree. Just in
     // from the yard they're on the far (right) side: after "Play an
     // instrument" the bar says they're walking, all the way over, and only
@@ -797,6 +842,28 @@ app.whenReady().then(async () => {
     await js(`[...${ownRow}.querySelectorAll("button")].find((b) => b.textContent === "On").click()`);
     await wait(100);
     assert.equal(savedSettings.ownPlans, true);
+    // Parallax: On by default, next to Let them choose, saved; Off, a trip
+    // switches places at once (no pan or fade); On again.
+    const parallaxRow = `[...document.querySelectorAll("#dev-menu .dev-row")].find((r) => r.querySelector(".dev-label")?.textContent === "Parallax")`;
+    assert.equal(await js(`${parallaxRow}.querySelector(".active")?.textContent`), 'On', 'Parallax: not On by default');
+    assert.equal(await js(`${parallaxRow}.previousElementSibling.querySelector(".dev-label").textContent`), 'Let them choose');
+    await js(`[...${parallaxRow}.querySelectorAll("button")].find((b) => b.textContent === "Off").click()`);
+    await wait(100);
+    assert.equal(savedSettings.parallax, false, 'Parallax Off not saved');
+    await js('if (!document.querySelector("#dev-menu").hidden) document.querySelector("#dev-btn").click()');
+    // (A trip their own plan started may still be under way.)
+    for (let i = 0; i < 300 && await js('document.querySelector("#go-btn").disabled'); i++) await wait(100);
+    await watchTransitions();
+    await press('document.querySelector("#go-btn")');
+    const elsewhere = await js('document.querySelector("#go-menu button:not(.panel-close)")?.textContent');
+    assert.ok(elsewhere, 'nowhere to go');
+    await press(inPanel('#go-menu', elsewhere));
+    await arrive(elsewhere);
+    assert.deepEqual((await transitionsSeen()).kinds, [], 'Parallax Off: a trip still panned or faded');
+    await js('document.querySelector("#dev-btn").click()');
+    await js(`[...${parallaxRow}.querySelectorAll("button")].find((b) => b.textContent === "On").click()`);
+    await wait(100);
+    assert.equal(savedSettings.parallax, true);
     await js('if (!document.querySelector("#dev-menu").hidden) document.querySelector("#dev-btn").click()');
     // The Farm: three paddies' click areas on top, each opening its menu;
     // feet on the path; paddy 2 offered for sale; the dev Give paddies;
@@ -857,7 +924,7 @@ app.whenReady().then(async () => {
     await js('document.querySelector("#dev-btn").click()');
     assert.deepEqual(await appRegions(), []);
     assert.deepEqual(errors, []);
-    console.log(`PASS: the Fortune Tree's wishing well (its bubble, click area apart from the tree's, drags from it and the background), activities start only on arrival (walking to the tree from the far side, then "Busking - 0:00"; the sofa; the dock), no -webkit-app-region anywhere, JS window drags (background, character, tree: the window follows, no poke, no menu), plain clicks on every prop in every place, native gentle/rapid clicks, spam, calming, moving hit regions, drag rejection, 25 poses, offscreen, prop/event priority, real clicks on props and menus, prop click areas on top in every place (at rest, after travel, menus closed, an event waiting, the activity bar, a catch reveal), rest/travel/busking preserved, transparent sprite, end of life, summary, Book, new life, the Lake (frogs, butterflies), fishing (rod, bite, catch, reveal, collection, activity bar, selling), work trips (the setting saved, "Off to work!", the "At work" label calling them back), the Fortune Tree's wind (Gust now there only; props still on top with the apple glowing in a gust), the hover outline (tree, character, sofa, dock: shown while hovering, gone on leaving, none with a menu open, clicks unchanged, no native tooltips), the dev Rest now (lying down asleep where they are, outlined on hover, up again), their own plans (Let them choose On by default next to Work trips, saved; Choose now says what and shows in the read-out; Off ends it), the Farm (paddies on top and opening their menu, feet on the path, buying offered, Give paddies, the hover outline, planting on arrival, Grow paddies, the harvest's bubble and pay); no renderer errors.`);
+    console.log(`PASS: the Fortune Tree's wishing well (its bubble, click area apart from the tree's, drags from it and the background), activities start only on arrival (walking to the tree from the far side, then "Busking - 0:00"; the sofa; the dock), no -webkit-app-region anywhere, JS window drags (background, character, tree: the window follows, no poke, no menu), plain clicks on every prop in every place, native gentle/rapid clicks, spam, calming, moving hit regions, drag rejection, 25 poses, offscreen, prop/event priority, real clicks on props and menus, prop click areas on top in every place (at rest, after travel, menus closed, an event waiting, the activity bar, a catch reveal), rest/travel/busking preserved, transparent sprite, end of life, summary, Book, new life, the Lake (frogs, butterflies), fishing (rod, bite, catch, reveal, collection, activity bar, selling), work trips (the setting saved, "Off to work!", the "At work" label calling them back), the Fortune Tree's wind (Gust now there only; props still on top with the apple glowing in a gust), the hover outline (tree, character, sofa, dock: shown while hovering, gone on leaving, none with a menu open, clicks unchanged, no native tooltips), the dev Rest now (lying down asleep where they are, outlined on hover, up again), their own plans (Let them choose On by default next to Work trips, saved; Choose now says what and shows in the read-out; Off ends it), parallax (the front door fades and a side trip pans for about 1.2 s with nothing clickable meanwhile; the Parallax setting On by default next to Let them choose, saved, Off switching places at once), the Farm (paddies on top and opening their menu, feet on the path, buying offered, Give paddies, the hover outline, planting on arrival, Grow paddies, the harvest's bubble and pay); no renderer errors.`);
   } catch (error) {
     console.error(error);
     process.exitCode = 1;

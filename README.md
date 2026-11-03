@@ -119,6 +119,24 @@ Early development. What works so far:
     stops busking or resting.
   - A new life starts in the Parents' Home; a save from before places
     existed continues at the Fortune Tree.
+- Parallax backgrounds: outdoors (the Lake, the Fortune Tree, the yard
+  and the Farm) the background is in four depth layers: sky, clouds,
+  hills and ground.
+  - The clouds drift slowly sideways all the time (about a pixel every
+    3.5 seconds), wrapping around.
+  - Drag the window and the sky, clouds and hills lag a little behind
+    it (the hills most), then spring softly back when you slow down or
+    let go. The ground, everything on it and the character stay put.
+  - Walking off a side into the next place, the view pans across in
+    about 1.2 seconds: the ground and everything on it (the tree, the
+    well, the apple, the frogs, the rice) slides a full window, the
+    hills half, the clouds a quarter and the sky a tenth, the far
+    layers cross-fading from one place to the next. The character walks
+    in once it's over, and nothing can be clicked until then. Going
+    through the front door fades instead.
+  - The "Parallax" setting (On/Off, in the dev menu next to the others
+    for now, saved) keeps the backgrounds still and switches places at
+    once. The numbers are in `src/data/parallax.js`.
 - Moving out and your own home: at 18 the character moves out (a golden
   "Moving out!" bubble). The parents' house is gone from the map; next
   to the Fortune Tree is now My Yard, with just a sleeping bag on the
@@ -286,7 +304,8 @@ now, catch a fish of a chosen rarity now, preview the catch reveal
 card for each rarity, add a butterfly (or a blue one) or make a frog
 croak or hop at the Lake, grow every paddy at the Farm to its next
 stage or give all three paddies, turn work trips on or off, turn "Let them
-choose" on or off or have them choose something now, end the life now (adults only), set health (0, 10, 50 or 100;
+choose" on or off or have them choose something now, turn the parallax
+backgrounds on or off, end the life now (adults only), set health (0, 10, 50 or 100;
 0 ends an adult's life), and see the character's stats, traits, goal,
 job, tree progress, place, housing, yearly ageing and the chance of the
 life ending on the next birthday, how fishing is going, and each
@@ -318,7 +337,11 @@ ripe one may have frames for the sway), `farm.weeds.png` (weeds in a
 paddy),
 `fortuneTree.background.png` (the Fortune Tree's whole background, 107 x
 80, drawn from the bottom-left corner instead of the sky and grass;
-there's one already), `fortuneTree.well.png` (the wishing well; the
+there's one already), the parallax layers `<place>.sky.png`,
+`<place>.clouds.png`, `<place>.hills.png` and `<place>.ground.png` for
+`lake`, `fortuneTree` and `farm` (each 107 x 80, together exactly the
+whole background; used when all four are there, otherwise the single
+picture; there's a set for each already), `fortuneTree.well.png` (the wishing well; the
 code-drawn one with its outline is 18 x 22), `fortuneTree.leaf.png` (a
 falling leaf, 2 frames side by side),
 `lake.frog.png` (4 frames: idle, blink, croak, hop),
@@ -372,15 +395,15 @@ npm.cmd start        # launch the game
 In Git Bash, plain `npm` works. The first start downloads Electron, so it
 takes a little longer. Run `npm.cmd test` for interaction rules, pose
 checks, end-of-life logic, the Lake, its wildlife and fishing, the
-Farm's rice paddies (Node
+Farm's rice paddies and the parallax backgrounds (Node
 22.7+), and
 `npm.cmd run test:smoke` for isolated Electron click/renderer checks
 with real mouse clicks (every place's clickable things are checked to
 be on top, and busking and resting are started by clicking the tree and
 the sofa), including a whole goodbye, a new life, a visit to the Lake (a frog's
 ribbit), a catch
-with its reveal card, the activity bar's Stop, and planting and
-harvesting rice at the Farm.
+with its reveal card, the activity bar's Stop, planting and
+harvesting rice at the Farm, and the pan and door fade between places.
 The smoke check uses in-memory saves, leaving your life, Book and
 collection untouched.
 

@@ -13,7 +13,9 @@ const NO_DRAG = '.panel, #controls, #label, #place.at-work, #stats, #activity-ba
 
 // api: { getPosition() -> Promise<{ x, y }>, setPosition(x, y), endDrag() }
 // (window.shiftLife's window calls). Returns { isDragging() }: whether the
-// window is being dragged right now.
+// window is being dragged right now, and dragX(): how far (screen pixels)
+// it has been dragged sideways so far, or null when it isn't (the
+// parallax sway, ui/parallax.js).
 export function enableWindowDrag(root, api) {
   let press = null; // { id, screenX, screenY, window: { x, y } | null, dragging, to, frame }
   let swallowClick = false;
@@ -87,5 +89,8 @@ export function enableWindowDrag(root, api) {
     event.preventDefault();
   }, true);
 
-  return { isDragging: () => Boolean(press?.dragging) };
+  return {
+    isDragging: () => Boolean(press?.dragging),
+    dragX: () => (press?.dragging && press.to ? press.to.dx : null),
+  };
 }

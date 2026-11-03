@@ -15,8 +15,10 @@
 // (when they may leave, "Off to
 // work!", the "At work" place label that calls them back), the activity bar
 // (what's running, with Stop), the Book of past lives, the player settings
-// (work trips), the dev settings menu (dev runs only), dragging the window
-// (in JS) and saving.
+// (work trips, own plans, parallax), the parallax backgrounds (the clouds'
+// drift, the back layers' sway while the window is dragged, the pan
+// between outdoor places and the door's fade), the dev settings menu (dev
+// runs only), dragging the window (in JS) and saving.
 
 import { POKE } from './data/interaction.js';
 import { createInteraction, calmInteraction, pokeCharacter } from './game/interaction.js';
@@ -59,7 +61,7 @@ import {
   loadGame, saveGame, saveGameNow, loadBook, saveBook, loadCollection, saveCollection,
   loadSettings, saveSettings,
 } from './game/save.js';
-import { setWorkTrips, setOwnPlans } from './game/settings.js';
+import { setWorkTrips, setOwnPlans, setParallax } from './game/settings.js';
 import {
   createChoosing, noteClick as noteOwnPlansClick, mayChoose, restartChoosing, choosePlan, startPlan,
   cancelPlan, endPlanNow, currentPlan, updateAutonomy, autonomyText,
@@ -84,6 +86,10 @@ import {
   computeLayout, createScenery, propClickRect, propRect, drawPropAlone, propArtFrame,
 } from './ui/scene.js';
 import { createHoverOutline, hoverTargetOf } from './ui/hoverOutline.js';
+import {
+  BACK_LAYERS, cloudDrift, createDragSway, updateDragSway, swayShift, transitionFor, panProgress, panDone,
+  panOffsets, panFade, doorFadeLeft, doorFadeDone,
+} from './ui/parallax.js';
 import { drawDockSilhouette } from './ui/lake.js';
 import { drawGoldenApple } from './ui/goldenApple.js';
 import {
@@ -481,10 +487,10 @@ async function start() {
   document.documentElement.addEventListener('pointerleave', () => { pointer = null; });
   // The thing to outline now: the topmost click target under the pointer
   // (a prop, a critter, the character), or null. None while travelling,
-  // once the life has ended, while dragging the window, or while a panel,
-  // card or catch reveal is open.
+  // or panning, once the life has ended, while dragging the window, or
+  // while a panel, card or catch reveal is open.
   function hoveredThing(ended) {
-    if (!pointer || trip || ended || windowDrag.isDragging() || catchReveal.isOpen()
+    if (!pointer || travelling() || ended || windowDrag.isDragging() || catchReveal.isOpen()
       || document.querySelector('#app .panel:not([hidden])')) return null;
     return hoverTargetOf(document.elementFromPoint(pointer.x, pointer.y));
   }
@@ -601,7 +607,8 @@ async function start() {
   // tree's and resting's timers stand still. The frame loop plays the
   // goodbye.
   let lastTick = performance.now();
-  // Set once `trip` (below) exists, for the tick's own-plan update.
+  // Set once `trip` and `transition` (below) exist, for the tick's
+  // own-plan update.
   let tripReady = false;
   setInterval(() => {
     const tickNow = performance.now();
@@ -636,7 +643,7 @@ async function start() {
     if (moved) showNews(moved);
     // Their own plan: started once they're in its place, stopped by
     // themselves when its time is up (game/autonomy.js).
-    const own = updateAutonomy(game, realMs, { travelling: tripReady && Boolean(trip) });
+    const own = updateAutonomy(game, realMs, { travelling: tripReady && travelling() });
     if (own.news) showNews(own.news);
     if (own.ended) restartChoosing(choosing, tickNow);
     checkFirstSteps();
@@ -787,6 +794,7 @@ async function start() {
     const samePlace = view.id === scene.place.id;
     const wasTravelling = Boolean(trip);
     trip = null;
+    transition = null;
     showPlace();
     const { layout } = scene;
     if (!samePlace) {
@@ -805,7 +813,38 @@ async function start() {
   // places still to enter. Only the place reached is saved; a trip cut
   // short by closing the app ends there.
   let trip = null;
+  // The view moving from one place to the next (ui/parallax.js), while it
+  // lasts: { kind: 'pan', since (performance.now() ms), from: { scene,
+  // treeDecor, lakeLife } (the place left, still drawn as it slides out),
+  // direction (1: out the right side) }, or { kind: 'fade', since,
+  // snapshot (the last view of the place left) } through a door. Nothing
+  // can be clicked until it's over, and during a pan the character waits
+  // past the edge before walking in.
+  let transition = null;
+  // Travelling, or the view still moving to the place reached.
+  const travelling = () => Boolean(trip || transition);
   tripReady = true;
+  // The back layers' sway while the window is dragged (ui/parallax.js).
+  const sway = createDragSway();
+  // How far the sky, clouds and hills are shifted now (screen pixels): the
+  // sway, and the clouds' drift. None with the Parallax setting off.
+  function backShifts(seconds) {
+    if (!settings.parallax) return {};
+    const { scale } = scene.layout;
+    return {
+      sky: swayShift(sway, 'sky', scale),
+      clouds: swayShift(sway, 'clouds', scale) + cloudDrift(seconds, scale),
+      hills: swayShift(sway, 'hills', scale),
+    };
+  }
+  // A copy of what the canvas shows now (for the door's fade).
+  function snapshotOf(source) {
+    const copy = document.createElement('canvas');
+    copy.width = source.width;
+    copy.height = source.height;
+    copy.getContext('2d').drawImage(source, 0, 0);
+    return copy;
+  }
 
   // They choose something to do by themselves now (game/autonomy.js):
   // say so, and walk there if it's elsewhere (it starts on arrival).
@@ -835,7 +874,7 @@ async function start() {
   }
 
   function startTrip(to) {
-    if (trip || to === game.place) return;
+    if (travelling() || to === game.place) return;
     const route = routeBetween(game, game.place, to);
     if (!route) return;
     stopActivityToLeave();
@@ -847,14 +886,26 @@ async function start() {
   }
 
   // Once the character is out of the current place, moves into the next:
-  // in from the edge they'd leave by going back, or out of its door.
-  function updateTrip() {
+  // in from the edge they'd leave by going back, or out of its door. With
+  // the Parallax setting on, the view pans there through a side (the
+  // character walks in once it's over) or fades through a door.
+  function updateTrip(now) {
     if (!trip || !hasExited(animator)) return;
     const from = game.place;
+    const left = { scene, treeDecor, lakeLife };
     const next = trip.route.shift();
+    const way = exitBetween(game, from, next);
+    const kind = transitionFor(from, next, way.via, settings.parallax);
+    transition = kind === 'fade' ? { kind, since: now, snapshot: snapshotOf(canvas) } : null;
     enterPlace(game, next);
     saveGame(game);
     showPlace();
+    if (kind === 'pan') {
+      transition = { kind, since: now, from: left, direction: way.via === 'right' ? 1 : -1 };
+      treeDecor = null;
+      lakeLife = null;
+      lastFishPhase = null;
+    }
     const back = exitBetween(game, next, from);
     const { layout } = scene;
     const last = trip.route.length === 0;
@@ -880,6 +931,7 @@ async function start() {
   let openedEnded = Boolean(game.endOfLife.ended);
   function startFarewell(now) {
     trip = null;
+    transition = null;
     restPreview = null;
     stopTravelling(animator);
     const { wanderMinX, wanderMaxX } = scene.layout;
@@ -933,6 +985,7 @@ async function start() {
     lastAge = 0;
     closePanels();
     trip = null;
+    transition = null;
     showPlace();
     animator = createAnimator(scene.layout);
   }
@@ -993,7 +1046,7 @@ async function start() {
   // What the rest menu shows here, or null with nothing to rest on.
   function restMenuView() {
     const spot = restSpotOf(game);
-    if (!spot || trip) return null;
+    if (!spot || travelling()) return null;
     return { ...restView(game), title: scene.place.targets[spot], upgrade: upgradeView(game) };
   }
 
@@ -1046,7 +1099,7 @@ async function start() {
           restPreview = null;
           return null;
         }
-        if (game.endOfLife.ended || trip) return REST_DEV_TEXT.cantNow;
+        if (game.endOfLife.ended || travelling()) return REST_DEV_TEXT.cantNow;
         if (stayFor(lifeStageOf(ageOf(game.character, game.clock.years)))) return REST_DEV_TEXT.busy;
         const { wanderMinX, wanderMaxX } = scene.layout;
         restPreview = { x: Math.min(Math.max(animator.x, wanderMinX), wanderMaxX) };
@@ -1057,6 +1110,7 @@ async function start() {
         if (game.endOfLife.ended) return;
         playerTookOver();
         trip = null;
+        transition = null;
         stopActivityToLeave();
         goToPlace(game, id);
         saveGame(game);
@@ -1137,9 +1191,14 @@ async function start() {
         restartChoosing(choosing, performance.now());
         saveGame(game);
       },
+      // The "Parallax" player setting (saved too).
+      parallax: () => settings.parallax,
+      setParallax: (on) => {
+        if (setParallax(settings, on)) saveSettings(settings);
+      },
       // They choose something to do now, skipping the wait.
       planNow: () => {
-        if (game.endOfLife.ended || trip || currentPlan(game) || isPlaying(game) || isResting(game)
+        if (game.endOfLife.ended || travelling() || currentPlan(game) || isPlaying(game) || isResting(game)
           || isDoingActivity(game) || currentFarmJob(game)) {
           return AUTONOMY_TEXT.notNow;
         }
@@ -1179,6 +1238,89 @@ async function start() {
     }
   });
 
+  // Everything standing on `view`'s ground, drawn over its ground layer
+  // (and moving with it in a pan): the Farm's rice, a prop's hover outline
+  // (just over the scenery, so the character, leaves and the apple pass in
+  // front), the Fortune Tree's wind, falling leaves, a ready apple's glow,
+  // the apple and its sparkles, the Lake's frogs and butterflies and a
+  // critter's outline; all purely visual. `deco` holds the place's {
+  // treeDecor, lakeLife }, made here the first time and dropped
+  // elsewhere. Returns which outline was drawn.
+  function drawOnGround(target, view, deco, seconds, dt, hovered) {
+    const { place, layout } = view;
+    let outlined = '';
+    if (place.id === FARM_PLACE) drawFarmCrops(target, layout, paddiesLook(game), seconds);
+    if (hovered?.kind === 'prop') {
+      const paddy = PADDY_IDS.has(hovered.id);
+      const drawn = hoverOutline.draw(target, (maskCtx) => {
+        if (hovered.id === DOCK_PROP) return paintDock(maskCtx, layout);
+        if (paddy) return paintPaddy(maskCtx, layout, hovered.id, seconds);
+        return drawPropAlone(maskCtx, layout, hovered.id, seconds);
+      }, seconds, paddy ? null : `${sceneKey(place)}:${hovered.id}:${propArtFrame(hovered.id, seconds)}`);
+      if (drawn) outlined = `prop:${hovered.id}`;
+    }
+    if (place.id === FORTUNE_TREE_PLACE) {
+      deco.treeDecor ??= createTreeDecor();
+      const area = treeDecorArea(layout);
+      if (area) updateTreeDecor(deco.treeDecor, dt, area);
+      drawTreeDecor(target, layout, deco.treeDecor);
+      if (game.fortuneTree.appleReady || isFlashing(deco.treeDecor)) {
+        drawAppleGlow(target, layout, seconds, deco.treeDecor.flashLeft);
+        drawGoldenApple(target, layout, seconds, appleFrame(deco.treeDecor.wind));
+      }
+      if (game.fortuneTree.appleReady) drawAppleSparkles(target, layout, seconds);
+    } else {
+      deco.treeDecor = null;
+    }
+    if (place.id === LAKE_PLACE) {
+      deco.lakeLife ??= createLakeLife();
+      updateLakeLife(deco.lakeLife, dt);
+      drawLakeLife(target, layout, deco.lakeLife);
+      if (hovered?.kind === 'critter'
+        && hoverOutline.draw(target, (maskCtx) => drawCritter(maskCtx, layout, deco.lakeLife, hovered.id), seconds)) {
+        outlined = `critter:${hovered.id}`;
+      }
+    } else {
+      deco.lakeLife = null;
+    }
+    return outlined;
+  }
+
+  // One frame of a pan from the place left to the one reached (the
+  // current scene): each back layer slides by its share of the width and
+  // cross-fades (the old sky stays under the new one fading in; a layer
+  // only one of them has fades in or out with it, but a lone sky stays
+  // opaque), then each place's ground and what stands on it slides a
+  // full width, the two meeting edge to edge. Whole pixels throughout.
+  function drawPan(pan, now, dt, here) {
+    const seconds = now / 1000;
+    const progress = panProgress((now - pan.since) / 1000);
+    const { width, height } = canvas;
+    const shifts = backShifts(seconds);
+    const old = pan.from.scene.scenery;
+    const next = scene.scenery;
+    const fade = panFade(progress);
+    for (const layer of BACK_LAYERS) {
+      const at = panOffsets(progress, layer, width, pan.direction);
+      const extra = shifts[layer] ?? 0;
+      const lone = !(old.has(layer) && next.has(layer));
+      const sky = layer === 'sky';
+      old.drawLayer(ctx, layer, seconds, at.from + extra, sky ? 1 : 1 - fade);
+      next.drawLayer(ctx, layer, seconds, at.to + extra, sky && lone ? 1 : fade);
+    }
+    const at = panOffsets(progress, 'ground', width, pan.direction);
+    for (const [view, deco, dx] of [[pan.from.scene, pan.from, at.from], [scene, here, at.to]]) {
+      ctx.save();
+      ctx.translate(dx, 0);
+      ctx.beginPath();
+      ctx.rect(0, 0, width, height);
+      ctx.clip();
+      view.scenery.drawGround(ctx, seconds);
+      drawOnGround(ctx, view, deco, seconds, dt, null);
+      ctx.restore();
+    }
+  }
+
   let last = performance.now();
 
   function frame(now) {
@@ -1192,6 +1334,13 @@ async function start() {
     const needed = Boolean(game.events.pending) || bubbles.length > 0 || (now < speechUntil && !pokeSpeech)
       || eventCard.isOpen();
     followMapChanges();
+    // The pan or fade to the place reached ends on time.
+    if (transition) {
+      const elapsed = (now - transition.since) / 1000;
+      if (transition.kind === 'pan' ? panDone(elapsed) : doorFadeDone(elapsed)) transition = null;
+    }
+    // The back layers lag behind a drag of the window, then spring back.
+    updateDragSway(sway, dt, settings.parallax ? windowDrag.dragX() : null);
     const { ended } = game.endOfLife;
     if (ended && !farewell) startFarewell(now);
     const stay = stayOf(stage);
@@ -1202,7 +1351,7 @@ async function start() {
     const working = isEmployed(game) && settings.workTrips;
     const busy = needed || now < speechUntil || catchReveal.isOpen() || !activityBar.hidden
       || !critterBubble.hidden || !propBubble.hidden || !document.getElementById('stats').hidden
-      || Boolean(document.querySelector('#app .panel:not([hidden])')) || Boolean(trip) || Boolean(ended)
+      || Boolean(document.querySelector('#app .panel:not([hidden])')) || travelling() || Boolean(ended)
       || Boolean(currentPlan(game));
     // Their own plans: left alone long enough (nothing running, nothing
     // showing, not away), now and then they choose something to do.
@@ -1210,13 +1359,16 @@ async function start() {
       || Boolean(currentFarmJob(game));
     const idle = !busy && !running && !restPreview && !farewell && !isAtWork(animator);
     if (mayChoose(choosing, now, { enabled: settings.ownPlans, idle })) beginOwnPlan(now);
-    updateAnimator(animator, dt, stage, gaitOf(age), {
-      activity: activeActivity(game),
-      employed: working,
-      mayGoToWork: mayGoToWork(workTrips, now, { enabled: settings.workTrips, employed: working, busy }),
-      needed,
-      stay,
-    });
+    // While the view pans they wait past the edge, then walk in.
+    if (transition?.kind !== 'pan') {
+      updateAnimator(animator, dt, stage, gaitOf(age), {
+        activity: activeActivity(game),
+        employed: working,
+        mayGoToWork: mayGoToWork(workTrips, now, { enabled: settings.workTrips, employed: working, busy }),
+        needed,
+        stay,
+      });
+    }
     // Setting off (or the Ctrl+Shift+W shortcut): a short "Off to work!"
     // as they go (passing chatter, so it doesn't call them back), and the
     // cooldown starts over.
@@ -1228,8 +1380,9 @@ async function start() {
     // walked to its spot and settled in (game/stay.js; not saved, so after
     // a load they walk there again).
     reportArrival(game, hasSettled(animator, stay) && stay.mode !== 'farewell');
-    updateTrip();
+    updateTrip(now);
     const { place, layout } = scene;
+    const panning = transition?.kind === 'pan' ? transition : null;
     calmInteraction(interaction, now);
     const reaction = reactionPose(poseOf(animator, stage), interaction, now, layout.characterScale);
     // Fishing: how it looks now (cast, waiting, a bite, reeling, the
@@ -1239,86 +1392,62 @@ async function start() {
     const look = fishing ? fishingLook(fishing) : null;
     const pose = reaction.pose.activity === 'fish' ? { ...reaction.pose, fishing: look } : reaction.pose;
     const expression = reaction.expression ?? expressionOf(game.character);
+    const seconds = now / 1000;
+    // A bobber landing near a frog makes it dive.
+    const phase = place.id === LAKE_PLACE ? look?.phase ?? null : null;
+    if (lakeLife && lastFishPhase === 'cast' && phase === 'wait') bobberLanded(lakeLife, BOBBER_SPOT.x);
+    lastFishPhase = phase;
     // Cleared first: sprites may have see-through pixels.
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    scene.scenery.draw(ctx, now / 1000);
-    // The Farm's rice and weeds over the paddies' water, behind the
-    // character (and under a paddy's hover outline).
-    if (place.id === FARM_PLACE) drawFarmCrops(ctx, layout, paddiesLook(game), now / 1000);
-    // The hover outline goes with the thing it's around: a prop's just
-    // over the scenery (so the character and leaves pass in front of it),
-    // a critter's just over the wildlife, the character's just over the
-    // character; all under the "!" bubbles, the reveal card, bubbles and
-    // menus.
     const hovered = hoveredThing(ended);
     let outlined = '';
-    if (hovered?.kind === 'prop') {
-      const seconds = now / 1000;
-      const paddy = PADDY_IDS.has(hovered.id);
-      const drawn = hoverOutline.draw(ctx, (maskCtx) => {
-        if (hovered.id === DOCK_PROP) return paintDock(maskCtx, layout);
-        if (paddy) return paintPaddy(maskCtx, layout, hovered.id, seconds);
-        return drawPropAlone(maskCtx, layout, hovered.id, seconds);
-      }, seconds, paddy ? null : `${sceneKey(place)}:${hovered.id}:${propArtFrame(hovered.id, seconds)}`);
-      if (drawn) outlined = `prop:${hovered.id}`;
-    }
-    // The Fortune Tree's wind and golden leaves falling, then a ready
-    // apple's glow, the apple (swinging in a gust; still shown while a
-    // pick's flash lasts) and its sparkles, all behind the character;
-    // purely visual.
-    if (place.id === FORTUNE_TREE_PLACE) {
-      treeDecor ??= createTreeDecor();
-      const area = treeDecorArea(layout);
-      if (area) updateTreeDecor(treeDecor, dt, area);
-      drawTreeDecor(ctx, layout, treeDecor);
-      if (game.fortuneTree.appleReady || isFlashing(treeDecor)) {
-        drawAppleGlow(ctx, layout, now / 1000, treeDecor.flashLeft);
-        drawGoldenApple(ctx, layout, now / 1000, appleFrame(treeDecor.wind));
-      }
-      if (game.fortuneTree.appleReady) drawAppleSparkles(ctx, layout, now / 1000);
+    const here = { treeDecor, lakeLife };
+    if (panning) {
+      drawPan(panning, now, dt, here);
     } else {
-      treeDecor = null;
+      scene.scenery.draw(ctx, seconds, backShifts(seconds));
+      outlined = drawOnGround(ctx, scene, here, seconds, dt, hovered);
     }
-    // The Lake's frogs and butterflies, behind the character. A bobber
-    // landing near a frog makes it dive.
-    if (place.id === LAKE_PLACE) {
-      lakeLife ??= createLakeLife();
-      const phase = look?.phase ?? null;
-      if (lastFishPhase === 'cast' && phase === 'wait') bobberLanded(lakeLife, BOBBER_SPOT.x);
-      lastFishPhase = phase;
-      updateLakeLife(lakeLife, dt);
-      drawLakeLife(ctx, layout, lakeLife);
-      if (hovered?.kind === 'critter'
-        && hoverOutline.draw(ctx, (maskCtx) => drawCritter(maskCtx, layout, lakeLife, hovered.id), now / 1000)) {
-        outlined = `critter:${hovered.id}`;
+    treeDecor = here.treeDecor;
+    lakeLife = here.lakeLife;
+    // The character waits past the edge while the view pans.
+    if (!panning) {
+      drawCharacter(ctx, pose, stage, game.character.appearance,
+        expression, layout.feetY, layout.characterScale, jobItem(game));
+      if (pose.activity === 'fish' && look) {
+        drawFishing(ctx, layout, fishingHand(stage, pose, layout.feetY, layout.characterScale), look);
       }
-    } else {
-      lakeLife = null;
-      lastFishPhase = null;
+      if (hovered?.kind === 'character' && hoverOutline.draw(ctx, (maskCtx) => {
+        drawCharacter(maskCtx, pose, stage, game.character.appearance,
+          expression, layout.feetY, layout.characterScale, jobItem(game), true);
+        return layout.characterScale;
+      }, seconds)) {
+        outlined = 'character';
+      }
     }
-    drawCharacter(ctx, pose, stage, game.character.appearance,
-      expression, layout.feetY, layout.characterScale, jobItem(game));
-    if (pose.activity === 'fish' && look) {
-      drawFishing(ctx, layout, fishingHand(stage, pose, layout.feetY, layout.characterScale), look);
-    }
-    if (hovered?.kind === 'character' && hoverOutline.draw(ctx, (maskCtx) => {
-      drawCharacter(maskCtx, pose, stage, game.character.appearance,
-        expression, layout.feetY, layout.characterScale, jobItem(game), true);
-      return layout.characterScale;
-    }, now / 1000)) {
-      outlined = 'character';
+    // Through a door, the place left fades into this one.
+    if (transition?.kind === 'fade') {
+      ctx.save();
+      ctx.globalAlpha = doorFadeLeft((now - transition.since) / 1000);
+      ctx.drawImage(transition.snapshot, 0, 0);
+      ctx.restore();
     }
     noteHover(outlined);
+    // Which transition is under way ('pan', 'fade' or empty), on the
+    // canvas's data-transition (for the smoke test).
+    const showing = transition?.kind ?? '';
+    if ((canvas.dataset.transition ?? '') !== showing) canvas.dataset.transition = showing;
     // A catch's reveal card over the scene (fishing carries on behind).
     catchReveal.draw(ctx, now);
     const revealing = catchReveal.isOpen();
-    updateWildlifeTargets(Boolean(lakeLife) && !trip && !ended);
+    updateWildlifeTargets(Boolean(lakeLife) && !travelling() && !ended);
     critterBubble.hidden = critterBubble.hidden || now >= critterBubbleUntil || !lakeLife || revealing;
     propBubble.hidden = propBubble.hidden || now >= propBubbleUntil || place.id !== propBubblePlace
-      || Boolean(trip) || Boolean(ended);
+      || travelling() || Boolean(ended);
     if (farewell) drawFarewellFade(ctx, canvas.width, canvas.height, (now - farewell.since) / 1000);
-    // No pokes once the life has ended (nothing drawn: no click target).
-    characterTarget.update((hitCtx) => ended || drawCharacter(hitCtx, pose, stage, game.character.appearance,
+    // No pokes once the life has ended or while the view pans (nothing
+    // drawn: no click target).
+    characterTarget.update((hitCtx) => ended || panning || drawCharacter(hitCtx, pose, stage, game.character.appearance,
       expression, layout.feetY, layout.characterScale, jobItem(game), true));
     const { mark } = SPEEDS[game.clock.speed];
     setText(label, `${game.character.name} · ${age}y${mark ? ` ${mark}` : ''}`);
@@ -1330,7 +1459,7 @@ async function start() {
       placeLabel.classList.toggle('at-work', atWork);
       placeLabel.title = atWork ? WORK_TRIP_TEXT.callBack.replaceAll('{name}', game.character.name) : '';
     }
-    targets.hidden = Boolean(trip) || Boolean(ended);
+    targets.hidden = travelling() || Boolean(ended);
 
     // Bubbles follow the character's head. Text bubbles take the spot
     // first; a new "!" waits until they're done.
@@ -1372,16 +1501,17 @@ async function start() {
     restMenu.update(restMenuView());
     activityMenu.update((id) => {
       const activity = activityById(id);
-      if (!activity || activity.place !== place.id || trip || ended) return null;
+      if (!activity || activity.place !== place.id || travelling() || ended) return null;
       return {
         view: activityView(game, id),
         collection: activity.rewards.catches ? collectionView(game.collection) : null,
       };
     });
     const paddyOpen = farmMenu.paddy();
-    farmMenu.update(paddyOpen && place.id === FARM_PLACE && !trip && !ended ? paddyView(game, paddyOpen) : null);
-    goMenu.update(place, existingPlaces(game), Boolean(trip) || Boolean(ended));
-    updateActivityBar(trip ? null : activityBarView(game));
+    farmMenu.update(paddyOpen && place.id === FARM_PLACE && !travelling() && !ended
+      ? paddyView(game, paddyOpen) : null);
+    goMenu.update(place, existingPlaces(game), travelling() || Boolean(ended));
+    updateActivityBar(travelling() ? null : activityBarView(game));
     bookMenu.update(bookView(book));
     devMenu?.update();
 

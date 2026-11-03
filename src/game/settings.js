@@ -33,3 +33,10 @@ export function setOwnPlans(settings, on) {
   settings.ownPlans = Boolean(on);
   return true;
 }
+
+// Turns the parallax backgrounds on or off. Returns whether it changed.
+export function setParallax(settings, on) {
+  if (settings.parallax === Boolean(on)) return false;
+  settings.parallax = Boolean(on);
+  return true;
+}

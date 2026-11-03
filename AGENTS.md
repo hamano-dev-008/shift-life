@@ -48,7 +48,10 @@ with **Electron and plain JavaScript**.
 > life summary, goes into the Book of past lives, and a new life can
 > begin. The life, the Book and the fish collection are saved between
 > launches. While fishing, busking, resting or farming a bar at the bottom says
-> what's happening, with Stop. Items marked
+> what's happening, with Stop. Outdoors the backgrounds are parallax
+> layers (sky, clouds, hills, ground): the clouds drift, the far layers
+> sway when the window is dragged, side trips pan between places and
+> the front door fades (the "Parallax" setting). Items marked
 > *(planned)* don't exist yet; follow the planned layout when adding them,
 > and update this section whenever files are added, moved, or removed.
 
@@ -114,7 +117,10 @@ Shift-Life/
 │   │                  rice growing on the life tick, drawing the
 │   │                  crops, a paddy's hover outline, the farming
 │   │                  pose's spot), own plans (when they choose, the
-│   │                  bubble, the trip, the player taking over),
+│   │                  bubble, the trip, the player taking over), the parallax
+│   │                  (drift, drag sway, the pan between outdoor
+│   │                  places and the door's fade; nothing clickable
+│   │                  meanwhile),
 │   │                  work trips (when they may leave,
 │   │                  "Off to work!", the "At work" place label
 │   │                  calling them back), the player settings, the
@@ -128,8 +134,8 @@ Shift-Life/
 │   │   │                  cooldown (5-8 minutes), the quiet spell after
 │   │   │                  a click, busy, the setting (unsaved)
 │   │   ├── settings.js    Player settings: restoring with defaults,
-│   │   │                  the data to save, turning work trips and own
-│   │   │                  plans on/off
+│   │   │                  the data to save, turning work trips, own
+│   │   │                  plans and the parallax on/off
 │   │   ├── autonomy.js    The character's own plans: when they may
 │   │   │                  choose (cooldown, quiet spell after a click;
 │   │   │                  unsaved), what they can choose and its weight
@@ -222,6 +228,12 @@ Shift-Life/
 │   │   ├── pixel.js       Low-res layer helpers: paint, outline, scaled draw
 │   │   ├── assets.js      Sprite loader (PNGs from assets/sprites/ at
 │   │   │                  startup), frame picking, crisp sprite drawing
+│   │   ├── parallax.js    The parallax's motion, visual only (no DOM, so
+│   │   │                  tests run it): the clouds' drift and wrap,
+│   │   │                  the drag sway (a soft spring), which trips
+│   │   │                  pan or fade, the pan's offsets per layer and
+│   │   │                  its stepped cross-fade, the door's fade, the
+│   │   │                  edge gaps a shifted layer leaves
 │   │   ├── scene.js       computeLayout() (data → canvas pixels, for a
 │   │   │                  place: its props, feet row, walking limits
 │   │   │                  and open sides), where props are drawn and
@@ -234,7 +246,11 @@ Shift-Life/
 │   │   │                  shimmer), each a
 │   │   │                  sprite or code-drawn; still pieces cached,
 │   │   │                  animated sprites and live pieces drawn every
-│   │   │                  frame
+│   │   │                  frame; in depth layers (a split picture's
+│   │   │                  layer sprites, or the Yard's sky and grass):
+│   │   │                  the sky, clouds and hills each drawn shifted
+│   │   │                  (clouds wrapping, edge columns filling gaps)
+│   │   │                  and faded, then the ground
 │   │   ├── props.js       Draws the tree, the wishing well and the
 │   │   │                  houses (parents' and own) in code; the shared
 │   │   │                  prop painter and house colors
@@ -334,7 +350,8 @@ Shift-Life/
 │   │   ├── pastLives.js   The Book of past lives (book button): the list
 │   │   │                  of finished lives and each one's summary
 │   │   ├── devMenu.js     The dev settings menu (gear; dev runs only),
-│   │   │                  with the Work trips setting for now, and the
+│   │   │                  with the Work trips, Let them choose and
+│   │   │                  Parallax settings for now, and the
 │   │   │                  Farm row (Grow paddies, Give paddies)
 │   │   ├── statsPanel.js  Stats, job and traits panel under the name label
 │   │   ├── hoverOutline.js The white outline around the interactable
@@ -344,7 +361,8 @@ Shift-Life/
 │   │   └── windowDrag.js  Dragging the window in JS (no OS drag
 │   │                      regions): the threshold, pointer capture,
 │   │                      moving once per frame, cancelling the click;
-│   │                      whether a drag is under way (isDragging)
+│   │                      whether a drag is under way (isDragging) and
+│   │                      how far sideways so far (dragX, for the sway)
 │   └── data/          Pure game data, no logic
 │       ├── interaction.js Poke dialogue, timing, thresholds and rewards;
 │       │                  the window drag threshold
@@ -356,8 +374,15 @@ Shift-Life/
 │       ├── stats.js       Starting stats, stat names and short tags
 │       ├── dev.js         Dev menu amounts (skip-ahead years, money,
 │       │                  set-health values)
-│       ├── settings.js    Player settings' defaults (work trips and
-│       │                  own plans on)
+│       ├── settings.js    Player settings' defaults (work trips, own
+│       │                  plans and parallax on)
+│       ├── parallax.js    The parallax: the depth layers, which
+│       │                  pictures split into which layer sprites, the
+│       │                  Yard's sky and grass as layers, the clouds'
+│       │                  drift, the drag sway (most per layer, speed,
+│       │                  spring), the pan (time, share of the width
+│       │                  per layer, fade steps), the places that pan,
+│       │                  the door's fade, the setting's text
 │       ├── autonomy.js    The character's own plans: the quiet minutes,
 │       │                  how often, how long, the choices (minimum age,
 │       │                  resting's health thresholds; planting,
@@ -465,6 +490,8 @@ Shift-Life/
 │   └── sprites/       Pixel-art PNGs that replace code-drawn art (tree.png,
 │                      goldenApple.png, lake.png,
 │                      fortuneTree.background.png, farm.background.png,
+│                      the parallax layers <place>.sky/clouds/hills/
+│                      ground.png for lake, fortuneTree and farm,
 │                      fish.<id>.png so far)
 │                      and a short README
 └── test/              interaction.test.mjs (rules/poses), endOfLife.test.mjs
@@ -516,7 +543,17 @@ Shift-Life/
                        saving; dev grow and give; own plans to plant,
                        weed and harvest, weighted by goal and lazy;
                        walking from one paddy to another before it
-                       counts; sprite names), lying.test.mjs (the sleeping pose: head
+                       counts; sprite names), parallax.test.mjs (the
+                       layer sprites there, listed and stacking into
+                       the old pictures pixel for pixel; the clouds'
+                       drift (3-4 s a scene pixel, whole pixels,
+                       wrapping); the drag sway (opposite, hills >
+                       clouds > sky, within 3/2/1 scene pixels, never
+                       the ground, springing back to rest); edge gaps;
+                       side exits pan, doors fade, none with the
+                       setting off; the pan's 1.2 s, easing, shares and
+                       grounds edge to edge; the stepped fades; the
+                       setting), lying.test.mjs (the sleeping pose: head
                        on the pillow at the left end, the shirt only at
                        the shoulders, the blanket chest to past the feet
                        with their bump, breathing 1 pixel, the mouth's
@@ -551,6 +588,12 @@ Shift-Life/
                        paddies, a paddy's hover outline, planting on
                        arrival with the bar, Grow paddies, the
                        harvest's bubble and pay, the read-out),
+                       the parallax (the front door's fade and the
+                       yard-to-tree pan, about 1.2 s, with no click
+                       areas, wildlife, character target or Go to
+                       meanwhile; the Parallax setting On by default
+                       next to Let them choose, saved, Off switching
+                       places at once),
                        the hover outline on the tree, the character,
                        the sofa and the dock: shown while hovering (the
                        canvas's data-hover and white pixels drawn),
@@ -584,7 +627,9 @@ How it works, for anyone extending it:
     resizes the whole scene and props stay at the edges.
   - The scenery comes from `createScenery(layout, place)` in
     `ui/scene.js`: the place's `scenery` pieces (data/places.js), back
-    to front. Still pieces next to each other
+    to front, sorted into depth layers (see **Parallax**): the sky,
+    clouds and hills each on their own canvas, then the ground (every
+    other piece, in order). In the ground, still pieces next to each other
     are drawn once onto a cached canvas; an animated sprite, or a live
     piece drawn in code (`drawLive`, the Lake's shimmer), is drawn every
     frame in its place in the order. The canvas is cleared each frame
@@ -608,6 +653,8 @@ How it works, for anyone extending it:
     `home.wall`, `home.floor`, `home.window`, `home.door`, `home.sofa`,
     `lake`, `lake.frog`, `lake.butterfly` (or `lake.butterfly.<color>`),
     `fortuneTree.background`, `fortuneTree.well`, `fortuneTree.leaf`,
+    the parallax layers `<place>.sky`, `<place>.clouds`, `<place>.hills`,
+    `<place>.ground` for `lake`, `fortuneTree` and `farm`,
     `farm.background`, `farm.rice.seedling`, `farm.rice.young`,
     `farm.rice.ripe`, `farm.weeds`
     (scene pixels, drawn at `SCENE_SCALE`), `goldenApple` (4 frames
@@ -834,7 +881,9 @@ How it works, for anyone extending it:
     visit spot). Once there (`hasExited()`), `enterPlace()` switches
     `game.place` (saved) and the scene, and `enterScene()` puts the
     character at the way back in: past the edge, walking `entryWalk` in,
-    or standing at the door. The next leg starts at once. Travel ignores
+    or standing at the door (with the Parallax setting on, after the
+    pan or during the door's fade; see **Parallax**). The next leg
+    starts at once. Travel ignores
     events and bubbles, works at any age (babies crawl, toddlers still
     plop), and starts from wherever they are (even away at work). Only
     the place reached is saved; closing mid-trip ends it there.
@@ -1391,6 +1440,68 @@ How it works, for anyone extending it:
     never choose, and ends a plan under way (`endPlanNow()`, stopping
     its thing). The dev menu's "Choose now" picks one at once (skipping
     the wait), and the read-out shows the plan or the wait for the next.
+- **Parallax** (`data/parallax.js`; the motion in `ui/parallax.js`,
+  no DOM, so tests run it; the layers in `ui/scene.js`; put together in
+  the renderer; visual only, never saved): outdoor backgrounds are in
+  depth layers, back to front `sky`, `clouds`, `hills`, `ground`.
+  - Layers: a background picture in `LAYERED_BACKGROUNDS` (`lake`,
+    `fortuneTree.background`, `farm.background`) is drawn as its layer
+    sprites `<prefix>.<layer>` (`lake.sky`, ..., `farm.ground`; each
+    107 x 80 from the bottom-left corner like the picture, together
+    pixel-identical to it; a test checks) when all four exist, otherwise
+    as the single picture (with its own fallback), which is then all
+    ground. Pieces in `PIECE_LAYERS` count as layers (the Yard's `sky`
+    and `grass`: sky and ground); every other piece (props, the
+    shimmer, Home's room) is ground. `createScenery()` returns `{ has,
+    drawLayer(ctx, layer, seconds, shift, alpha), drawGround(ctx,
+    seconds), draw(ctx, seconds, shifts) }`. A back layer has its own
+    canvas, as wide as its picture: the clouds repeat side by side
+    (`wrapX()`, wrapping at their width), the sky and hills fill a gap
+    at the window's edge by stretching their edge column
+    (`edgeGaps()`). Shifts are whole screen pixels, scaling
+    nearest-neighbour.
+  - Drift: the clouds move `CLOUD_DRIFT` (one scene pixel every 3.5 s)
+    all the time, by the clock (`cloudDrift()`), in whole screen pixels.
+  - Sway: each frame the renderer passes `updateDragSway()` how far the
+    window has been dragged sideways (`windowDrag.dragX()`, null with no
+    drag). Its smoothed speed sets a target the other way (all the way
+    at `DRAG_SWAY.fullSpeed`), and a soft spring (`stiffness`,
+    `damping`) carries the layers there and back to rest once the drag
+    slows or stops; `swayShift()` gives each layer's shift, at most
+    `DRAG_SWAY.max` scene pixels (hills 3, clouds 2, sky 1, ground 0).
+    Only sideways: up and down would lift the hills off the ground.
+  - Trips (`updateTrip()`): `transitionFor()` picks a `'pan'` through
+    a side between `PAN_PLACES` (the Lake, the Fortune Tree, both yards,
+    the Farm), a `'fade'` through a door, or none with the setting
+    off. The place switches at once as before; `transition` (renderer)
+    holds what's shown meanwhile.
+    - The pan (`TRAVEL_PAN`, 1.2 s, `panProgress()` eased in and
+      out): the place left (its scene and its tree decoration and
+      wildlife, kept running) slides away from the side walked out of
+      and the new one comes in from it, each layer by its `share` of
+      the width (`panOffsets()`: ground 100%, hills 50%, clouds 25%,
+      sky 10%, the two always that far apart, so the grounds meet edge
+      to edge). The back layers cross-fade in `fadeSteps` steps
+      (`panFade()`): the old sky stays under the new one fading in (a
+      sky only one place has stays opaque), clouds and hills fade out
+      and in. Each ground is drawn translated and clipped to its window
+      rect, with everything standing on it (`drawOnGround()`: the rice,
+      the tree's leaves, glow and apple, the Lake's frogs and
+      butterflies). The character isn't drawn and the animator waits
+      (they're past the new place's edge), then walks in as before.
+    - The door's fade (`DOOR_FADE`, 0.4 s in 5 steps): a snapshot of the
+      last frame of the place left is drawn over the new one, fading
+      out (`doorFadeLeft()`).
+    - While either lasts it counts as travelling (`travelling()`): no
+      prop or wildlife click areas, no hover outline, Go to disabled,
+      no activity bar, busy for work trips and own plans; during a pan
+      no character target. The canvas's `data-transition` says which
+      is under way (for the smoke test). The dev Go to, map changes, the
+      end of a life and a new life end it at once.
+  - The "Parallax" setting (`parallax` in `settings.json`, default On;
+    dev menu, next to Let them choose; `setParallax()`): Off draws the
+    layers unshifted (exactly the old pictures), with no drift, sway,
+    pan or fade; places switch at once.
 - **Hover outline** (`data/hover.js`, `ui/hoverOutline.js`; visual
   only): while the pointer is over an interactable thing, a white
   (`HOVER_OUTLINE.color`) outline traces its silhouette just outside its
@@ -1459,7 +1570,8 @@ How it works, for anyone extending it:
     paddy to its next stage and give every paddy ("Farm" row), the player's
     "Work trips" setting (On/Off, saved; here until there's a player
     settings menu), the "Let them choose" setting (On/Off, saved) with
-    "Choose now" (they pick something to do at once), End
+    "Choose now" (they pick something to do at once), the "Parallax"
+    setting (On/Off, saved), End
     life now (adults only, otherwise a note; plays the goodbye), set
     health (0, 10, 50, 100; 0 ends an adult's life on the next tick), and
     a read-out of stats, traits, goal, job, the tree, the place and
@@ -1523,7 +1635,8 @@ How it works, for anyone extending it:
     (`data/interaction.js`), it's a drag: `#app` takes pointer capture
     (so fast moves aren't lost), and the window follows the pointer
     through `window:set-position` (main's `setBounds` at the fixed
-    size), at most once per animation frame. On release main saves the
+    size), at most once per animation frame. `dragX()` gives how far
+    it has moved sideways so far (the parallax sway). On release main saves the
     position (`window:drag-end`), with the same on-screen check at load.
   - A press without movement stays a normal click. A drag that starts on
     a prop, the character or a critter moves the window too, and is
@@ -1598,7 +1711,7 @@ How it works, for anyone extending it:
     written the same way and kept across lives (entries from before
     sizes have no `best`).
   - `settings.json` holds the player settings: `{ version, workTrips,
-    ownPlans }` (`data/settings.js` has the defaults; `restoreSettings()` keeps
+    ownPlans, parallax }` (`data/settings.js` has the defaults; `restoreSettings()` keeps
     only known ones of the right type), via `settings:load`/
     `settings:write`, written the same way and kept across lives.
   - The bucket in `activities.current.fishing` keeps each catch as `{

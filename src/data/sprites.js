@@ -76,6 +76,29 @@
 //             water. farm.rice.ripe may have frames (the sway, by time).
 //     farm.weeds  Weeds in a paddy, drawn once near its middle on the
 //             water's bottom row, over the rice.
+//   Parallax layers (data/parallax.js): each outdoor picture above can be
+//   split into four layers, back to front, each the picture's size
+//   (107 x 80, drawn like it from the window's bottom-left corner, see-
+//   through where a nearer layer or nothing is), together looking exactly
+//   like it:
+//     lake.sky, lake.clouds, lake.hills, lake.ground
+//     fortuneTree.sky, fortuneTree.clouds, fortuneTree.hills,
+//       fortuneTree.ground
+//     farm.sky, farm.clouds, farm.hills, farm.ground
+//     <place>.sky     The sky, filling the whole picture.
+//     <place>.clouds  The clouds: they drift sideways all the time and
+//             wrap around at the layer's width, so make its left and
+//             right edges meet.
+//     <place>.hills   The far hills.
+//     <place>.ground  Everything else (water, the dock, paddies, grass);
+//             it and everything on it never sway.
+//             While the window is dragged the sky, clouds and hills shift
+//             a little (gaps at the edge repeat its edge column), and
+//             between places each slides by its depth. The four are used
+//             only when all of them are there; otherwise the single
+//             picture (lake, fortuneTree.background, farm.background) is,
+//             with no parallax. Outdoors without a picture (the Yard),
+//             sky and grass count as the sky and ground layers.
 //   My Yard shows one housing tier (data/housing.js) at a time:
 //     yard.sleepingBag  On the grass near the right edge
 //             (PROPS['yard.sleepingBag']); code-drawn with outline 24 x 6,
@@ -167,6 +190,8 @@ export const SPRITES = {
   // 2 flutter frames (the leaf's own timing, LEAVES.flutter).
   'fortuneTree.background': { frames: 1 },
   'fortuneTree.leaf': { frames: 2 },
+  // The parallax layers (data/parallax.js) are still images like the
+  // pictures they split: lake.sky ... farm.ground need no entry.
   // The Lake's wildlife: idle, blink, croak, hop; wings open, closed.
   'lake.frog': { frames: 4 },
   'lake.butterfly': { frames: 2 },

@@ -12,6 +12,7 @@ import { WORK_TRIP_TEXT } from '../data/animation.js';
 import { REST_DEV_TEXT } from '../data/home.js';
 import { AUTONOMY_TEXT } from '../data/autonomy.js';
 import { FARM_TEXT } from '../data/farm.js';
+import { PARALLAX_TEXT } from '../data/parallax.js';
 
 function button(text, onClick, className = '') {
   const node = document.createElement('button');
@@ -51,7 +52,8 @@ function row(label, ...children) {
 // returns null, or a note such as "Only at the Lake."), workTrips()
 // (whether the "Work trips" setting is on), setWorkTrips(on), ownPlans()
 // and setOwnPlans(on) (the "Let them choose" setting), planNow() (they
-// choose something to do now; returns null or a note), growPaddies()
+// choose something to do now; returns null or a note), parallax() and
+// setParallax(on) (the "Parallax" setting), growPaddies()
 // and givePaddies() (the Farm), readout() (returns { stats, traits,
 // goal, job, tree, place, life, fishing, farm, plan }),
 // speed() (current speed id), onOpen() }.
@@ -190,12 +192,16 @@ export function createDevMenu(menu, gear, actions) {
       if (note) render(); else close();
     }));
 
+    const parallax = row(PARALLAX_TEXT.setting, ...[true, false].map((on) =>
+      button(on ? PARALLAX_TEXT.on : PARALLAX_TEXT.off, () => { actions.setParallax(on); render(); },
+        actions.parallax() === on ? 'active' : '')));
+
     const farm = row('Farm',
       button(FARM_TEXT.devGrow, () => { actions.growPaddies(); note = ''; render(); }),
       button(FARM_TEXT.devGive, () => { actions.givePaddies(); note = ''; render(); }));
 
     const children = [newLife, speeds, skips, extras, tree, home, housing, places, fish, catches, reveals,
-      wild, farm, workTrips, ownPlans, life, health];
+      wild, farm, workTrips, ownPlans, parallax, life, health];
     if (note) {
       const message = document.createElement('p');
       message.className = 'dev-note';

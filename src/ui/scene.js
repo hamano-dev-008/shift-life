@@ -7,9 +7,13 @@
 // well; at the Farm its background picture (or sky, grass and the
 // code-drawn path and paddies, ui/farm.js).
 // Each piece uses its sprite (ui/assets.js) when there is one, or the
-// code-drawn art. Still pieces are drawn once to offscreen canvases
-// copied in every frame; animated sprites and live pieces (the shimmer)
-// are drawn every frame.
+// code-drawn art. Outdoors the scenery is in depth layers (sky, clouds,
+// hills, ground; data/parallax.js): the Lake's, the Fortune Tree's and
+// the Farm's pictures split into layer sprites, the Yard's sky and grass;
+// the back layers can be drawn shifted (the parallax, ui/parallax.js).
+// Still pieces are drawn once to offscreen canvases copied in every
+// frame; animated sprites and live pieces (the shimmer) are drawn every
+// frame.
 
 import {
   SCENE_SCALE, CHARACTER_SCALE, GROUND_HEIGHT, FEET_FROM_BOTTOM, PROP_BASE_FROM_BOTTOM, PROPS, WANDER_MARGIN,
@@ -24,6 +28,8 @@ import { FARM_BACKGROUND, FARM_BACKGROUND_FALLBACK, PADDIES } from '../data/farm
 import { drawFarmGround } from './farm.js';
 import { TREE_BACKGROUND, TREE_BACKGROUND_FALLBACK, WELL_PROP } from '../data/fortuneTreeDecor.js';
 import { getSprite, isAnimated, frameAtTime, drawSprite } from './assets.js';
+import { PARALLAX_LAYERS, LAYERED_BACKGROUNDS, PIECE_LAYERS } from '../data/parallax.js';
+import { BACK_LAYERS, wrapX, edgeGaps } from './parallax.js';
 
 const SKY_TOP = [142, 202, 230];
 const SKY_HORIZON = [253, 226, 200];
@@ -284,9 +290,12 @@ function prop(name, drawCode) {
 // sprite is drawn from the window's bottom-left corner. Without the
 // sprite, `drawCode` draws it, or (with `fallback`, a list of other
 // pieces' names) those pieces are drawn in its place, each as usual.
+// A picture split into parallax layers (LAYERED_BACKGROUNDS in
+// data/parallax.js) is drawn as those layers when they're all there.
 function background(name, drawCode, fallback = null) {
   return {
     name,
+    picture: true,
     drawSprite: (ctx, layout, sprite, frame) => drawSprite(ctx, sprite, frame, 0, layout.height, scaleOf(layout, sprite)),
     drawCode,
     fallback,
@@ -328,24 +337,83 @@ const SCENERY = [
   ...PADDIES.map((paddy) => prop(paddy.id, NO_ART)),
 ];
 
-function createCanvas(layout) {
+function createCanvas(layout, width = layout.width) {
   const canvas = document.createElement('canvas');
-  canvas.width = layout.width;
+  canvas.width = width;
   canvas.height = layout.height;
   return canvas;
 }
 
-// Prepares `place`'s scenery for drawing every frame. Still pieces next
+// One layer of a split background picture (data/parallax.js): the sprite
+// <prefix>.<layer>, drawn like the picture from the bottom-left corner.
+function pictureLayer(prefix, layer) {
+  return { ...background(`${prefix}.${layer}`, NO_ART), layer };
+}
+
+// Which depth layer a piece is drawn in: its own, a code-drawn one that
+// counts as one (the Yard's sky and grass), or the ground.
+function layerOf(piece) {
+  return piece.layer ?? PIECE_LAYERS[piece.name] ?? 'ground';
+}
+
+// A layer behind the ground (sky, clouds, hills), drawn on its own canvas
+// so it can be shifted: as wide as its picture (to wrap at its own width)
+// or the window. An animated sprite is painted again for each frame.
+function backPart(layout, piece, sprite) {
+  const width = sprite && piece.picture ? sprite.frameWidth * scaleOf(layout, sprite) : layout.width;
+  const canvas = createCanvas(layout, width);
+  const ctx = canvas.getContext('2d');
+  let shownFrame = -1;
+  const paint = (frame) => {
+    if (frame === shownFrame) return;
+    shownFrame = frame;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if (sprite) piece.drawSprite(ctx, layout, sprite, frame);
+    else piece.drawCode(ctx, layout);
+  };
+  paint(0);
+  return {
+    canvas,
+    wrap: piece.layer === 'clouds',
+    refresh: (seconds) => { if (sprite && isAnimated(sprite)) paint(frameAtTime(sprite, seconds)); },
+  };
+}
+
+// Draws a back layer's canvas `shift` screen pixels to the right at
+// `alpha`: clouds repeat side by side (wrapping at their width), anything
+// else fills the gap at the window's edge with its edge column.
+function drawShifted(ctx, layout, part, shift, alpha) {
+  const { canvas, wrap } = part;
+  const { width } = canvas;
+  ctx.save();
+  ctx.imageSmoothingEnabled = false;
+  ctx.globalAlpha = alpha;
+  if (wrap) {
+    for (let x = wrapX(shift, width) - width; x < layout.width; x += width) ctx.drawImage(canvas, x, 0);
+  } else {
+    const x = Math.round(shift);
+    ctx.drawImage(canvas, x, 0);
+    for (const gap of edgeGaps(x, width, layout.width)) {
+      const column = gap.edge === 'first' ? 0 : width - 1;
+      ctx.drawImage(canvas, column, 0, 1, canvas.height, gap.from, 0, gap.to - gap.from, canvas.height);
+    }
+  }
+  ctx.restore();
+}
+
+// Prepares `place`'s scenery for drawing every frame, in its depth layers
+// (data/parallax.js): the sky, clouds and hills each on their own canvas
+// (drawn shifted for the parallax), then the ground, which is everything
+// else in the order back to front. A background picture split into layer
+// sprites uses them when all are there. In the ground, still pieces next
 // to each other (code-drawn, or one-frame sprites) are drawn once onto a
 // shared offscreen canvas; an animated sprite or a live piece is drawn
-// every frame between them, so the order back to front stays the same.
-// Call after loadSprites().
+// every frame between them. Call after loadSprites().
 export function createScenery(layout, place) {
+  const back = Object.fromEntries(BACK_LAYERS.map((layer) => [layer, []]));
   const parts = [];
   let still = null;
-  const add = (name) => {
-    const piece = SCENERY.find((candidate) => candidate.name === name);
-    if (!piece) return;
+  const addPiece = (piece) => {
     if (piece.drawLive) {
       parts.push({ live: piece });
       still = null;
@@ -354,6 +422,11 @@ export function createScenery(layout, place) {
     const sprite = getSprite(piece.name);
     if (!sprite && piece.fallback) {
       piece.fallback.forEach(add);
+      return;
+    }
+    const layer = layerOf(piece);
+    if (layer !== 'ground') {
+      back[layer].push(backPart(layout, piece, sprite));
       return;
     }
     if (sprite && isAnimated(sprite)) {
@@ -372,11 +445,32 @@ export function createScenery(layout, place) {
       piece.drawCode(ctx, layout);
     }
   };
+  function add(name) {
+    const piece = SCENERY.find((candidate) => candidate.name === name);
+    if (!piece) return;
+    const prefix = LAYERED_BACKGROUNDS[name];
+    if (prefix && PARALLAX_LAYERS.every((layer) => getSprite(`${prefix}.${layer}`))) {
+      PARALLAX_LAYERS.forEach((layer) => addPiece(pictureLayer(prefix, layer)));
+      return;
+    }
+    addPiece(piece);
+  }
   place.scenery.forEach(add);
-  return {
-    // Draws the scenery as it looks `seconds` in (for animated sprites
-    // and live pieces).
-    draw(ctx, seconds) {
+  const scenery = {
+    // Whether there's anything in back layer `layer`.
+    has: (layer) => Boolean(back[layer]?.length),
+    // Draws back layer `layer` (sky, clouds or hills) `shift` screen
+    // pixels to the right, at `alpha`.
+    drawLayer(ctx, layer, seconds, shift = 0, alpha = 1) {
+      if (alpha <= 0) return;
+      for (const part of back[layer] ?? []) {
+        part.refresh(seconds);
+        drawShifted(ctx, layout, part, shift, alpha);
+      }
+    },
+    // Draws the ground and everything in it as it looks `seconds` in (for
+    // animated sprites and live pieces).
+    drawGround(ctx, seconds) {
       for (const part of parts) {
         if (part.canvas) {
           ctx.drawImage(part.canvas, 0, 0);
@@ -387,5 +481,12 @@ export function createScenery(layout, place) {
         }
       }
     },
+    // Draws the whole scenery, the back layers shifted by `shifts` ({
+    // sky, clouds, hills }: screen pixels; none by default).
+    draw(ctx, seconds, shifts = {}) {
+      for (const layer of BACK_LAYERS) scenery.drawLayer(ctx, layer, seconds, shifts[layer] ?? 0);
+      scenery.drawGround(ctx, seconds);
+    },
   };
+  return scenery;
 }
