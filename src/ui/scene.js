@@ -401,6 +401,40 @@ function drawShifted(ctx, layout, part, shift, alpha) {
   ctx.restore();
 }
 
+// A scratch canvas for tinting one layer at a time.
+let scratch = null;
+
+// Draws what `paint(target)` paints onto `ctx` at `alpha`, with each of
+// `fills` ([{ color, alpha }]: the weather's tint, the wet ground) laid
+// over its own pixels only, so see-through parts stay see-through. With
+// nothing to lay over at full alpha it paints straight onto ctx.
+function tinted(ctx, layout, fills, alpha, paint) {
+  const shown = fills.filter((fill) => fill && fill.alpha > 0);
+  if (!shown.length && alpha >= 1) {
+    paint(ctx);
+    return;
+  }
+  if (!scratch || scratch.width !== layout.width || scratch.height !== layout.height) {
+    scratch = createCanvas(layout);
+  }
+  const target = scratch.getContext('2d');
+  target.clearRect(0, 0, scratch.width, scratch.height);
+  paint(target);
+  target.save();
+  target.globalCompositeOperation = 'source-atop';
+  for (const fill of shown) {
+    target.globalAlpha = Math.min(1, fill.alpha);
+    target.fillStyle = fill.color;
+    target.fillRect(0, 0, scratch.width, scratch.height);
+  }
+  target.restore();
+  ctx.save();
+  ctx.imageSmoothingEnabled = false;
+  ctx.globalAlpha *= alpha;
+  ctx.drawImage(scratch, 0, 0);
+  ctx.restore();
+}
+
 // Prepares `place`'s scenery for drawing every frame, in its depth layers
 // (data/parallax.js): the sky, clouds and hills each on their own canvas
 // (drawn shifted for the parallax), then the ground, which is everything
@@ -460,26 +494,30 @@ export function createScenery(layout, place) {
     // Whether there's anything in back layer `layer`.
     has: (layer) => Boolean(back[layer]?.length),
     // Draws back layer `layer` (sky, clouds or hills) `shift` screen
-    // pixels to the right, at `alpha`.
-    drawLayer(ctx, layer, seconds, shift = 0, alpha = 1) {
-      if (alpha <= 0) return;
-      for (const part of back[layer] ?? []) {
-        part.refresh(seconds);
-        drawShifted(ctx, layout, part, shift, alpha);
-      }
+    // pixels to the right, at `alpha`, tinted by `fills` (see tinted()).
+    drawLayer(ctx, layer, seconds, shift = 0, alpha = 1, fills = []) {
+      if (alpha <= 0 || !back[layer]?.length) return;
+      tinted(ctx, layout, fills, alpha, (target) => {
+        for (const part of back[layer]) {
+          part.refresh(seconds);
+          drawShifted(target, layout, part, shift, 1);
+        }
+      });
     },
     // Draws the ground and everything in it as it looks `seconds` in (for
-    // animated sprites and live pieces).
-    drawGround(ctx, seconds) {
-      for (const part of parts) {
-        if (part.canvas) {
-          ctx.drawImage(part.canvas, 0, 0);
-        } else if (part.live) {
-          part.live.drawLive(ctx, layout, seconds);
-        } else {
-          part.piece.drawSprite(ctx, layout, part.sprite, frameAtTime(part.sprite, seconds));
+    // animated sprites and live pieces), tinted by `fills`.
+    drawGround(ctx, seconds, fills = []) {
+      tinted(ctx, layout, fills, 1, (target) => {
+        for (const part of parts) {
+          if (part.canvas) {
+            target.drawImage(part.canvas, 0, 0);
+          } else if (part.live) {
+            part.live.drawLive(target, layout, seconds);
+          } else {
+            part.piece.drawSprite(target, layout, part.sprite, frameAtTime(part.sprite, seconds));
+          }
         }
-      }
+      });
     },
     // Draws the whole scenery, the back layers shifted by `shifts` ({
     // sky, clouds, hills }: screen pixels; none by default).

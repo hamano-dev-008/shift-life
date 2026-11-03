@@ -15,7 +15,10 @@
 // (when they may leave, "Off to
 // work!", the "At work" place label that calls them back), the activity bar
 // (what's running, with Stop), the Book of past lives, the player settings
-// (work trips, own plans, parallax), the parallax backgrounds (the clouds'
+// (work trips, own plans, parallax, lightning flashes), the weather (its
+// tints, extra clouds, rain with splashes and ripples, fog, the rainbow,
+// lightning, the storm's wind, the top bar's icon; Home's window), the
+// parallax backgrounds (the clouds'
 // drift, the back layers' sway while the window is dragged, the pan
 // between outdoor places and the door's fade), the dev settings menu (dev
 // runs only), dragging the window (in JS) and saving.
@@ -61,7 +64,20 @@ import {
   loadGame, saveGame, saveGameNow, loadBook, saveBook, loadCollection, saveCollection,
   loadSettings, saveSettings,
 } from './game/save.js';
-import { setWorkTrips, setOwnPlans, setParallax } from './game/settings.js';
+import { setWorkTrips, setOwnPlans, setParallax, setLightningFlashes } from './game/settings.js';
+import {
+  createWeatherState, updateWeather, weatherLook, weatherView, weatherText, setWeather, skipWeather,
+} from './game/weather.js';
+import {
+  createRain, updateRain, createLightning, updateLightning, flashLevel, boltCells,
+} from './ui/weather.js';
+import {
+  drawWeatherClouds, drawRainbow, drawBolt, drawFog, drawRain, drawRipples, drawFlash, drawGlassWeather, glassRect,
+  drawWeatherIcon, rowAt,
+} from './ui/weatherArt.js';
+import {
+  INDOOR_PLACES, RAIN, RAIN_WATER, GROUND_WET, BREEZE_RAIN_SLANT,
+} from './data/weather.js';
 import {
   createChoosing, noteClick as noteOwnPlansClick, mayChoose, restartChoosing, choosePlan, startPlan,
   cancelPlan, endPlanNow, currentPlan, updateAutonomy, autonomyText,
@@ -93,7 +109,7 @@ import {
 import { drawDockSilhouette } from './ui/lake.js';
 import { drawGoldenApple } from './ui/goldenApple.js';
 import {
-  createTreeDecor, updateTreeDecor, appleFrame, startGust, flashApple, isFlashing,
+  createTreeDecor, updateTreeDecor, appleFrame, startGust, flashApple, isFlashing, createWind, updateWind, isGusting,
 } from './ui/treeDecor.js';
 import {
   treeDecorArea, drawTreeDecor, drawAppleSparkles, drawAppleGlow,
@@ -178,7 +194,9 @@ const activityBarText = activityBar.querySelector('.bar-text');
 
 // A newborn at the parents' home (startNewLife() fills in everything).
 function newGame() {
-  return startNewLife({ clock: createClock() });
+  const game = startNewLife({ clock: createClock() });
+  game.weather = createWeatherState();
+  return game;
 }
 
 function setText(element, text) {
@@ -614,6 +632,8 @@ async function start() {
     const tickNow = performance.now();
     const realMs = Math.min(tickNow - lastTick, MAX_TICK_MS);
     lastTick = tickNow;
+    // The weather goes on in real time, whatever happens to the life.
+    if (updateWeather(game.weather, realMs)) saveGame(game);
     if (game.endOfLife.ended) return;
     const health = game.character.stats.health;
     if (updateEndOfLife(game)) {
@@ -826,14 +846,36 @@ async function start() {
   tripReady = true;
   // The back layers' sway while the window is dragged (ui/parallax.js).
   const sway = createDragSway();
+  // The weather's moving parts (ui/weather.js), never saved: one wind
+  // shared with the Fortune Tree's decoration (a storm's gusts come often),
+  // the rain falling here (outdoors, or in Home's window), the lightning,
+  // how far the clouds have drifted (seconds of drift: faster in wet
+  // weather), and where the extra clouds are after pans.
+  const wind = createWind();
+  let rain = createRain();
+  let rainKey = '';
+  let rainPlace = '';
+  const lightning = createLightning();
+  let driftSeconds = 0;
+  let weatherCloudBase = 0;
+  const weatherIcon = document.getElementById('weather');
+  let shownWeather = '';
+  // The ground's tint and its darkening while wet.
+  const groundFills = (weather) => [weather.tint.ground, { color: GROUND_WET.color, alpha: GROUND_WET.alpha * weather.wet }];
+  // Scene pixels sideways per pixel down for the rain now: the weather's
+  // slant the wind's way, more in a gust.
+  function rainSlant(weather) {
+    const gust = isGusting(wind) ? weather.wind?.rainSlant ?? BREEZE_RAIN_SLANT : 0;
+    return Math.min(0.8, Math.max(-0.8, wind.direction * (weather.slant + gust)));
+  }
   // How far the sky, clouds and hills are shifted now (screen pixels): the
   // sway, and the clouds' drift. None with the Parallax setting off.
-  function backShifts(seconds) {
+  function backShifts() {
     if (!settings.parallax) return {};
     const { scale } = scene.layout;
     return {
       sky: swayShift(sway, 'sky', scale),
-      clouds: swayShift(sway, 'clouds', scale) + cloudDrift(seconds, scale),
+      clouds: swayShift(sway, 'clouds', scale) + cloudDrift(driftSeconds, scale),
       hills: swayShift(sway, 'hills', scale),
     };
   }
@@ -1084,7 +1126,7 @@ async function start() {
       // A gust at the Fortune Tree now; a note elsewhere.
       gustNow: () => {
         if (!treeDecor) return TREE_DECOR_TEXT.notHere;
-        startGust(treeDecor.wind);
+        startGust(wind, Math.random, weatherLook(game.weather).wind ?? undefined);
         return null;
       },
       finishRest: () => {
@@ -1196,6 +1238,20 @@ async function start() {
       setParallax: (on) => {
         if (setParallax(settings, on)) saveSettings(settings);
       },
+      // The weather: set at once (no fade), or the next one now (fading
+      // in, as it would); the "Lightning flashes" setting (saved).
+      weather: () => game.weather.kind,
+      setWeather: (kind) => {
+        if (setWeather(game.weather, kind, Math.random, { fade: false })) saveGame(game);
+      },
+      nextWeather: () => {
+        skipWeather(game.weather);
+        saveGame(game);
+      },
+      lightningFlashes: () => settings.lightningFlashes,
+      setLightningFlashes: (on) => {
+        if (setLightningFlashes(settings, on)) saveSettings(settings);
+      },
       // They choose something to do now, skipping the wait.
       planNow: () => {
         if (game.endOfLife.ended || travelling() || currentPlan(game) || isPlaying(game) || isResting(game)
@@ -1213,7 +1269,9 @@ async function start() {
       givePaddies: () => {
         if (giveAllPaddies(game)) saveGame(game);
       },
-      readout: () => ({ ...devReadout(game), plan: autonomyText(game, choosing, performance.now()) }),
+      readout: () => ({
+        ...devReadout(game), plan: autonomyText(game, choosing, performance.now()), weather: weatherText(game.weather),
+      }),
       onOpen: () => closePanels('dev'),
     });
   }
@@ -1260,9 +1318,12 @@ async function start() {
       if (drawn) outlined = `prop:${hovered.id}`;
     }
     if (place.id === FORTUNE_TREE_PLACE) {
-      deco.treeDecor ??= createTreeDecor();
+      if (!deco.treeDecor) {
+        deco.treeDecor = createTreeDecor();
+        deco.treeDecor.wind = wind;
+      }
       const area = treeDecorArea(layout);
-      if (area) updateTreeDecor(deco.treeDecor, dt, area);
+      if (area) updateTreeDecor(deco.treeDecor, dt, area, Math.random, { ownWind: false });
       drawTreeDecor(target, layout, deco.treeDecor);
       if (game.fortuneTree.appleReady || isFlashing(deco.treeDecor)) {
         drawAppleGlow(target, layout, seconds, deco.treeDecor.flashLeft);
@@ -1292,11 +1353,11 @@ async function start() {
   // only one of them has fades in or out with it, but a lone sky stays
   // opaque), then each place's ground and what stands on it slides a
   // full width, the two meeting edge to edge. Whole pixels throughout.
-  function drawPan(pan, now, dt, here) {
+  function drawPan(pan, now, dt, here, weather) {
     const seconds = now / 1000;
     const progress = panProgress((now - pan.since) / 1000);
     const { width, height } = canvas;
-    const shifts = backShifts(seconds);
+    const shifts = backShifts();
     const old = pan.from.scene.scenery;
     const next = scene.scenery;
     const fade = panFade(progress);
@@ -1305,8 +1366,16 @@ async function start() {
       const extra = shifts[layer] ?? 0;
       const lone = !(old.has(layer) && next.has(layer));
       const sky = layer === 'sky';
-      old.drawLayer(ctx, layer, seconds, at.from + extra, sky ? 1 : 1 - fade);
-      next.drawLayer(ctx, layer, seconds, at.to + extra, sky && lone ? 1 : fade);
+      const tint = [weather.tint[layer]];
+      old.drawLayer(ctx, layer, seconds, at.from + extra, sky ? 1 : 1 - fade, tint);
+      next.drawLayer(ctx, layer, seconds, at.to + extra, sky && lone ? 1 : fade, tint);
+      // The weather's sky is the same everywhere: the rainbow stays put,
+      // the extra clouds move on with the clouds.
+      if (sky) drawRainbow(ctx, scene.layout, weather.rainbow, extra);
+      if (layer === 'clouds') {
+        drawWeatherClouds(ctx, scene.layout, weather, weatherCloudBase + at.from + extra);
+        drawBolt(ctx, scene.layout, boltCells(lightning), shifts.sky ?? 0);
+      }
     }
     const at = panOffsets(progress, 'ground', width, pan.direction);
     for (const [view, deco, dx] of [[pan.from.scene, pan.from, at.from], [scene, here, at.to]]) {
@@ -1315,9 +1384,32 @@ async function start() {
       ctx.beginPath();
       ctx.rect(0, 0, width, height);
       ctx.clip();
-      view.scenery.drawGround(ctx, seconds);
+      view.scenery.drawGround(ctx, seconds, groundFills(weather));
       drawOnGround(ctx, view, deco, seconds, dt, null);
       ctx.restore();
+    }
+    drawFog(ctx, scene.layout, seconds, weather.fog);
+  }
+
+  // The scenery with the weather, back to front: the sky (tinted), the
+  // rainbow, the clouds and the weather's extra clouds, a far-off bolt,
+  // the hills, the ground (tinted, darker while wet). Indoors there's no
+  // weather but through Home's window.
+  function drawWorld(view, seconds, shifts, weather, slant) {
+    const { layout } = view;
+    const outdoors = !INDOOR_PLACES.includes(view.place.id);
+    const tint = (layer) => (outdoors ? [weather.tint[layer]] : []);
+    view.scenery.drawLayer(ctx, 'sky', seconds, shifts.sky ?? 0, 1, tint('sky'));
+    if (outdoors) drawRainbow(ctx, layout, weather.rainbow, shifts.sky ?? 0);
+    view.scenery.drawLayer(ctx, 'clouds', seconds, shifts.clouds ?? 0, 1, tint('clouds'));
+    if (outdoors) {
+      drawWeatherClouds(ctx, layout, weather, weatherCloudBase + (shifts.clouds ?? 0));
+      drawBolt(ctx, layout, boltCells(lightning), shifts.sky ?? 0);
+    }
+    view.scenery.drawLayer(ctx, 'hills', seconds, shifts.hills ?? 0, 1, tint('hills'));
+    view.scenery.drawGround(ctx, seconds, outdoors ? groundFills(weather) : []);
+    if (!outdoors) {
+      drawGlassWeather(ctx, layout, weather, rain, slant, settings.lightningFlashes ? flashLevel(lightning) : 0);
     }
   }
 
@@ -1337,7 +1429,12 @@ async function start() {
     // The pan or fade to the place reached ends on time.
     if (transition) {
       const elapsed = (now - transition.since) / 1000;
-      if (transition.kind === 'pan' ? panDone(elapsed) : doorFadeDone(elapsed)) transition = null;
+      if (transition.kind === 'pan' ? panDone(elapsed) : doorFadeDone(elapsed)) {
+        if (transition.kind === 'pan') {
+          weatherCloudBase += panOffsets(1, 'clouds', canvas.width, transition.direction).from;
+        }
+        transition = null;
+      }
     }
     // The back layers lag behind a drag of the window, then spring back.
     updateDragSway(sway, dt, settings.parallax ? windowDrag.dragX() : null);
@@ -1383,6 +1480,35 @@ async function start() {
     updateTrip(now);
     const { place, layout } = scene;
     const panning = transition?.kind === 'pan' ? transition : null;
+    // The weather now (game/weather.js), its wind, the clouds' drift, the
+    // lightning and the rain here.
+    const weather = weatherLook(game.weather);
+    updateWind(wind, dt, Math.random, weather.wind ?? undefined);
+    driftSeconds += dt * weather.cloudSpeed;
+    updateLightning(lightning, dt, weather.lightning);
+    const slant = rainSlant(weather);
+    const indoors = INDOOR_PLACES.includes(place.id);
+    const glass = indoors ? glassRect(layout) : null;
+    const key = indoors ? `in:${place.id}` : 'out';
+    if (key !== rainKey) {
+      rain = createRain();
+      rainKey = key;
+    }
+    if (place.id !== rainPlace) {
+      rain.ripples = [];
+      rain.splashes = [];
+      rainPlace = place.id;
+    }
+    const sceneColumns = Math.ceil(layout.width / layout.scale);
+    updateRain(rain, dt, {
+      count: (indoors ? (glass ? RAIN.indoorDrops : 0) : RAIN.maxDrops) * weather.rain,
+      area: glass ? glass.area : { left: 0, right: sceneColumns - 1, top: rowAt(layout, 0), bottom: rowAt(layout, layout.height) - 1 },
+      ground: glass
+        ? { feetRow: glass.area.bottom, water: null, splash: false }
+        : { feetRow: Math.round(rowAt(layout, layout.feetY)) - 1, water: RAIN_WATER[place.id] ?? null },
+      drop: weather.drop,
+      slant,
+    });
     calmInteraction(interaction, now);
     const reaction = reactionPose(poseOf(animator, stage), interaction, now, layout.characterScale);
     // Fishing: how it looks now (cast, waiting, a bite, reeling, the
@@ -1403,10 +1529,14 @@ async function start() {
     let outlined = '';
     const here = { treeDecor, lakeLife };
     if (panning) {
-      drawPan(panning, now, dt, here);
+      drawPan(panning, now, dt, here, weather);
     } else {
-      scene.scenery.draw(ctx, seconds, backShifts(seconds));
+      drawWorld(scene, seconds, backShifts(), weather, slant);
+      // Ripples on the water, behind the rice, the wildlife and the
+      // character; the fog's haze over the ground, behind the character.
+      if (!indoors) drawRipples(ctx, layout, rain);
       outlined = drawOnGround(ctx, scene, here, seconds, dt, hovered);
+      if (!indoors) drawFog(ctx, layout, seconds, weather.fog);
     }
     treeDecor = here.treeDecor;
     lakeLife = here.lakeLife;
@@ -1423,6 +1553,15 @@ async function start() {
         return layout.characterScale;
       }, seconds)) {
         outlined = 'character';
+      }
+    }
+    // Outdoors the rain falls in front of the scene and the character
+    // (behind the bubbles and menus), and lightning softly whitens the
+    // window (unless the setting is off).
+    if (!indoors) {
+      drawRain(ctx, layout, rain, slant, weather);
+      if (settings.lightningFlashes) {
+        drawFlash(ctx, { left: 0, top: 0, width: canvas.width, height: canvas.height }, flashLevel(lightning));
       }
     }
     // Through a door, the place left fades into this one.
@@ -1449,6 +1588,14 @@ async function start() {
     // drawn: no click target).
     characterTarget.update((hitCtx) => ended || panning || drawCharacter(hitCtx, pose, stage, game.character.appearance,
       expression, layout.feetY, layout.characterScale, jobItem(game), true));
+    // The top bar's weather icon, its name on hover.
+    const shown = weatherView(game.weather);
+    if (shown.kind !== shownWeather) {
+      shownWeather = shown.kind;
+      weatherIcon.title = shown.title;
+      weatherIcon.dataset.kind = shown.kind;
+      drawWeatherIcon(weatherIcon.querySelector('canvas'), shown.icon);
+    }
     const { mark } = SPEEDS[game.clock.speed];
     setText(label, `${game.character.name} · ${age}y${mark ? ` ${mark}` : ''}`);
     const atWork = !trip && !ended && isAtWork(animator);

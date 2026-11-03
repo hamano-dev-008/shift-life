@@ -35,10 +35,13 @@ export function createWind(random = Math.random) {
   };
 }
 
-// A gust starts now (or the one blowing starts over), WIND.gustLength
-// seconds long, from a random side. Also the dev menu's "Gust now".
-export function startGust(wind, random = Math.random) {
-  wind.gustLeft = between(WIND.gustLength, random);
+// A gust starts now (or the one blowing starts over), `pace.gustLength`
+// seconds long (WIND, or the weather's pace, data/weather.js WIND_PACES),
+// from a random side, pushing leaves `pace.leafPush`. Also the dev menu's
+// "Gust now".
+export function startGust(wind, random = Math.random, pace = WIND) {
+  wind.gustLeft = between(pace.gustLength ?? WIND.gustLength, random);
+  wind.push = pace.leafPush ?? WIND.leafPush;
   wind.direction = random() < 0.5 ? -1 : 1;
   if (!wind.swinging) {
     wind.swinging = true;
@@ -59,14 +62,19 @@ export function appleFrame(wind) {
 }
 
 // Moves the wind on by `dt` seconds: a gust blows out, then calm for
-// WIND.gustEvery seconds, then the next gust. Once a gust is over the
-// apple swings on until it's back on a center frame.
-export function updateWind(wind, dt, random = Math.random) {
+// `pace.gustEvery` seconds (WIND's, or the weather's: a storm's gusts
+// come often), then the next gust. Once a gust is over the apple swings
+// on until it's back on a center frame.
+export function updateWind(wind, dt, random = Math.random, pace = WIND) {
+  const every = pace.gustEvery ?? WIND.gustEvery;
   if (wind.gustLeft > 0) {
     wind.gustLeft = Math.max(0, wind.gustLeft - dt);
-    if (wind.gustLeft === 0) wind.calmLeft = between(WIND.gustEvery, random);
-  } else if ((wind.calmLeft -= dt) <= 0) {
-    startGust(wind, random);
+    if (wind.gustLeft === 0) wind.calmLeft = between(every, random);
+  } else {
+    // A calmer spell than the pace allows (the weather just turned
+    // stormy) is cut short.
+    if (wind.calmLeft > every[1]) wind.calmLeft = between(every, random);
+    if ((wind.calmLeft -= dt) <= 0) startGust(wind, random, pace);
   }
   if (!wind.swinging) return;
   wind.swingTime += dt;
@@ -78,7 +86,7 @@ export function updateWind(wind, dt, random = Math.random) {
 
 // Scene pixels a second the wind pushes falling leaves sideways now.
 export function windPush(wind) {
-  return isGusting(wind) ? wind.direction * WIND.leafPush : 0;
+  return isGusting(wind) ? wind.direction * (wind.push ?? WIND.leafPush) : 0;
 }
 
 // The apple was just picked (won or missed): its glow flashes, and the
@@ -159,9 +167,10 @@ function newLeaf(area, random) {
 // Moves everything on by `dt` seconds in `area` ({ canopy, rows }): the
 // wind; leaves fall and sway (drifting with a gust), land and fade, and a
 // new one comes now and then (never more than LEAVES.max at once); a
-// picked apple's flash fades.
-export function updateTreeDecor(decor, dt, area, random = Math.random) {
-  updateWind(decor.wind, dt, random);
+// picked apple's flash fades. With `ownWind` false its wind is moved on
+// elsewhere (the renderer shares one wind with the weather's rain).
+export function updateTreeDecor(decor, dt, area, random = Math.random, { ownWind = true } = {}) {
+  if (ownWind) updateWind(decor.wind, dt, random);
   decor.flashLeft = Math.max(0, decor.flashLeft - dt);
   const push = windPush(decor.wind);
   for (const leaf of decor.leaves) {

@@ -12,8 +12,11 @@ export const SETTINGS_VERSION = 1;
 // parallax: whether the backgrounds move (data/parallax.js): the clouds
 // drift, the back layers sway while the window is dragged, side trips pan
 // and doors fade. Off keeps them still and switches places at once.
+// lightningFlashes: whether lightning in a thunderstorm softly whitens
+// the window (data/weather.js LIGHTNING). Off keeps the far-off bolts.
 export const DEFAULT_SETTINGS = {
   workTrips: true,
   ownPlans: true,
   parallax: true,
+  lightningFlashes: true,
 };

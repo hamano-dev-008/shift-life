@@ -188,7 +188,7 @@ test('the Work trips setting: on by default, saved, and off keeps them home', ()
   const settings = restoreSettings(undefined);
   assert.equal(setWorkTrips(settings, true), false);
   assert.equal(setWorkTrips(settings, false), true);
-  assert.deepEqual(settingsSaveData(settings), { version: SETTINGS_VERSION, workTrips: false, ownPlans: true, parallax: true });
+  assert.deepEqual(settingsSaveData(settings), { version: SETTINGS_VERSION, workTrips: false, ownPlans: true, parallax: true, lightningFlashes: true });
   assert.equal(restoreSettings(JSON.parse(JSON.stringify(settingsSaveData(settings)))).workTrips, false);
 
   // Off: the renderer passes employed false; no trip, and anyone out

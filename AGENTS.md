@@ -51,7 +51,13 @@ with **Electron and plain JavaScript**.
 > what's happening, with Stop. Outdoors the backgrounds are parallax
 > layers (sky, clouds, hills, ground): the clouds drift, the far layers
 > sway when the window is dragged, side trips pan between places and
-> the front door fades (the "Parallax" setting). Items marked
+> the front door fades (the "Parallax" setting). The weather changes in
+> real time (sunny, cloudy, fog, drizzle, rain, heavy rain,
+> thunderstorms, a rainbow after rain; visual only so far): tinted
+> layers, extra clouds, rain with splashes and ripples, haze, the
+> rainbow, storm gusts and soft lightning (the "Lightning flashes"
+> setting), only through the window at Home, with a pixel icon under
+> the top bar. Items marked
 > *(planned)* don't exist yet; follow the planned layout when adding them,
 > and update this section whenever files are added, moved, or removed.
 
@@ -88,7 +94,8 @@ Shift-Life/
 │   │                  activity bar, goal, tree, rest, activity (dock),
 │   │                  paddy (farm), Go to and dev menus, life summary
 │   │                  card, Book of past lives, text bubble, top-right
-│   │                  buttons (goal, book, place, gear, -, x)
+│   │                  buttons (goal, book, place, gear, -, x), the
+│   │                  weather icon under them
 │   ├── styles.css     Rounded frame, pixelated canvas, label,
 │   │                  place name (with the label's backing), stats
 │   │                  panel, prop and wildlife click areas, the
@@ -98,8 +105,8 @@ Shift-Life/
 │   │                  tree, rest, activity with the fish collection, Go
 │   │                  to and dev menus, life summary, Book; the tall
 │   │                  ones scroll),
-│   │                  top-right buttons, text bubble (and the farewell
-│   │                  bubble)
+│   │                  top-right buttons, the weather icon, text bubble
+│   │                  (and the farewell bubble)
 │   ├── renderer.js    Renderer entry point (ES module): loads or starts a
 │   │                  life and the Book, builds each place's scene, runs
 │   │                  clock, ageing and the end of life, events, goals,
@@ -120,7 +127,12 @@ Shift-Life/
 │   │                  bubble, the trip, the player taking over), the parallax
 │   │                  (drift, drag sway, the pan between outdoor
 │   │                  places and the door's fade; nothing clickable
-│   │                  meanwhile),
+│   │                  meanwhile), the weather (moved on by the life
+│   │                  tick; tints, extra clouds, the rainbow, bolts,
+│   │                  ripples, fog, rain and the lightning's flash
+│   │                  drawn in their places in the frame, through
+│   │                  Home's window indoors; the shared wind's pace;
+│   │                  the icon),
 │   │                  work trips (when they may leave,
 │   │                  "Off to work!", the "At work" place label
 │   │                  calling them back), the player settings, the
@@ -135,7 +147,13 @@ Shift-Life/
 │   │   │                  a click, busy, the setting (unsaved)
 │   │   ├── settings.js    Player settings: restoring with defaults,
 │   │   │                  the data to save, turning work trips, own
-│   │   │                  plans and the parallax on/off
+│   │   │                  plans, the parallax and lightning flashes
+│   │   │                  on/off
+│   │   ├── weather.js     The weather (saved): the kind, its real time
+│   │   │                  left, what comes next (weighted), the 60 s
+│   │   │                  fade, restoring, the dev set/next, the look
+│   │   │                  blended between the two (weatherLook()), the
+│   │   │                  icon's view and the read-out line
 │   │   ├── autonomy.js    The character's own plans: when they may
 │   │   │                  choose (cooldown, quiet spell after a click;
 │   │   │                  unsaved), what they can choose and its weight
@@ -221,8 +239,9 @@ Shift-Life/
 │   │   │                  tree, place, housing, fishing, the Farm,
 │   │   │                  life)
 │   │   └── save.js        Save format (versioned) and load/save calls,
-│   │                      for the life, the Book of past lives, the
-│   │                      fish collection and the player settings
+│   │                      for the life (with the weather), the Book of
+│   │                      past lives, the fish collection and the
+│   │                      player settings
 │   ├── ui/            Drawing and visual-only behavior
 │   │   ├── interaction.js Pixel-shaped click targets and reaction poses
 │   │   ├── pixel.js       Low-res layer helpers: paint, outline, scaled draw
@@ -234,6 +253,17 @@ Shift-Life/
 │   │   │                  pan or fade, the pan's offsets per layer and
 │   │   │                  its stepped cross-fade, the door's fade, the
 │   │   │                  edge gaps a shifted layer leaves
+│   │   ├── weather.js     The weather's moving parts, visual only (no
+│   │   │                  DOM, so tests run it): raindrops (up to 60,
+│   │   │                  slanted, landing as splashes on the ground
+│   │   │                  line or ripples on water), lightning (one
+│   │   │                  soft pulse at least 6 s apart, the far-off
+│   │   │                  bolt), and the shapes: extra clouds, fog
+│   │   │                  bands, the rainbow's cells, icon pixels
+│   │   ├── weatherArt.js  Draws the weather: extra clouds, the rainbow,
+│   │   │                  bolts, fog, rain and splashes, ripples, the
+│   │   │                  flash, the weather through Home's glass, the
+│   │   │                  icon
 │   │   ├── scene.js       computeLayout() (data → canvas pixels, for a
 │   │   │                  place: its props, feet row, walking limits
 │   │   │                  and open sides), where props are drawn and
@@ -250,7 +280,9 @@ Shift-Life/
 │   │   │                  layer sprites, or the Yard's sky and grass):
 │   │   │                  the sky, clouds and hills each drawn shifted
 │   │   │                  (clouds wrapping, edge columns filling gaps)
-│   │   │                  and faded, then the ground
+│   │   │                  and faded, then the ground; each layer can
+│   │   │                  be tinted (the weather), over its own pixels
+│   │   │                  only
 │   │   ├── props.js       Draws the tree, the wishing well and the
 │   │   │                  houses (parents' and own) in code; the shared
 │   │   │                  prop painter and house colors
@@ -311,7 +343,8 @@ Shift-Life/
 │   │   │                  visual only (no DOM, so tests run it): leaves
 │   │   │                  coming now and then, swaying down (drifting in
 │   │   │                  a gust), landing, fading, the rare sparkling
-│   │   │                  one; calm and gusts, the apple's swing frame;
+│   │   │                  one; calm and gusts (at the weather's pace),
+│   │   │                  the apple's swing frame;
 │   │   │                  the glow's rings, pulse and pick flash
 │   │   ├── treeDecorArt.js Draws the leaves (code or fortuneTree.leaf),
 │   │   │                  the apple's glow and its sparkles; the
@@ -350,9 +383,11 @@ Shift-Life/
 │   │   ├── pastLives.js   The Book of past lives (book button): the list
 │   │   │                  of finished lives and each one's summary
 │   │   ├── devMenu.js     The dev settings menu (gear; dev runs only),
-│   │   │                  with the Work trips, Let them choose and
-│   │   │                  Parallax settings for now, and the
-│   │   │                  Farm row (Grow paddies, Give paddies)
+│   │   │                  with the Work trips, Let them choose,
+│   │   │                  Parallax and Lightning flashes settings for
+│   │   │                  now, the Farm row (Grow paddies, Give
+│   │   │                  paddies) and the Weather row (each kind,
+│   │   │                  Next weather)
 │   │   ├── statsPanel.js  Stats, job and traits panel under the name label
 │   │   ├── hoverOutline.js The white outline around the interactable
 │   │   │                  thing under the pointer: which thing
@@ -375,7 +410,16 @@ Shift-Life/
 │       ├── dev.js         Dev menu amounts (skip-ahead years, money,
 │       │                  set-health values)
 │       ├── settings.js    Player settings' defaults (work trips, own
-│       │                  plans and parallax on)
+│       │                  plans, parallax and lightning flashes on)
+│       ├── weather.js     The weather: the kinds (name, icon, real
+│       │                  minutes, rain, drops, slant, wetness,
+│       │                  clouds, fog, rainbow, tints per layer, wind,
+│       │                  lightning), what comes next (weights), the
+│       │                  fade, indoors and Home's glass, the storm's
+│       │                  wind paces, rain (60 drops), splashes,
+│       │                  ripples and the water they land on, the wet
+│       │                  ground, the extra clouds, fog bands, the
+│       │                  rainbow, lightning, the icons, text
 │       ├── parallax.js    The parallax: the depth layers, which
 │       │                  pictures split into which layer sprites, the
 │       │                  Yard's sky and grass as layers, the clouds'
@@ -543,7 +587,20 @@ Shift-Life/
                        saving; dev grow and give; own plans to plant,
                        weed and harvest, weighted by goal and lazy;
                        walking from one paddy to another before it
-                       counts; sprite names), parallax.test.mjs (the
+                       counts; sprite names), weather.test.mjs (the
+                       kinds and their real minutes, what comes next
+                       (storms only from heavy rain, rainbows after
+                       rain, sunny most of the time), changing in real
+                       time with the 60 s fade, saving and restoring,
+                       the blended look (fog paler with distance,
+                       storms darkest), the icon, rain (60 drops at
+                       most, 1x2 to 1x3, slanted, splashes on the
+                       ground line, ripples on the Lake and paddies,
+                       not the dock), lightning (6 s apart at least, a
+                       soft single pulse, bolts above the hills), the
+                       extra clouds, fog bands, rainbow, the storm's
+                       gusts, the Lightning flashes setting),
+                       parallax.test.mjs (the
                        layer sprites there, listed and stacking into
                        the old pictures pixel for pixel; the clouds'
                        drift (3-4 s a scene pixel, whole pixels,
@@ -594,6 +651,11 @@ Shift-Life/
                        meanwhile; the Parallax setting On by default
                        next to Let them choose, saved, Off switching
                        places at once),
+                       the weather (the icon named on hover and drawn,
+                       the dev Weather row and Next weather saved,
+                       Lightning flashes On by default next to
+                       Parallax and saved, props on top and clickable
+                       in a thunderstorm),
                        the hover outline on the tree, the character,
                        the sofa and the dock: shown while hovering (the
                        canvas's data-hover and white pixels drawn),
@@ -1502,6 +1564,87 @@ How it works, for anyone extending it:
     dev menu, next to Let them choose; `setParallax()`): Off draws the
     layers unshifted (exactly the old pictures), with no drift, sway,
     pan or fade; places switch at once.
+- **Weather** (`data/weather.js`, `game/weather.js`; the moving parts in
+  `ui/weather.js`, no DOM, so tests run it; drawing in
+  `ui/weatherArt.js`; put together in the renderer). Visual only for
+  now: it changes nothing in the life (gameplay effects come later).
+  - Kinds (`WEATHER`): sunny, cloudy, fog, drizzle, rain, heavy rain,
+    thunderstorm (`storm`) and rainbow, each lasting a random number of
+    real `minutes` (sunny 60-180, cloudy 30-90, fog 15-40, the rains
+    20-60, storms 10-25, rainbows 5-10). Then `WEATHER_NEXT` picks the
+    next by weight (never the same again): sunny is the most common
+    over time, storms only come from heavy rain, a rainbow often
+    follows rain and gives way to sun (a test checks all of this).
+  - `game.weather` is `{ kind, leftMs, previous, fadeMs }`, saved (one
+    weather everywhere, kept through a new life). The life tick moves
+    it on by the real ms passed (`updateWeather()`, before anything
+    else, also once the life has ended), so it pauses while the app is
+    closed; a change saves. A change fades from `previous` over
+    `WEATHER_FADE_SECONDS` (60): `weatherLook()` blends every number
+    and tint by how far it has faded in (`weatherMix()`), and the kind
+    more than half there decides the drops' look, the wind and
+    lightning. `restoreWeatherState()` starts a bad save over sunny and
+    cuts too long a time left to the kind's longest.
+  - Tints (`tint`: a color and its strength per parallax layer): drawn
+    over each layer's own pixels (`drawLayer()`/`drawGround()` in
+    `ui/scene.js` with `fills`, through a scratch canvas), so props and
+    the character aren't tinted: cloudy grey-blue, rain darker to the
+    storm's dark slate, fog pale and strongest on the hills (paler with
+    distance). While wet (`wet`) the ground darkens too (`GROUND_WET`).
+  - Extra clouds (`WEATHER_CLOUDS`, code-drawn): on the clouds layer,
+    shifted and panned with it, wrapping; `clouds` is the share shown
+    (one by one), `shade` light grey-blue to dark slate. The clouds
+    layer drifts `cloudSpeed` times as fast (the renderer's
+    `driftSeconds`).
+  - Rain (`RAIN`, `updateRain()`): up to `maxDrops` (60) drops, a share
+    by `rain`; each a 1 x 2-3 column of scene pixels falling at its
+    kind's speed, slanted by `slant` plus the wind (`rainSlant()`: the
+    wind's side, more in a gust), drawn after the character, before
+    the "!" bubbles, the catch reveal, the DOM bubbles and menus. Each drop
+    knows where it lands (`landingFor()`): on water (`RAIN_WATER`: the
+    Lake's open water off the dock, the paddies' water) as a ripple
+    (`RIPPLE`, drawn behind the character), otherwise on the ground
+    line (the feet row, give or take a row) as a splash (`SPLASH`).
+    Once the rain stops the drops still falling land.
+  - Fog (`FOG`): haze bands drifting sideways at different speeds,
+    wrapping, strongest near the horizon (the hills' rows), drawn over
+    the ground and everything on it, under the rain.
+  - Rainbow (`RAINBOW`): a pixel arc of six colors behind the hills
+    (drawn after the sky and clouds), fading in and out in eighths
+    with the weather; it stays put during a pan.
+  - Storms: the renderer has one wind (`createWind()`, the Fortune
+    Tree's, `ui/treeDecor.js`) for every place, paced by the weather
+    (`WIND_PACES`: `gusty` for heavy rain, `storm` with gusts every 3-7
+    s pushing leaves harder; a long calm is cut short when the pace
+    changes); the tree's decoration uses it (`ownWind: false`), so its
+    leaves blow and the apple swings in the storm's gusts, and gusts
+    slant the rain everywhere. Lightning (`LIGHTNING`,
+    `updateLightning()`): only in a thunderstorm, one strike at a time
+    at least `gap[0]` (6) seconds apart, a soft whitening
+    (`flash.color`, never white, its `levels` stepping down once, no
+    strobing) over the window, and half the time a small far-off bolt
+    high in the sky for `boltSeconds`.
+  - The "Lightning flashes" setting (`lightningFlashes` in
+    `settings.json`, default On; dev menu next to Parallax;
+    `setLightningFlashes()`): Off drops the whitening and keeps the
+    bolts.
+  - Indoors (`INDOOR_PLACES`, both Homes): no weather in the room; only
+    through the window's glass (`HOME_GLASS`, `drawGlassWeather()`):
+    the sky's tint, a little fog, up to `indoorDrops` drops falling in
+    the glass and the flash.
+  - During a pan both places are drawn in the weather (tints, clouds,
+    rain over both); the door's fade shows the snapshot with its
+    weather.
+  - The icon (`#weather`, under the top bar's buttons at the right, on
+    the place name's row): the kind's 8 x 8 pixel icon
+    (`WEATHER_ICONS`: sun, cloud, rain, storm, fog, rainbow), drawn
+    when the kind changes, with `title` "Weather: {name}" (and
+    `data-kind`). It takes no clicks of its own (a press on it drags
+    the window, like the background); panels open over it.
+  - Dev menu: the Weather row sets each kind at once (no fade, its full
+    time) and "Next weather" brings the next one in (fading); the
+    read-out says the weather, the minutes left and what it's fading
+    from.
 - **Hover outline** (`data/hover.js`, `ui/hoverOutline.js`; visual
   only): while the pointer is over an interactable thing, a white
   (`HOVER_OUTLINE.color`) outline traces its silhouette just outside its
@@ -1571,13 +1714,16 @@ How it works, for anyone extending it:
     "Work trips" setting (On/Off, saved; here until there's a player
     settings menu), the "Let them choose" setting (On/Off, saved) with
     "Choose now" (they pick something to do at once), the "Parallax"
-    setting (On/Off, saved), End
+    setting (On/Off, saved), set the weather ("Weather" row: each kind
+    at once) or bring the next one ("Next weather"), the "Lightning
+    flashes" setting (On/Off, saved), End
     life now (adults only, otherwise a note; plays the goodbye), set
     health (0, 10, 50, 100; 0 ends an adult's life on the next tick), and
     a read-out of stats, traits, goal, job, the tree, the place and
     housing, fishing (the wait, the bucket, fish caught), the Farm
     (each paddy's stage and weeds, the job, harvests), their own plan
-    (or the wait for the next), and the yearly
+    (or the wait for the next), the weather (minutes left, what it's
+    fading from), and the yearly
     ageing and the next birthday's chance (or how
     the life ended). The dev New life doesn't add the old life to the
     Book. Skipping years does nothing once the life has ended. The menu
@@ -1651,7 +1797,9 @@ How it works, for anyone extending it:
   here but never take clicks), the "!" bubbles, `#reveal-close` (only over the
   card while it shows), `#activity-bar`, then the panels, the name and
   place labels (the place label only takes clicks while the character
-  is at work) and the top bar.
+  is at work), the weather icon (`#weather`, a 12 x 12 tile at the
+  right of the place label's row, under the panels' z-index) and the
+  top bar.
   - **Rule:** any new overlay, bar, button layer or full-window element
     must not cover the prop click areas or the character when it isn't
     meant to: keep it `hidden` or `pointer-events: none` when not in
@@ -1682,23 +1830,24 @@ How it works, for anyone extending it:
     would put the window off every connected screen.
   - `save.json` holds the life: `{ version, clock: { years }, character,
     events, goals, jobs, place, fortuneTree, home, housing, endOfLife,
-    activities, autonomy, farm }`.
+    activities, autonomy, farm, weather }`.
     `character` includes
     `stats` and `traits`; `events`
     holds `nextAt`, the `pending` event, how often each was `seen`,
     `lastId`, and `frozenAt` (while busking or resting); `goals` holds the `active` goal, `since` and `nextDriftAt`,
     `pastYears` per goal, and reached `milestones` ({ goal, id, age });
     `jobs` is described under **Jobs** above; `place`, `fortuneTree`,
-    `home`, `housing`, `endOfLife`, `activities`, `autonomy` and `farm`
-    under **Places**, **Fortune Tree**, **Resting**, **Housing**, **End
-    of life**, **Activities and fishing**, **Own plans** and **Farm**.
+    `home`, `housing`, `endOfLife`, `activities`, `autonomy`, `farm`
+    and `weather` under **Places**, **Fortune Tree**, **Resting**,
+    **Housing**, **End of life**, **Activities and fishing**, **Own
+    plans**, **Farm** and **Weather**.
     The renderer autosaves every 10s and saves synchronously on
     `beforeunload`, so every way of closing is covered. `main.js` writes
     via a temp file and rename.
   - New optional fields can keep the version if `restore*()` fills in a
     default (as `stats`, `traits`, `events`, `goals`, `jobs`, `place`,
     `fortuneTree`, `home`, `housing`, `endOfLife`, `activities`,
-    `autonomy` and `farm` do (ageing starts
+    `autonomy`, `farm` and `weather` do (ageing starts
     from the age at load); older saves'
     `mood` becomes happiness). For breaking changes, bump `SAVE_VERSION` in
     `game/save.js` and handle old versions. Right now an unrecognised save
@@ -1711,7 +1860,7 @@ How it works, for anyone extending it:
     written the same way and kept across lives (entries from before
     sizes have no `best`).
   - `settings.json` holds the player settings: `{ version, workTrips,
-    ownPlans, parallax }` (`data/settings.js` has the defaults; `restoreSettings()` keeps
+    ownPlans, parallax, lightningFlashes }` (`data/settings.js` has the defaults; `restoreSettings()` keeps
     only known ones of the right type), via `settings:load`/
     `settings:write`, written the same way and kept across lives.
   - The bucket in `activities.current.fishing` keeps each catch as `{

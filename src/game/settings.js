@@ -40,3 +40,11 @@ export function setParallax(settings, on) {
   settings.parallax = Boolean(on);
   return true;
 }
+
+// Turns the lightning's window flash on or off. Returns whether it
+// changed.
+export function setLightningFlashes(settings, on) {
+  if (settings.lightningFlashes === Boolean(on)) return false;
+  settings.lightningFlashes = Boolean(on);
+  return true;
+}

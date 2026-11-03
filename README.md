@@ -137,6 +137,29 @@ Early development. What works so far:
   - The "Parallax" setting (On/Off, in the dev menu next to the others
     for now, saved) keeps the backgrounds still and switches places at
     once. The numbers are in `src/data/parallax.js`.
+- Weather: it changes on its own in real time (paused while the game
+  is closed, and saved): sunny most of the time, then cloudy, fog,
+  drizzle, rain or heavy rain, a thunderstorm now and then after heavy
+  rain, and often a rainbow once the rain clears. Each lasts a while
+  (sunny 1-3 hours, a storm 10-25 minutes, a rainbow 5-10) and one
+  fades into the next over about a minute. For now it's just how
+  things look; it doesn't change the life yet.
+  - Cloudy skies turn grey-blue with extra clouds drifting faster;
+    rain falls in pixel drops slanted by the wind, splashing on the
+    ground and rippling the Lake and the rice paddies, and the ground
+    darkens while wet; fog lays drifting haze, thickest toward the
+    horizon, and fades the hills most; a rainbow arcs behind the
+    hills.
+  - Storms are dark, with strong, frequent gusts (the Fortune Tree's
+    leaves blow and the golden apple swings) and lightning: a soft,
+    short brightening at most every 6 seconds, sometimes with a small
+    far-off bolt. The "Lightning flashes" setting (On/Off, in the dev
+    menu next to the others for now, saved) turns the brightening off
+    and keeps the bolts.
+  - Indoors you only see it through the window.
+  - A little pixel icon at the right, under the top buttons, shows the
+    weather; hover it for its name. The numbers and colors are in
+    `src/data/weather.js`.
 - Moving out and your own home: at 18 the character moves out (a golden
   "Moving out!" bubble). The parents' house is gone from the map; next
   to the Fortune Tree is now My Yard, with just a sleeping bag on the
@@ -305,11 +328,12 @@ card for each rarity, add a butterfly (or a blue one) or make a frog
 croak or hop at the Lake, grow every paddy at the Farm to its next
 stage or give all three paddies, turn work trips on or off, turn "Let them
 choose" on or off or have them choose something now, turn the parallax
-backgrounds on or off, end the life now (adults only), set health (0, 10, 50 or 100;
+backgrounds on or off, set the weather or bring the next one, turn
+lightning flashes on or off, end the life now (adults only), set health (0, 10, 50 or 100;
 0 ends an adult's life), and see the character's stats, traits, goal,
 job, tree progress, place, housing, yearly ageing and the chance of the
 life ending on the next birthday, how fishing is going, and each
-paddy at the Farm.
+paddy at the Farm, and the weather.
 It's hidden in packaged builds.
 
 Keyboard shortcuts (window focused): Ctrl+Shift+F toggles fast speed (the
@@ -395,7 +419,7 @@ npm.cmd start        # launch the game
 In Git Bash, plain `npm` works. The first start downloads Electron, so it
 takes a little longer. Run `npm.cmd test` for interaction rules, pose
 checks, end-of-life logic, the Lake, its wildlife and fishing, the
-Farm's rice paddies and the parallax backgrounds (Node
+Farm's rice paddies, the parallax backgrounds and the weather (Node
 22.7+), and
 `npm.cmd run test:smoke` for isolated Electron click/renderer checks
 with real mouse clicks (every place's clickable things are checked to
@@ -403,7 +427,9 @@ be on top, and busking and resting are started by clicking the tree and
 the sofa), including a whole goodbye, a new life, a visit to the Lake (a frog's
 ribbit), a catch
 with its reveal card, the activity bar's Stop, planting and
-harvesting rice at the Farm, and the pan and door fade between places.
+harvesting rice at the Farm, the pan and door fade between places,
+and setting the weather (the icon, a thunderstorm with every prop still
+clickable, the Lightning flashes setting).
 The smoke check uses in-memory saves, leaving your life, Book and
 collection untouched.
 

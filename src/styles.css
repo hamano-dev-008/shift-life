@@ -566,6 +566,28 @@ body {
   background: rgba(255, 255, 255, 0.55);
 }
 
+/* The weather icon: on the place name's row against the right edge (under
+   the top bar, so it never runs into the name label), a small tile with
+   the 8x8 pixel icon (ui/weatherArt.js) in the middle. It takes the
+   pointer only for its name on hover; panels open over it. */
+#weather {
+  position: absolute;
+  top: 24px;
+  right: 6px;
+  width: 12px;
+  height: 12px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.45);
+}
+
+#weather canvas {
+  display: block;
+  width: 8px;
+  height: 8px;
+  margin: 2px;
+  image-rendering: pixelated;
+}
+
 /* The dev settings gear, the place pin and the book: 8x8 pixel SVGs
    centered in their buttons. */
 #go-btn svg,
