@@ -980,7 +980,9 @@ app.whenReady().then(async () => {
     await checkProps('the Farm after a harvest');
     await js('document.querySelector("#dev-btn").click()');
     await wait(100);
-    assert.match(await js('document.querySelector("#dev-menu .dev-readout").textContent'), /Farm: 1:empty 2:young 3:young/);
+    // Weeds come up at random (weedChance, weedsAt), so a young paddy may
+    // read "young+w"; the stages are what's checked here.
+    assert.match(await js('document.querySelector("#dev-menu .dev-readout").textContent'), /Farm: 1:empty 2:young(\+w)? 3:young(\+w)?/);
     await js('document.querySelector("#dev-btn").click()');
     assert.deepEqual(await appRegions(), []);
     assert.deepEqual(errors, []);
