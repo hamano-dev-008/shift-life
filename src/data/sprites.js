@@ -161,6 +161,10 @@
 //     figure for that animation, including job items and activity props.
 //     walk, crawl and jog frames follow the distance walked (one loop per
 //     full walk cycle, like the code-drawn legs); the others play by time.
+//     parts.adult.<idle|walk>.<part>  An adult standing or walking in
+//     layers, recolored to the appearance, with job items drawn on and
+//     one outline around it all; used only when every part is there.
+//     Frames, parts, order and colors are in data/characterParts.js.
 //
 // Entries are keyed by sprite name. Each field is optional:
 //   frames         Frames side by side in one row, left to right

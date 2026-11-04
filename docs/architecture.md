@@ -327,6 +327,12 @@ Shift-Life/
 │   │   │                  closed eyes, a blanket or the sleeping bag,
 │   │   │                  z's); where bubbles go over the head; all
 │   │   │                  character drawing lives here
+│   │   ├── characterParts.js The adult's layered part art (standing,
+│   │   │                  walking): which parts and frame, the recolored
+│   │   │                  strips (cached per look), drawing a frame
+│   │   ├── characterColors.js The part art's recolors from an
+│   │   │                  appearance, visual only (no DOM, so tests run
+│   │   │                  it): mix() and partColorMap()
 │   │   ├── lying.js       The sleeping pose's shape, visual only (no
 │   │   │                  DOM, so tests run it): where the head, pillow,
 │   │   │                  shoulders and blanket go, the blanket's
@@ -522,6 +528,10 @@ Shift-Life/
 │       │                  and head clearance
 │       ├── characterShapes.js  Body proportions per life stage, the
 │       │                  toddler's body, crawl and sit poses
+│       ├── characterParts.js The adult part art: frame size, frames
+│       │                  per animation, part order (and where job
+│       │                  items go), the head and torso per frame, the
+│       │                  recolor rules
 │       ├── infant.js      Crawl/toddle ages, speeds, strides and trip
 │       │                  lengths, plop and fidget timing, first-steps
 │       │                  bubble text
@@ -550,7 +560,8 @@ Shift-Life/
 │                      fortuneTree.background.png, farm.background.png,
 │                      the parallax layers <place>.sky/clouds/hills/
 │                      ground.png for lake, fortuneTree and farm,
-│                      fish.<id>.png so far)
+│                      fish.<id>.png, the adult part art
+│                      parts.adult.<idle|walk>.<part>.png so far)
 │                      and a short README
 └── test/              interaction.test.mjs (rules/poses), endOfLife.test.mjs
                        (ageing, endings, summary, Book, new life),
@@ -644,7 +655,10 @@ Shift-Life/
                        busking, resting and fishing count nothing, pay
                        nothing, get no bites and don't freeze events
                        until arrival; the bar's text; Stop on the way;
-                       arrival isn't saved), smoke.cjs (Electron, real
+                       arrival isn't saved), characterParts.test.mjs
+                       (the part art's recolor math: mix, shades, the
+                       highlight's and mouth's thresholds, kept colors;
+                       a place for every frame), smoke.cjs (Electron, real
                        mouse clicks: pokes, props and menus, every
                        place's prop click areas on top in every
                        situation, a plain click on every prop in every
@@ -767,6 +781,24 @@ code-drawn.
   job items, activity props, blinking and breathing are only drawn in
   the code-drawn version. The shadow is drawn either way, and bubbles
   still sit at the code-drawn figure's height.
+- Adult part art (`parts.adult.<idle|walk>.<part>.png`,
+  `data/characterParts.js`, `ui/characterParts.js`): an adult standing
+  (no activity) or walking is built from layers, each 20 x 26 a frame
+  with no outline, column 10 the center, the bottom row the outline's:
+  `hair.long.back` (long hair only), `body`, `clothes`, `face.<smile|
+  neutral|frown>` (`face.blink` while blinking), `hair.<style>`. idle
+  has 2 frames (`pose.breath`), walk 8 (`floor(cycle * 8)`). Skin, hair,
+  shirt and mouth colors are swapped by exact match for the
+  appearance's (`PART_COLORS`; shades mixed toward a set color,
+  `partColorMap()`), the lab coat replacing the shirt; recolored strips
+  are cached per look. The parts go on the character's layer with the
+  job item's torso and head pieces at the art's own head and torso
+  (`PART_PLACES`), then one outline goes around it all, so the shadow,
+  facing, bubbles, hover outline and click area work as before. A
+  whole-figure `character.adult.<animation>` sprite still comes first;
+  with any part for the look missing (all four faces included) it's
+  code-drawn. Everything else (sitting, lying, activities, other
+  stages) stays code-drawn.
 - **Adding a sprite:** save the PNG as `assets/sprites/<name>.png`
   (e.g. `tree.png`, `character.adult.idle.png`), drawn at 1 pixel per
   scene or character pixel, and restart the app. For an animation, put

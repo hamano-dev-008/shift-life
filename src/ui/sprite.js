@@ -10,7 +10,8 @@
 // outlined, then scaled up by CHARACTER_SCALE (data/layout.js), which is
 // separate from the scene scale (mirrored when facing left). Where a
 // sprite PNG exists for the body and animation (see data/sprites.js), it
-// is drawn instead, the same way.
+// is drawn instead, the same way. An adult standing or walking is built
+// from recolored part art where all its parts exist (ui/characterParts.js).
 
 import { CHARACTER_SHAPES, CRAWL_POSE, SIT_POSE } from '../data/characterShapes.js';
 import {
@@ -26,6 +27,8 @@ import {
 import { lyingLayout, lyingHeadCenter } from './lying.js';
 import { createLayer, clearLayer, fill, outline, drawLayer } from './pixel.js';
 import { getSprite, frameAtTime, frameAtProgress, drawSprite } from './assets.js';
+import { adultParts, drawPartFrame } from './characterParts.js';
+import { PART_FRAME } from '../data/characterParts.js';
 
 // Big enough for the tallest stage plus hair and outline. Column ANCHOR is
 // the character's center; feet end just above the last row, which is left
@@ -211,7 +214,12 @@ export function drawCharacter(ctx, pose, stage, appearance, expression, groundY,
   } else if (isCrawling(pose)) {
     drawCrawling(px, shape, stage, appearance, expression, pose);
   } else {
-    drawStanding(px, shape, stage, appearance, expression, pose, item);
+    const parts = adultParts(stage, pose, wornLook(appearance, item), expression);
+    if (parts) {
+      drawStandingParts(px, parts, shape, appearance, item);
+    } else {
+      drawStanding(px, shape, stage, appearance, expression, pose, item);
+    }
   }
   outline(layer, OUTLINE_COLOR);
 
@@ -226,7 +234,7 @@ export function drawCharacter(ctx, pose, stage, appearance, expression, groundY,
 // (the legs stretch to match); idle breathing dips the head 1px. `item`
 // is the job item, or null; a lab coat replaces the shirt.
 function drawStanding(px, shape, stage, appearance, expression, pose, item) {
-  const look = item === 'labCoat' ? { ...appearance, shirt: LAB_COAT } : appearance;
+  const look = wornLook(appearance, item);
   const walk = pose.walk;
   const toddling = pose.gait === 'toddle' && walk;
   const bob = walk && walk.frame % 2 === 1 ? 1 : 0;
@@ -260,6 +268,28 @@ function drawStanding(px, shape, stage, appearance, expression, pose, item) {
   drawHead(px, shape, stage, look, headLeft, headTop, pose.blinking, expression);
   drawJobItemOnHead(px, shape, item, headLeft, headTop);
   if (!pose.hitOnly) drawActivityExtras(px, shape, frontArm, bodyTop, headLeft, headTop, pose);
+}
+
+// The appearance as worn with job item `item`: a lab coat replaces the shirt.
+function wornLook(appearance, item) {
+  return item === 'labCoat' ? { ...appearance, shirt: LAB_COAT } : appearance;
+}
+
+// An adult standing or walking from the part art (ui/characterParts.js),
+// with the job item's pieces on the art's own torso and head.
+function drawStandingParts(px, { frame, place, strips }, shape, appearance, item) {
+  const left = ANCHOR - PART_FRAME.center;
+  const top = LAYER_HEIGHT - PART_FRAME.height;
+  const [bodyCol, bodyRow, bodyRows] = place.body;
+  const [headCol, headRow] = place.head;
+  for (const { canvas, then } of strips) {
+    drawPartFrame(layer, canvas, frame, left, top);
+    if (then === 'bodyItem') {
+      drawJobItemOnBody(px, { ...shape, body: bodyRows }, appearance, item, bodyCol - PART_FRAME.center, top + bodyRow);
+    } else if (then === 'headItem') {
+      drawJobItemOnHead(px, shape, item, headCol - PART_FRAME.center, top + headRow);
+    }
+  }
 }
 
 // Job items worn on the torso, drawn over the shirt: a tie, an apron, the
