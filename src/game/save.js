@@ -18,7 +18,7 @@ import { restoreAutonomyState } from './autonomy.js';
 import { restoreFarmState } from './farm.js';
 import { restoreCollection, collectionSaveData } from './fishing.js';
 import { restoreSettings, settingsSaveData } from './settings.js';
-import { restoreWeatherState } from './weather.js';
+import { restoreWeatherState, restoreWeatherSeenState } from './weather.js';
 
 const SAVE_VERSION = 1;
 
@@ -39,12 +39,13 @@ function toSaveData(game) {
     autonomy: game.autonomy,
     farm: game.farm,
     weather: game.weather,
+    weatherSeen: game.weatherSeen,
   };
 }
 
 // Returns the saved { clock, character, events, goals, jobs, place,
 // fortuneTree, home, housing, endOfLife, activities, autonomy, farm,
-// weather }, or null if there's no usable save. Saves from before events,
+// weather, weatherSeen }, or null if there's no usable save. Saves from before events,
 // goals, jobs, places, the Fortune Tree, Home, housing, the end of life,
 // activities, the character's own plans, the Farm or the weather existed
 // get
@@ -72,6 +73,7 @@ export async function loadGame() {
     autonomy: restoreAutonomyState(data.autonomy),
     farm: restoreFarmState(data.farm),
     weather: restoreWeatherState(data.weather),
+    weatherSeen: restoreWeatherSeenState(data.weatherSeen),
   };
   game.clock.stopped = Boolean(game.endOfLife.ended);
   settlePlace(game);

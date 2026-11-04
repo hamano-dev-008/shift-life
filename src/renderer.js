@@ -68,6 +68,8 @@ import { setWorkTrips, setOwnPlans, setParallax, setLightningFlashes } from './g
 import {
   createWeatherState, updateWeather, weatherLook, weatherView, weatherText, setWeather, skipWeather,
 } from './game/weather.js';
+import { updateWeatherEffects } from './game/weatherEffects.js';
+import { animalsInBarn } from './game/weather.js';
 import {
   createRain, updateRain, createLightning, updateLightning, flashLevel, boltCells,
 } from './ui/weather.js';
@@ -139,6 +141,8 @@ import {
   growAllNextStage, giveAllPaddies,
 } from './game/farm.js';
 import { drawFarmCrops } from './ui/farm.js';
+import { createFarmAnimals, updateFarmAnimals } from './ui/farmAnimals.js';
+import { drawFarmAnimals } from './ui/farmAnimalsArt.js';
 import { createFarmMenu } from './ui/farmMenu.js';
 import {
   createAnimator, updateAnimator, poseOf, startActivityNow, goToWorkNow, gaitOf,
@@ -493,6 +497,9 @@ async function start() {
   // says "ribbit!" and hops, a butterfly flutters off, and either gives a
   // little happiness on a real-time cooldown (game/lakeLife.js).
   let lakeLife = null;
+  // The Farm's chickens, made each time the Farm is shown (purely visual,
+  // never saved); in a thunderstorm they go into the barn.
+  let farmAnimals = null;
   // The white outline around the interactable thing under the pointer
   // (ui/hoverOutline.js), and where the pointer is (null once it leaves
   // the window).
@@ -640,6 +647,10 @@ async function start() {
       lifeEnded();
       return;
     }
+    // What the weather does: a thunderstorm stops fishing and busking,
+    // and the life's first rainbow cheers them up (game/weatherEffects.js).
+    const weatherNews = updateWeatherEffects(game);
+    weatherNews.forEach(showNews);
     // Busking, resting and activities only freeze events once the
     // character is at the spot (game/stay.js).
     const freeze = stayFreezesEvents(game);
@@ -669,7 +680,7 @@ async function start() {
     checkFirstSteps();
     const aged = game.character.stats.health !== health;
     if (result || reached.length || jobNews.length || treeNews.length || rested || moved || aged
-      || activityNews.length || farmNews.length || own.changed) {
+      || activityNews.length || farmNews.length || own.changed || weatherNews.length) {
       saveGame(game);
     }
   }, LIFE_TICK_MS);
@@ -835,7 +846,8 @@ async function start() {
   let trip = null;
   // The view moving from one place to the next (ui/parallax.js), while it
   // lasts: { kind: 'pan', since (performance.now() ms), from: { scene,
-  // treeDecor, lakeLife } (the place left, still drawn as it slides out),
+  // treeDecor, lakeLife, farmAnimals } (the place left, still drawn as it
+  // slides out),
   // direction (1: out the right side) }, or { kind: 'fade', since,
   // snapshot (the last view of the place left) } through a door. Nothing
   // can be clicked until it's over, and during a pan the character waits
@@ -934,7 +946,7 @@ async function start() {
   function updateTrip(now) {
     if (!trip || !hasExited(animator)) return;
     const from = game.place;
-    const left = { scene, treeDecor, lakeLife };
+    const left = { scene, treeDecor, lakeLife, farmAnimals };
     const next = trip.route.shift();
     const way = exitBetween(game, from, next);
     const kind = transitionFor(from, next, way.via, settings.parallax);
@@ -946,6 +958,7 @@ async function start() {
       transition = { kind, since: now, from: left, direction: way.via === 'right' ? 1 : -1 };
       treeDecor = null;
       lakeLife = null;
+      farmAnimals = null;
       lastFishPhase = null;
     }
     const back = exitBetween(game, next, from);
@@ -1302,7 +1315,7 @@ async function start() {
   // front), the Fortune Tree's wind, falling leaves, a ready apple's glow,
   // the apple and its sparkles, the Lake's frogs and butterflies and a
   // critter's outline; all purely visual. `deco` holds the place's {
-  // treeDecor, lakeLife }, made here the first time and dropped
+  // treeDecor, lakeLife, farmAnimals }, made here the first time and dropped
   // elsewhere. Returns which outline was drawn.
   function drawOnGround(target, view, deco, seconds, dt, hovered) {
     const { place, layout } = view;
@@ -1316,6 +1329,15 @@ async function start() {
         return drawPropAlone(maskCtx, layout, hovered.id, seconds);
       }, seconds, paddy ? null : `${sceneKey(place)}:${hovered.id}:${propArtFrame(hovered.id, seconds)}`);
       if (drawn) outlined = `prop:${hovered.id}`;
+    }
+    // The chickens in front of the barn (inside it in a storm).
+    if (place.id === FARM_PLACE) {
+      const sheltered = animalsInBarn(game);
+      deco.farmAnimals ??= createFarmAnimals(sheltered);
+      updateFarmAnimals(deco.farmAnimals, dt, sheltered);
+      drawFarmAnimals(target, layout, deco.farmAnimals);
+    } else {
+      deco.farmAnimals = null;
     }
     if (place.id === FORTUNE_TREE_PLACE) {
       if (!deco.treeDecor) {
@@ -1527,7 +1549,7 @@ async function start() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     const hovered = hoveredThing(ended);
     let outlined = '';
-    const here = { treeDecor, lakeLife };
+    const here = { treeDecor, lakeLife, farmAnimals };
     if (panning) {
       drawPan(panning, now, dt, here, weather);
     } else {
@@ -1540,6 +1562,7 @@ async function start() {
     }
     treeDecor = here.treeDecor;
     lakeLife = here.lakeLife;
+    farmAnimals = here.farmAnimals;
     // The character waits past the edge while the view pans.
     if (!panning) {
       drawCharacter(ctx, pose, stage, game.character.appearance,

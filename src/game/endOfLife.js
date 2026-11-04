@@ -23,6 +23,7 @@ import { createActivityState } from './activities.js';
 import { createAutonomyState } from './autonomy.js';
 import { createFarmState } from './farm.js';
 import { collectionCount } from './fishing.js';
+import { createWeatherSeenState } from './weather.js';
 
 const BOOK_VERSION = 1;
 
@@ -319,6 +320,7 @@ export function startNewLife(game, options = {}) {
   game.activities = createActivityState();
   game.autonomy = createAutonomyState();
   game.farm = createFarmState();
+  game.weatherSeen = createWeatherSeenState();
   return game;
 }
 

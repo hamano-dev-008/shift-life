@@ -26,6 +26,8 @@ import {
 import { existingPlaces, placeView, routeBetween } from './places.js';
 import { hasArrived } from './stay.js';
 import { FARM_PLACE } from '../data/farm.js';
+import { WEATHER_EFFECTS, WEATHER_EFFECTS_TEXT } from '../data/weather.js';
+import { weatherIn } from './weather.js';
 import {
   canFarm, paddiesFor, currentFarmJob, startFarmJob, stopFarmJob,
 } from './farm.js';
@@ -95,21 +97,35 @@ function restPlace(game) {
   return best?.id ?? null;
 }
 
+// In a thunderstorm (WEATHER_EFFECTS.shelter): whether they'd go home out
+// of it (a home in its tiers to go to), and what they won't choose.
+export function seeksShelter(game) {
+  const { kinds, tiers } = WEATHER_EFFECTS.shelter;
+  return weatherIn(game, kinds) && game.housing.movedOut && tiers.includes(game.housing.tier);
+}
+
+function stormAvoids(game, kind) {
+  const { kinds, avoid } = WEATHER_EFFECTS.shelter;
+  return weatherIn(game, kinds) && avoid.includes(kind);
+}
+
 function reachable(game, place) {
   return place === game.place || Boolean(routeBetween(game, game.place, place));
 }
 
 // Where each choice they can make now would take them: { kind, place },
 // for those that fit (old enough, the rod for fishing, low health for
-// resting, a place to go to).
+// resting, a place to go to). In a thunderstorm never fishing or busking,
+// and with a home to go to, resting whatever their health (seeksShelter()).
 export function possibleChoices(game) {
   const age = ageOf(game.character, game.clock.years);
   const { health } = game.character.stats;
   const lazy = game.character.traits.includes('lazy');
+  const shelter = seeksShelter(game);
   const out = [];
   for (const kind of KINDS) {
     const choice = AUTONOMY_CHOICES[kind];
-    if (age < choice.minAge) continue;
+    if (age < choice.minAge || stormAvoids(game, kind)) continue;
     let place = null;
     if (kind === 'fish') {
       const def = activityById(choice.activity);
@@ -119,7 +135,7 @@ export function possibleChoices(game) {
       if (!treeUnlocked(game)) continue;
       place = FORTUNE_TREE_PLACE;
     } else if (kind === 'rest') {
-      if (health >= (lazy ? choice.lazyHealthBelow : choice.healthBelow)) continue;
+      if (!shelter && health >= (lazy ? choice.lazyHealthBelow : choice.healthBelow)) continue;
       place = restPlace(game);
     } else if (choice.farm) {
       if (!canFarm(game) || !paddiesFor(game, kind).length) continue;
@@ -134,11 +150,13 @@ export function possibleChoices(game) {
 }
 
 // A choice's weight without the whim: its base weight times the active
-// goal's and each trait's multiplier.
+// goal's and each trait's multiplier (and going home to rest out of a
+// storm WEATHER_EFFECTS.shelter.restWeight times as likely).
 export function choiceWeight(game, kind) {
   let weight = AUTONOMY_CHOICES[kind].weight;
   weight *= AUTONOMY_GOALS[game.goals.active]?.weights?.[kind] ?? 1;
   for (const trait of game.character.traits) weight *= AUTONOMY_TRAITS[trait]?.[kind] ?? 1;
+  if (kind === 'rest' && seeksShelter(game)) weight *= WEATHER_EFFECTS.shelter.restWeight;
   return weight;
 }
 
@@ -161,7 +179,8 @@ export function choosePlan(game, random = Math.random) {
   const place = Array.isArray(picked.place)
     ? picked.place[Math.floor(random() * picked.place.length)].id
     : picked.place;
-  return { kind: picked.kind, place, text: AUTONOMY_TEXT.going[picked.kind] };
+  const text = picked.kind === 'rest' && seeksShelter(game) ? WEATHER_EFFECTS_TEXT.shelter : AUTONOMY_TEXT.going[picked.kind];
+  return { kind: picked.kind, place, text };
 }
 
 // Takes on `plan` (from choosePlan()): how long they'll keep at it is

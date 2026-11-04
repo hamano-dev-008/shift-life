@@ -5,6 +5,7 @@
 // in game/fortuneTree.js. Text comes from TREE_TEXT in data/fortuneTree.js.
 
 import { TREE_TEXT } from '../data/fortuneTree.js';
+import { WEATHER_EFFECTS_TEXT } from '../data/weather.js';
 
 function element(tag, className, text = '') {
   const node = document.createElement(tag);
@@ -43,6 +44,8 @@ function renderOptions(menu, view, actions) {
     ? element('button', 'active', TREE_TEXT.stop)
     : element('button', '', TREE_TEXT.play);
   toggle.addEventListener('click', view.playing ? actions.stop : actions.play);
+  // No busking in a thunderstorm (the status says why).
+  toggle.disabled = !view.playing && view.stormy;
   const buttons = [toggle];
   if (view.appleReady) {
     const pick = element('button', 'golden', TREE_TEXT.pick);
@@ -55,10 +58,14 @@ function renderOptions(menu, view, actions) {
 // The status lines, as text.
 function statusLines(view) {
   if (!view.unlocked) return [fill(TREE_TEXT.tooYoung, { age: view.minAge })];
+  let first = fill(TREE_TEXT.idleStatus, { pay: view.sessionPay, minutes: view.sessionMinutes });
+  if (view.playing) {
+    first = fill(TREE_TEXT.playingStatus, { time: clockTime(view.sessionMs), total: clockTime(view.sessionTotalMs) });
+  } else if (view.stormy) {
+    first = WEATHER_EFFECTS_TEXT.stormStops.busking;
+  }
   return [
-    view.playing
-      ? fill(TREE_TEXT.playingStatus, { time: clockTime(view.sessionMs), total: clockTime(view.sessionTotalMs) })
-      : fill(TREE_TEXT.idleStatus, { pay: view.sessionPay, minutes: view.sessionMinutes }),
+    first,
     fill(TREE_TEXT.sessions, { count: view.sessions }),
     view.appleReady ? TREE_TEXT.appleReady : fill(TREE_TEXT.appleGrowing, { time: longTime(view.appleInMs) }),
     fill(TREE_TEXT.chance, { percent: Math.round(view.chance * 100) }),
@@ -98,7 +105,7 @@ export function createTreeMenu(menu, actions) {
       if (menu.hidden) return;
       const titleNode = menu.querySelector('.menu-title');
       if (titleNode.textContent !== title) titleNode.textContent = title;
-      const optionsKey = `${view.unlocked}|${view.playing}|${view.appleReady}`;
+      const optionsKey = `${view.unlocked}|${view.playing}|${view.appleReady}|${view.stormy}`;
       if (optionsKey !== shownOptions) {
         shownOptions = optionsKey;
         renderOptions(menu, view, wrapped);

@@ -11,6 +11,7 @@ import {
   GOAL_DECISION_WEIGHT, GOAL_EVENT_WEIGHT,
 } from '../data/balance.js';
 import { ageOf, lifeStageOf, changeStats } from './character.js';
+import { weatherKindOf } from './weather.js';
 import {
   JOB_OFFER_ID, jobById, isEmployed, jobTitle, wantsJobOffer, makeJobOffer, jobOfferEvent,
   applyJobChange,
@@ -81,11 +82,14 @@ export function restoreEventState(data, years) {
   return state;
 }
 
-function fits(event, age, stage, employed) {
+// Whether `event` can happen now: the life stage, ages, a job, and (for
+// weather events) the weather coming in now (game.weather.kind).
+function fits(event, age, stage, employed, weather) {
   return event.stages.includes(stage)
     && age >= (event.minAge ?? 0)
     && age <= (event.maxAge ?? Infinity)
-    && (event.employed === undefined || event.employed === employed);
+    && (event.employed === undefined || event.employed === employed)
+    && (event.weather === undefined || event.weather.includes(weather));
 }
 
 // True if one of the event's choices serves goal `goalId`.
@@ -102,7 +106,8 @@ function pickEvent(game) {
   const stage = lifeStageOf(age);
   const { seen, lastId } = game.events;
   const employed = isEmployed(game);
-  const fitting = EVENTS.filter((event) => fits(event, age, stage, employed));
+  const weather = weatherKindOf(game);
+  const fitting = EVENTS.filter((event) => fits(event, age, stage, employed, weather));
   const fresh = fitting.filter((event) => event.id !== lastId);
   const pool = fresh.length ? fresh : fitting;
   if (!pool.length) return null;

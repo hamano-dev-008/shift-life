@@ -12,6 +12,7 @@ import {
 } from '../data/fortuneTree.js';
 import { ageOf, changeStats } from './character.js';
 import { hasArrived } from './stay.js';
+import { buskingPay, isStormy } from './weather.js';
 
 const SESSION_MS = SESSION_MINUTES * 60 * 1000;
 const APPLE_MS = APPLE_EVERY_HOURS * 60 * 60 * 1000;
@@ -58,10 +59,10 @@ export function isPlaying(game) {
   return game.fortuneTree.playing;
 }
 
-// Starts busking. Returns whether it started.
+// Starts busking (not in a thunderstorm). Returns whether it started.
 export function startPlaying(game) {
   const tree = game.fortuneTree;
-  if (tree.playing || !treeUnlocked(game)) return false;
+  if (tree.playing || !treeUnlocked(game) || isStormy(game)) return false;
   tree.playing = true;
   tree.sessionMs = 0;
   return true;
@@ -82,7 +83,7 @@ function completeSession(game) {
   const tree = game.fortuneTree;
   tree.sessions += 1;
   tree.sessionsPlayed += 1;
-  const deltas = changeStats(game.character, { money: SESSION_PAY });
+  const deltas = changeStats(game.character, { money: buskingPay(game, SESSION_PAY) });
   const { heading, text } = TREE_TEXT.sessionPaid;
   return { heading, text: fill(text, { name: game.character.name }), deltas, celebrate: false };
 }
@@ -155,9 +156,10 @@ export function treeView(game) {
     unlocked: treeUnlocked(game),
     minAge: TREE_MIN_AGE,
     playing: tree.playing,
+    stormy: isStormy(game),
     sessionMs: tree.sessionMs,
     sessionTotalMs: SESSION_MS,
-    sessionPay: SESSION_PAY,
+    sessionPay: buskingPay(game, SESSION_PAY),
     sessionMinutes: SESSION_MINUTES,
     sessions: tree.sessions,
     appleReady: tree.appleReady,

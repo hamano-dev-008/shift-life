@@ -13,6 +13,7 @@ import {
 } from '../data/farm.js';
 import { ageOf, changeStats } from './character.js';
 import { hasArrived } from './stay.js';
+import { riceGrowthSpeed } from './weather.js';
 
 const HOUR_MS = 3600000;
 export const GROW_MS = RICE.growHours * HOUR_MS;
@@ -171,9 +172,12 @@ function grow(crop, ms) {
 // Grows every paddy's rice, wherever the character is, and works on the
 // job once they've arrived at its paddy: when its time is up it's done.
 // A job that can't be done any more is dropped. Returns bubbles to show.
+// Wet weather makes the rice grow faster (riceGrowthSpeed()); jobs take
+// as long as ever.
 export function updateFarm(game, realMs, random = Math.random) {
+  const growMs = realMs * riceGrowthSpeed(game);
   for (const state of Object.values(game.farm.paddies)) {
-    if (state.crop) grow(state.crop, realMs);
+    if (state.crop) grow(state.crop, growMs);
   }
   const { job } = game.farm;
   if (!job) return [];

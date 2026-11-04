@@ -121,7 +121,7 @@ export function createActivityMenu(menu, actions) {
         return;
       }
       const optionsKey = [view.title, view.unlocked, view.buy?.label, view.buy?.affordable,
-        view.toggle?.label, Boolean(collection)].join('|');
+        view.toggle?.label, view.toggle?.enabled, Boolean(collection)].join('|');
       if (optionsKey !== shownOptions) {
         shownOptions = optionsKey;
         title.textContent = view.title;
@@ -134,6 +134,8 @@ export function createActivityMenu(menu, actions) {
         }
         if (view.toggle) {
           const toggle = element('button', view.toggle.running ? 'active' : '', view.toggle.label);
+          // (Not in a storm: the status says why.)
+          toggle.disabled = view.toggle.enabled === false;
           // Starting or stopping closes the menu, so the character (or the
           // sale's bubble) can be seen.
           toggle.addEventListener('click', () => {

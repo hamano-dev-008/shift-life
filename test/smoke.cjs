@@ -888,6 +888,26 @@ app.whenReady().then(async () => {
       return c.getContext("2d").getImageData(0, 0, 8, 8).data.some((v, i) => i % 4 === 3 && v > 0); })()`), 'no weather icon drawn');
     await checkProps('in a thunderstorm');
     await clickEveryProp('in a thunderstorm');
+    // No busking in a storm: the tree menu's Play is disabled and says why;
+    // nor fishing: the dock's Start is disabled.
+    await dev('Fortune Tree');
+    await pressProp('Fortune Tree');
+    await wait(60);
+    assert.equal(await js(`${inPanel('#tree-menu', 'Play an instrument')}.disabled`), true, 'busking offered in a storm');
+    assert.match(await js('document.querySelector("#tree-menu .menu-status").textContent'), /Not under a tree in a storm!/);
+    await press('document.querySelector("#tree-menu .panel-close")');
+    await dev('Lake');
+    await pressProp('Dock');
+    await wait(60);
+    const dockStart = await js(`[...document.querySelectorAll("#activity-menu button")].find((b) => b.textContent === "Start fishing")?.disabled`);
+    if (dockStart !== undefined) {
+      assert.equal(dockStart, true, 'fishing offered in a storm');
+      assert.match(await js('document.querySelector("#activity-menu").textContent'), /Too stormy to fish!/);
+    }
+    await press('document.querySelector("#activity-menu .panel-close")');
+    // The Farm in a storm: its paddies still on top (the chickens are in).
+    await dev('Farm');
+    await checkProps('the Farm in a thunderstorm');
     await dev('Next weather');
     assert.ok(['heavyRain', 'rain', 'rainbow'].includes(saved.weather.kind), `after a storm: ${saved.weather.kind}`);
     assert.equal(saved.weather.previous, 'storm');
@@ -964,7 +984,7 @@ app.whenReady().then(async () => {
     await js('document.querySelector("#dev-btn").click()');
     assert.deepEqual(await appRegions(), []);
     assert.deepEqual(errors, []);
-    console.log(`PASS: the Fortune Tree's wishing well (its bubble, click area apart from the tree's, drags from it and the background), activities start only on arrival (walking to the tree from the far side, then "Busking - 0:00"; the sofa; the dock), no -webkit-app-region anywhere, JS window drags (background, character, tree: the window follows, no poke, no menu), plain clicks on every prop in every place, native gentle/rapid clicks, spam, calming, moving hit regions, drag rejection, 25 poses, offscreen, prop/event priority, real clicks on props and menus, prop click areas on top in every place (at rest, after travel, menus closed, an event waiting, the activity bar, a catch reveal), rest/travel/busking preserved, transparent sprite, end of life, summary, Book, new life, the Lake (frogs, butterflies), fishing (rod, bite, catch, reveal, collection, activity bar, selling), work trips (the setting saved, "Off to work!", the "At work" label calling them back), the Fortune Tree's wind (Gust now there only; props still on top with the apple glowing in a gust), the hover outline (tree, character, sofa, dock: shown while hovering, gone on leaving, none with a menu open, clicks unchanged, no native tooltips), the dev Rest now (lying down asleep where they are, outlined on hover, up again), their own plans (Let them choose On by default next to Work trips, saved; Choose now says what and shows in the read-out; Off ends it), parallax (the front door fades and a side trip pans for about 1.2 s with nothing clickable meanwhile; the Parallax setting On by default next to Let them choose, saved, Off switching places at once), the weather (the icon named on hover and drawn, the dev Weather row and Next weather saved, Lightning flashes On by default next to Parallax and saved, props on top and clickable in a thunderstorm), the Farm (paddies on top and opening their menu, feet on the path, buying offered, Give paddies, the hover outline, planting on arrival, Grow paddies, the harvest's bubble and pay); no renderer errors.`);
+    console.log(`PASS: the Fortune Tree's wishing well (its bubble, click area apart from the tree's, drags from it and the background), activities start only on arrival (walking to the tree from the far side, then "Busking - 0:00"; the sofa; the dock), no -webkit-app-region anywhere, JS window drags (background, character, tree: the window follows, no poke, no menu), plain clicks on every prop in every place, native gentle/rapid clicks, spam, calming, moving hit regions, drag rejection, 25 poses, offscreen, prop/event priority, real clicks on props and menus, prop click areas on top in every place (at rest, after travel, menus closed, an event waiting, the activity bar, a catch reveal), rest/travel/busking preserved, transparent sprite, end of life, summary, Book, new life, the Lake (frogs, butterflies), fishing (rod, bite, catch, reveal, collection, activity bar, selling), work trips (the setting saved, "Off to work!", the "At work" label calling them back), the Fortune Tree's wind (Gust now there only; props still on top with the apple glowing in a gust), the hover outline (tree, character, sofa, dock: shown while hovering, gone on leaving, none with a menu open, clicks unchanged, no native tooltips), the dev Rest now (lying down asleep where they are, outlined on hover, up again), their own plans (Let them choose On by default next to Work trips, saved; Choose now says what and shows in the read-out; Off ends it), parallax (the front door fades and a side trip pans for about 1.2 s with nothing clickable meanwhile; the Parallax setting On by default next to Let them choose, saved, Off switching places at once), the weather (the icon named on hover and drawn, the dev Weather row and Next weather saved, Lightning flashes On by default next to Parallax and saved, props on top and clickable in a thunderstorm, no busking or fishing offered in it), the Farm (paddies on top and opening their menu, feet on the path, buying offered, Give paddies, the hover outline, planting on arrival, Grow paddies, the harvest's bubble and pay); no renderer errors.`);
   } catch (error) {
     console.error(error);
     process.exitCode = 1;

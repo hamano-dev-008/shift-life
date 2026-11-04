@@ -293,3 +293,46 @@ export const WEATHER_TEXT = {
   on: 'On',
   off: 'Off',
 };
+
+// ---- What the weather does (game/weather.js, game/weatherEffects.js) ----
+// Small, cozy effects. They follow the weather that's coming in
+// (game.weather.kind) from the moment it changes, not the fade.
+//   riceGrowth  The paddies' rice grows `speed` times as fast in `kinds`.
+//   bites       Fishing's wait for a bite passes `speed` times as fast in
+//               `kinds` (bites come 30% faster).
+//   buskingPay  A busking session pays `share` of SESSION_PAY in `kinds`
+//               (rounded to whole dollars: $10 becomes $8).
+//   storm       In `kinds`, `activities` (ids in data/activities.js) stop
+//               on their own (fishing sells the bucket) and can't start,
+//               and busking stops and can't start.
+//   shelter     In `kinds`, the character's own plans (game/autonomy.js)
+//               never choose `avoid`, and with a home in `tiers`
+//               (data/housing.js) they may go home to rest whatever their
+//               health, `restWeight` times as likely.
+//   animals     In `kinds` the Farm's chickens (data/farmAnimals.js) go
+//               into the barn, out of sight, and come back out after (the
+//               rice keeps growing either way).
+//   rainbow     The first time `kinds` comes in each life (while alive):
+//               these stat changes, with a golden bubble.
+export const WEATHER_EFFECTS = {
+  riceGrowth: { kinds: ['drizzle', 'rain', 'heavyRain', 'storm'], speed: 1.25 },
+  bites: { kinds: ['drizzle', 'rain', 'heavyRain'], speed: 1.3 },
+  buskingPay: { kinds: ['drizzle', 'rain', 'heavyRain'], share: 0.75 },
+  storm: { kinds: ['storm'], activities: ['fishing'] },
+  shelter: { kinds: ['storm'], avoid: ['fish', 'busk'], tiers: ['tent', 'house'], restWeight: 8 },
+  animals: { kinds: ['storm'] },
+  rainbow: { kinds: ['rainbow'], stats: { happiness: 3 } },
+};
+
+// Their text: what's said when a storm stops something (the bubble; with
+// fishing's sale under it) and the menus' note while it lasts, per
+// activity id and for busking; going home out of the storm; the rainbow.
+// {name} becomes the character's name.
+export const WEATHER_EFFECTS_TEXT = {
+  stormStops: {
+    fishing: 'Too stormy to fish!',
+    busking: 'Not under a tree in a storm!',
+  },
+  shelter: 'Better get out of the storm!',
+  rainbow: { heading: 'A rainbow!', text: '{name} smiles up at the sky.' },
+};

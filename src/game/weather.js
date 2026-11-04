@@ -3,10 +3,13 @@
 // the app is closed), which comes next (weighted), the fade from the last
 // one, and how it looks right now blended between the two (for drawing).
 // game.weather is saved: { kind, leftMs, previous (null once nothing is
-// fading out), fadeMs (real ms into the fade) }.
+// fading out), fadeMs (real ms into the fade) }. Also what the weather
+// does that other game code reads (WEATHER_EFFECTS: the rice's growth,
+// fishing's bites, busking's pay, storms), and the life's weather moments
+// (game.weatherSeen, saved: { rainbow } once the first rainbow came).
 
 import {
-  WEATHER, FIRST_WEATHER, WEATHER_NEXT, WEATHER_FADE_SECONDS, WIND_PACES, WEATHER_TEXT,
+  WEATHER, FIRST_WEATHER, WEATHER_NEXT, WEATHER_FADE_SECONDS, WIND_PACES, WEATHER_TEXT, WEATHER_EFFECTS,
 } from '../data/weather.js';
 import { PARALLAX_LAYERS } from '../data/parallax.js';
 
@@ -169,4 +172,58 @@ export function weatherText(weather) {
       .replaceAll('{percent}', String(Math.round(weatherMix(weather) * 100)));
   }
   return text;
+}
+
+// ---- What the weather does ----
+
+// The weather coming in now (game.weather.kind), or null without one.
+export function weatherKindOf(game) {
+  return game.weather?.kind ?? null;
+}
+
+// Whether the weather now is one of `kinds`.
+export function weatherIn(game, kinds) {
+  return kinds.includes(weatherKindOf(game));
+}
+
+// A thunderstorm (WEATHER_EFFECTS.storm): fishing and busking stop.
+export function isStormy(game) {
+  return weatherIn(game, WEATHER_EFFECTS.storm.kinds);
+}
+
+// How many times as fast the rice grows now.
+export function riceGrowthSpeed(game) {
+  const { kinds, speed } = WEATHER_EFFECTS.riceGrowth;
+  return weatherIn(game, kinds) ? speed : 1;
+}
+
+// How many times as fast fishing's wait for a bite passes now.
+export function biteSpeed(game) {
+  const { kinds, speed } = WEATHER_EFFECTS.bites;
+  return weatherIn(game, kinds) ? speed : 1;
+}
+
+// A busking session's pay now, from its usual `pay` (whole dollars).
+export function buskingPay(game, pay) {
+  const { kinds, share } = WEATHER_EFFECTS.buskingPay;
+  return weatherIn(game, kinds) ? Math.round(pay * share) : pay;
+}
+
+// Whether activity `id` can't go on (or start) in this weather.
+export function stormStops(game, id) {
+  return isStormy(game) && WEATHER_EFFECTS.storm.activities.includes(id);
+}
+
+// Whether the Farm's chickens are in the barn (WEATHER_EFFECTS.animals).
+export function animalsInBarn(game) {
+  return weatherIn(game, WEATHER_EFFECTS.animals.kinds);
+}
+
+// The life's weather moments: none yet.
+export function createWeatherSeenState() {
+  return { rainbow: false };
+}
+
+export function restoreWeatherSeenState(data) {
+  return { rainbow: data?.rainbow === true };
 }

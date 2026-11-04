@@ -10,6 +10,8 @@
 import { PLACE_ACTIVITIES } from '../data/activities.js';
 import { ageOf, changeStats } from './character.js';
 import { hasArrived } from './stay.js';
+import { stormStops } from './weather.js';
+import { WEATHER_EFFECTS_TEXT } from '../data/weather.js';
 import {
   createFishingState, restoreFishingState, updateFishing, sellBucket, fishingStatus,
 } from './fishing.js';
@@ -119,11 +121,11 @@ export function giveItem(game, id) {
 }
 
 // Whether activity `id` can start now: at its place, old enough, with its
-// item, and nothing else running.
+// item, nothing else running, and not stopped by a storm (stormStops()).
 export function canStart(game, id) {
   const def = activityById(id);
   return Boolean(def) && !game.activities.current && game.place === def.place
-    && oldEnough(game, def) && !needsItem(game, def);
+    && oldEnough(game, def) && !needsItem(game, def) && !stormStops(game, id);
 }
 
 // Starts activity `id`. Returns whether it started.
@@ -216,8 +218,11 @@ export function activityView(game, id) {
     if (view.buy.need) view.status.push(view.buy.need);
     return view;
   }
-  view.toggle = { label: running ? def.text.stop : def.text.start, running };
-  if (running && game.activities.current.fishing) {
+  const stormy = !running && stormStops(game, id);
+  view.toggle = { label: running ? def.text.stop : def.text.start, running, enabled: !stormy };
+  if (stormy) {
+    if (WEATHER_EFFECTS_TEXT.stormStops[id]) view.status.push(WEATHER_EFFECTS_TEXT.stormStops[id]);
+  } else if (running && game.activities.current.fishing) {
     view.status.push(...fishingStatus(game.activities.current.fishing));
   } else if (def.text.idle) {
     view.status.push(def.text.idle);

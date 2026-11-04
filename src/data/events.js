@@ -7,6 +7,8 @@
 //   minAge, maxAge   Optional extra limits, in whole years.
 //   employed  Optional: true for work events (only while the character
 //             has a job), false for events only without one.
+//   weather   Optional: weather kinds (ids from data/weather.js) it can
+//             only happen in (the weather coming in now).
 //   prompt    What's happening. {name} becomes the character's name and
 //             {job} their job title.
 //   choices   2-3 options. Each has:
@@ -444,6 +446,69 @@ export const EVENTS = [
         effects: { happiness: 8 }, text: 'One slow dance. Lovely.' },
       { label: 'Watch with cocoa', lean: ['shy', 'lazy', 'curious'],
         effects: { happiness: 5 }, text: 'Cocoa and people-watching.' },
+    ],
+  },
+  // ---- Weather (only in the matching weather) ----
+  {
+    id: 'puddle-jumping',
+    stages: ['child'],
+    weather: ['drizzle', 'rain', 'heavyRain'],
+    prompt: 'The rain has left big, shiny puddles everywhere. {name} has rain boots on.',
+    choices: [
+      { label: 'Jump in every puddle', lean: ['bold', 'social'], goals: ['healthy', 'heart'],
+        outcomes: [
+          { weight: 3, effects: { happiness: 12, health: 2 }, text: 'Splash! Best day ever.' },
+          { effects: { happiness: 6, health: -3 }, text: 'Soaked to the socks. Sniffly.' },
+        ] },
+      { label: 'Sail a paper boat', lean: ['curious', 'careful'], goals: ['scholar'],
+        effects: { happiness: 6, smarts: 4 }, text: 'The boat sailed! Mostly.' },
+      { label: 'Watch from the window', lean: ['shy', 'lazy'],
+        effects: { happiness: 3 }, text: 'Cozy and dry inside.' },
+    ],
+  },
+  {
+    id: 'rainbow-wish',
+    stages: ['child', 'teen', 'adult', 'elder'],
+    weather: ['rainbow'],
+    prompt: 'A rainbow arcs over the hills. They say a wish made on one comes true.',
+    choices: [
+      { label: 'Wish for good luck', lean: ['bold'], goals: ['fortune'],
+        outcomes: [
+          { effects: { money: 20, happiness: 4 }, text: 'Found $20 on the path!' },
+          { effects: { happiness: 4 }, text: 'Luck is surely on the way.' },
+        ] },
+      { label: 'Wish for loved ones', lean: ['social', 'careful'], goals: ['heart'],
+        effects: { happiness: 8 }, text: 'A warm, quiet wish.' },
+      { label: 'Look for its end', lean: ['curious'], goals: ['healthy'],
+        effects: { health: 3, smarts: 3 }, text: 'No gold, but a lovely walk.' },
+    ],
+  },
+  {
+    id: 'rainy-day-in',
+    stages: ['teen', 'adult', 'elder'],
+    weather: ['drizzle', 'rain', 'heavyRain'],
+    prompt: 'Rain drums on the roof all day. A perfect day to stay in.',
+    choices: [
+      { label: 'Read with cocoa', lean: ['curious', 'shy'], goals: ['scholar'],
+        effects: { smarts: 6, happiness: 4 }, text: 'Read a whole book. Bliss.' },
+      { label: 'Nap under a blanket', lean: ['lazy'], goals: ['healthy'],
+        effects: { health: 5, happiness: 3 }, text: 'The coziest nap.' },
+      { label: 'Call a friend', lean: ['social'], goals: ['heart'],
+        effects: { happiness: 7 }, text: 'Talked until the rain stopped.' },
+    ],
+  },
+  {
+    id: 'storm-candles',
+    stages: ['child', 'teen', 'adult', 'elder'],
+    weather: ['storm'],
+    prompt: 'Thunder rumbles and the lights flicker out. The storm is right overhead.',
+    choices: [
+      { label: 'Light candles, tell tales', lean: ['social', 'bold'], goals: ['heart'],
+        effects: { happiness: 8 }, text: 'Spooky stories by candlelight.' },
+      { label: 'Count the thunder', lean: ['curious'], goals: ['scholar'],
+        effects: { smarts: 5, happiness: 2 }, text: 'Three seconds... a mile away!' },
+      { label: 'Hide under a blanket', lean: ['shy', 'careful', 'lazy'],
+        effects: { happiness: 2, health: 2 }, text: 'Snug till it passed.' },
     ],
   },
 ];

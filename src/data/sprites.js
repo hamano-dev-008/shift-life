@@ -76,6 +76,12 @@
 //             water. farm.rice.ripe may have frames (the sway, by time).
 //     farm.weeds  Weeds in a paddy, drawn once near its middle on the
 //             water's bottom row, over the rice.
+//     farm.chicken  A chicken (data/farmAnimals.js), facing right
+//             (mirrored when facing left), 3 frames side by side: stand,
+//             walk (the other leg forward), peck (head down). Its bottom
+//             edge on the chicken's feet row, column `anchorX` (or the
+//             middle) on its x. The code-drawn one plus its outline is
+//             7 x 7.
 //   Parallax layers (data/parallax.js): each outdoor picture above can be
 //   split into four layers, back to front, each the picture's size
 //   (107 x 80, drawn like it from the window's bottom-left corner, see-
@@ -199,4 +205,6 @@ export const SPRITES = {
   'lake.butterfly.yellow': { frames: 2 },
   'lake.butterfly.orange': { frames: 2 },
   'lake.butterfly.blue': { frames: 2 },
+  // The Farm's chickens: stand, walk, peck.
+  'farm.chicken': { frames: 3 },
 };

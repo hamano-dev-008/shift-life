@@ -53,11 +53,15 @@ with **Electron and plain JavaScript**.
 > sway when the window is dragged, side trips pan between places and
 > the front door fades (the "Parallax" setting). The weather changes in
 > real time (sunny, cloudy, fog, drizzle, rain, heavy rain,
-> thunderstorms, a rainbow after rain; visual only so far): tinted
-> layers, extra clouds, rain with splashes and ripples, haze, the
-> rainbow, storm gusts and soft lightning (the "Lightning flashes"
-> setting), only through the window at Home, with a pixel icon under
-> the top bar. Items marked
+> thunderstorms, a rainbow after rain): tinted layers, extra clouds,
+> rain with splashes and ripples, haze, the rainbow, storm gusts and
+> soft lightning (the "Lightning flashes" setting), only through the
+> window at Home, with a pixel icon under the top bar. It does a little
+> too: rice grows faster in wet weather, bites come faster and busking
+> pays less in the rain, a thunderstorm stops fishing and busking and
+> sends them home to rest (with a tent or house) and the Farm's chickens
+> into the barn, the first rainbow of a life cheers them up, and a few
+> life events only come in their weather. Items marked
 > *(planned)* don't exist yet; follow the planned layout when adding them,
 > and update this section whenever files are added, moved, or removed.
 
@@ -153,7 +157,15 @@ Shift-Life/
 │   │   │                  left, what comes next (weighted), the 60 s
 │   │   │                  fade, restoring, the dev set/next, the look
 │   │   │                  blended between the two (weatherLook()), the
-│   │   │                  icon's view and the read-out line
+│   │   │                  icon's view and the read-out line; what it
+│   │   │                  does that others read (the rice's speed,
+│   │   │                  bites' speed, busking's pay, storms stopping
+│   │   │                  an activity, the chickens in the barn), the
+│   │   │                  life's weather moments (game.weatherSeen)
+│   │   ├── weatherEffects.js What the weather does on the life tick: a
+│   │   │                  thunderstorm stops fishing (selling the
+│   │   │                  bucket) and busking, with their bubbles; the
+│   │   │                  life's first rainbow (+3 happiness, golden)
 │   │   ├── autonomy.js    The character's own plans: when they may
 │   │   │                  choose (cooldown, quiet spell after a click;
 │   │   │                  unsaved), what they can choose and its weight
@@ -208,7 +220,8 @@ Shift-Life/
 │   │   │                  the harvest's pay (+20% weeded), the jobs at a
 │   │   │                  paddy (plant, weed, harvest; counting once
 │   │   │                  arrived), the paddy menu's view, how they
-│   │   │                  look, dev grow/give, the read-out line
+│   │   │                  look, dev grow/give, the read-out line; the
+│   │   │                  rice grows 25% faster in wet weather
 │   │   ├── activityBar.js The activity bar: what's running (an
 │   │   │                  activity, busking, resting), its text (the
 │   │   │                  bucket for fishing; "on the way" while
@@ -376,6 +389,15 @@ Shift-Life/
 │   │   │                  code-drawn ground without the picture
 │   │   ├── farmMenu.js    A rice paddy's menu: buy, plant, pull weeds,
 │   │   │                  harvest, and how the rice is doing
+│   │   ├── farmAnimals.js The Farm's chickens, visual only (no DOM, so
+│   │   │                  tests run it): standing, pecking and
+│   │   │                  strolling in the pen in front of the barn,
+│   │   │                  hurrying in through its door in a storm and
+│   │   │                  out again one by one after; frames; the
+│   │   │                  order to draw them in
+│   │   ├── farmAnimalsArt.js Draws the chickens (code-drawn with an
+│   │   │                  outline, or the farm.chicken sprite),
+│   │   │                  facing their way
 │   │   ├── farewell.js    The goodbye's fade: a pale veil over the scene,
 │   │   │                  thickening in steps
 │   │   ├── lifeSummary.js The life summary card ("Start a new life"), and
@@ -419,7 +441,10 @@ Shift-Life/
 │       │                  wind paces, rain (60 drops), splashes,
 │       │                  ripples and the water they land on, the wet
 │       │                  ground, the extra clouds, fog bands, the
-│       │                  rainbow, lightning, the icons, text
+│       │                  rainbow, lightning, the icons, text; what
+│       │                  it does (WEATHER_EFFECTS: the rice, bites,
+│       │                  busking's pay, storms, shelter, the
+│       │                  chickens, the rainbow) and its text
 │       ├── parallax.js    The parallax: the depth layers, which
 │       │                  pictures split into which layer sprites, the
 │       │                  Yard's sky and grass as layers, the clouds'
@@ -468,6 +493,8 @@ Shift-Life/
 │       │                  water shimmer (area,
 │       │                  sparkles, colors, timing), the dock bubble,
 │       │                  the dock's wood colors (its hover outline)
+│       ├── farmAnimals.js The Farm's chickens: how many, the pen, the
+│       │                  barn's door, timing, speeds, colors
 │       ├── lakeLife.js    The Lake's wildlife: lily pads, frog and
 │       │                  butterfly counts, timing, speeds, area, reeds,
 │       │                  colors (the rare blue), the click reward and
@@ -522,8 +549,8 @@ Shift-Life/
 │       ├── appearance.js  Skin, hair, hair style, shirt palettes; fixed
 │       │                  character colors (elder hair, clothes, eyes,
 │       │                  mouth, outline, shadow)
-│       ├── events.js      Life and work event definitions (format
-│       │                  documented at the top of the file)
+│       ├── events.js      Life, work and weather event definitions
+│       │                  (format documented at the top of the file)
 │       ├── jobs.js        Jobs (career paths, pay, needs, goals, item),
 │       │                  job offer, promotion and retirement numbers,
 │       │                  job bubble and stats panel text
@@ -600,6 +627,16 @@ Shift-Life/
                        soft single pulse, bolts above the hills), the
                        extra clouds, fog bands, rainbow, the storm's
                        gusts, the Lightning flashes setting),
+                       weatherEffects.test.mjs (rice 25% faster in
+                       wet weather, jobs as long; bites 30% faster in
+                       the rain; a storm stopping fishing (selling the
+                       bucket) and busking, neither starting, their
+                       menus saying why; busking $8 in the rain; own
+                       plans in a storm: no fishing or busking, home to
+                       rest with a tent or house, mostly; the chickens
+                       in and out of the barn, staying in the pen; the
+                       first rainbow once a life, saved; the weather
+                       events only in their weather, well formed),
                        parallax.test.mjs (the
                        layer sprites there, listed and stacking into
                        the old pictures pixel for pixel; the clouds'
@@ -718,7 +755,7 @@ How it works, for anyone extending it:
     the parallax layers `<place>.sky`, `<place>.clouds`, `<place>.hills`,
     `<place>.ground` for `lake`, `fortuneTree` and `farm`,
     `farm.background`, `farm.rice.seedling`, `farm.rice.young`,
-    `farm.rice.ripe`, `farm.weeds`
+    `farm.rice.ripe`, `farm.weeds`, `farm.chicken` (3 frames)
     (scene pixels, drawn at `SCENE_SCALE`), `goldenApple` (4 frames
     of 8 x 6, at the tree's scale) and
     `character.<body>.<animation>` with an optional `.<expression>`
@@ -819,6 +856,10 @@ How it works, for anyone extending it:
     `effects`: `raise` (yearly pay, negative for a cut), `leave`
     (layoff) or `switch` (a new job they qualify for). `{job}` in text is
     the job title; `{newJob}` the new one after a switch.
+  - Events with `weather` (weather kinds) only fire while that weather
+    is coming in (`game.weather.kind`, see **Weather**): puddle jumping
+    (a child, in the rain), a rainbow wish, a rainy day in, the lights
+    out in a storm.
 - **Goals:** `game.goals` holds the active goal (Free spirit by default).
   From `GOAL_MIN_AGE` the goal button (flag + goal name, top bar) appears
   and opens the goal menu, which shows the yearly boost and milestones.
@@ -1082,6 +1123,21 @@ How it works, for anyone extending it:
     reaches down and dips with a seedling; weeding, it tugs a weed up;
     harvesting, a sickle (handle and blade) is held up and swung down.
   - Own plans can plant, weed and harvest (see **Own plans**).
+  - Wet weather (drizzle, rain, heavy rain, a storm) grows the rice
+    `WEATHER_EFFECTS.riceGrowth.speed` (1.25) times as fast; jobs take
+    as long as ever (see **Weather**).
+  - Chickens (`data/farmAnimals.js`, `ui/farmAnimals.js`, drawn by
+    `ui/farmAnimalsArt.js`; visual only, never saved, made fresh each
+    time the Farm is shown and run in `drawOnGround()`, so they pan
+    with it): `CHICKENS.count` (3) stand about, peck (the head dipping)
+    and stroll in the pen in front of the barn (`area`: x 62-100,
+    feet rows 65-69, between the fences), drawn after the rice and
+    before the character, back to front. In a thunderstorm
+    (`animalsInBarn()`) they hurry to the barn's door (`door`, x 91
+    row 65) and go in, out of sight (shown during a storm, they're
+    already in); after it they come out one every `outEvery` seconds.
+    Code-drawn 5 x 5 with an outline, or the `farm.chicken` sprite
+    (stand, walk, peck). No click areas.
   - Dev menu, Farm row: "Grow paddies" (`growAllNextStage()`: every
     owned paddy one stage on; water is planted free) and "Give paddies"
     (`giveAllPaddies()`); the read-out's farm line (`farmText()`).
@@ -1241,7 +1297,8 @@ How it works, for anyone extending it:
     last tick (capped at 2s, so a sleeping PC doesn't count); game speed
     doesn't change it, and nothing runs while the app is closed. Every
     `SESSION_MINUTES` pays `SESSION_PAY` (a text bubble) and counts a
-    session. Stopping drops the unfinished session's time.
+    session. Stopping drops the unfinished session's time. Rain pays
+    less and a thunderstorm stops it (see **Weather**).
   - While playing, the animator (`stay` option, mode `'busking'`) walks
     the character to the tree's visit spot (coming back from work if
     away) and sits them there playing (`activity: 'busk'` in the pose):
@@ -1358,7 +1415,9 @@ How it works, for anyone extending it:
     a "Fish collection" view.
   - Fishing (`game/fishing.js`, `data/fishing.js`): from 6, with a rod,
     at the Lake's dock, facing left. Each cast starts a wait of
-    `FISHING_TIMES.biteWait` real seconds (30-180); then a bite: a "!"
+    `FISHING_TIMES.biteWait` real seconds (30-180; it passes faster in
+    the rain, and a thunderstorm stops fishing, see **Weather**); then a
+    bite: a "!"
     over the head (canvas art like the event "!", with `#bite-bubble`
     over it) for `biteWindow` seconds. Clicking it reels in with the
     click odds (`clickBonus` per rarity: rarer fish more likely);
@@ -1474,7 +1533,9 @@ How it works, for anyone extending it:
     farming, Healthy resting, walking about and farming...), each
     trait's (`AUTONOMY_TRAITS`: lazy rests and rarely farms, social
     busks, curious visits...), and a whim (each times 1
-    to 1 + `whim`; Free spirit varies most).
+    to 1 + `whim`; Free spirit varies most). In a thunderstorm no
+    fishing or busking, and home to rest out of it with a tent or house
+    (see **Weather**).
   - How: `beginOwnPlan()` (renderer) says `AUTONOMY_TEXT.going` (passing
     chatter, like "Off to work!"), stores the plan (`startPlan()`:
     `game.autonomy.plan = { kind, place, stage: 'going', leftMs }`,
@@ -1566,8 +1627,9 @@ How it works, for anyone extending it:
     pan or fade; places switch at once.
 - **Weather** (`data/weather.js`, `game/weather.js`; the moving parts in
   `ui/weather.js`, no DOM, so tests run it; drawing in
-  `ui/weatherArt.js`; put together in the renderer). Visual only for
-  now: it changes nothing in the life (gameplay effects come later).
+  `ui/weatherArt.js`; put together in the renderer; what it does in
+  `WEATHER_EFFECTS`, `game/weather.js` and `game/weatherEffects.js`,
+  see the end of this section).
   - Kinds (`WEATHER`): sunny, cloudy, fog, drizzle, rain, heavy rain,
     thunderstorm (`storm`) and rainbow, each lasting a random number of
     real `minutes` (sunny 60-180, cloudy 30-90, fog 15-40, the rains
@@ -1645,6 +1707,37 @@ How it works, for anyone extending it:
     time) and "Next weather" brings the next one in (fading); the
     read-out says the weather, the minutes left and what it's fading
     from.
+  - What it does (`WEATHER_EFFECTS`, every number in `data/weather.js`;
+    small and cozy). It follows the weather coming in
+    (`game.weather.kind`, `weatherKindOf()`) from the moment it
+    changes, not the fade; a game with no weather is as before.
+    - Rice: `updateFarm()` grows it `riceGrowthSpeed()` (1.25) times as
+      fast in drizzle, rain, heavy rain and storms.
+    - Fishing: in the rains the wait for a bite passes `biteSpeed()`
+      (1.3) times as fast (`updateFishing()`); the bite, reeling and
+      showing take as long.
+    - Busking: a session pays `buskingPay()` (`share` 0.75 of
+      `SESSION_PAY`, rounded: $8) in the rains; the tree menu says so.
+    - Thunderstorms (`storm`): `updateWeatherEffects()` (life tick,
+      while alive, before events) stops fishing (`storm.activities`,
+      selling the bucket: the sale's bubble headed "Too stormy to
+      fish!", or just that on the way) and busking ("Not under a tree
+      in a storm!"). Neither can start (`stormStops()` in
+      `canStart()`, `startPlaying()`): the dock's Start and the
+      tree's Play are disabled with that line in the status. An own
+      plan whose thing stopped is dropped as usual.
+    - Shelter (`shelter`): in a storm their own plans never choose
+      fishing or busking, and with a tent or house (`tiers`, after
+      moving out) resting is possible whatever their health and
+      `restWeight` (8) times as likely, at the nearest rest spot (the
+      tent in My Yard, or the sofa at Home), saying "Better get out of
+      the storm!" (`seeksShelter()` in `game/autonomy.js`).
+    - Chickens (`animals`): in a storm the Farm's chickens go into the
+      barn and come back out after (see **Farm**).
+    - Rainbow (`rainbow`): the first time a rainbow comes in each life
+      (`game.weatherSeen = { rainbow }`, saved, new each life), +3
+      happiness with a golden bubble "A rainbow!".
+    - Events with `weather` only come in that weather (see **Events**).
 - **Hover outline** (`data/hover.js`, `ui/hoverOutline.js`; visual
   only): while the pointer is over an interactable thing, a white
   (`HOVER_OUTLINE.color`) outline traces its silhouette just outside its
@@ -1830,15 +1923,15 @@ How it works, for anyone extending it:
     would put the window off every connected screen.
   - `save.json` holds the life: `{ version, clock: { years }, character,
     events, goals, jobs, place, fortuneTree, home, housing, endOfLife,
-    activities, autonomy, farm, weather }`.
+    activities, autonomy, farm, weather, weatherSeen }`.
     `character` includes
     `stats` and `traits`; `events`
     holds `nextAt`, the `pending` event, how often each was `seen`,
     `lastId`, and `frozenAt` (while busking or resting); `goals` holds the `active` goal, `since` and `nextDriftAt`,
     `pastYears` per goal, and reached `milestones` ({ goal, id, age });
     `jobs` is described under **Jobs** above; `place`, `fortuneTree`,
-    `home`, `housing`, `endOfLife`, `activities`, `autonomy`, `farm`
-    and `weather` under **Places**, **Fortune Tree**, **Resting**,
+    `home`, `housing`, `endOfLife`, `activities`, `autonomy`, `farm`,
+    `weather` and `weatherSeen` under **Places**, **Fortune Tree**, **Resting**,
     **Housing**, **End of life**, **Activities and fishing**, **Own
     plans**, **Farm** and **Weather**.
     The renderer autosaves every 10s and saves synchronously on
@@ -1847,7 +1940,7 @@ How it works, for anyone extending it:
   - New optional fields can keep the version if `restore*()` fills in a
     default (as `stats`, `traits`, `events`, `goals`, `jobs`, `place`,
     `fortuneTree`, `home`, `housing`, `endOfLife`, `activities`,
-    `autonomy`, `farm` and `weather` do (ageing starts
+    `autonomy`, `farm`, `weather` and `weatherSeen` do (ageing starts
     from the age at load); older saves'
     `mood` becomes happiness). For breaking changes, bump `SAVE_VERSION` in
     `game/save.js` and handle old versions. Right now an unrecognised save

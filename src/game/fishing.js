@@ -13,6 +13,7 @@ import {
 } from '../data/fishing.js';
 import { REVEAL_TIMES } from '../data/catchReveal.js';
 import { ageOf, changeStats } from './character.js';
+import { biteSpeed } from './weather.js';
 
 const SECOND = 1000;
 const PHASES = ['waiting', 'bite', 'reeling', 'showing'];
@@ -183,15 +184,18 @@ function advance(game, state, random) {
 }
 
 // Call with the real ms passed while fishing. Returns bubbles for catches
-// landed.
+// landed. In the rain the wait for a bite passes faster (biteSpeed());
+// the bite, reeling and showing take as long as ever.
 export function updateFishing(game, state, realMs, random = Math.random) {
   const bubbles = [];
+  const waitSpeed = biteSpeed(game);
   let left = realMs;
   // A phase can't be shorter than a tick by much, but don't loop forever.
   for (let steps = 0; steps < 10; steps++) {
-    const remaining = phaseLength(state) - state.phaseMs;
+    const speed = state.phase === 'waiting' ? waitSpeed : 1;
+    const remaining = (phaseLength(state) - state.phaseMs) / speed;
     if (left < remaining) {
-      state.phaseMs += left;
+      state.phaseMs += left * speed;
       break;
     }
     left -= Math.max(0, remaining);

@@ -142,8 +142,7 @@ Early development. What works so far:
   drizzle, rain or heavy rain, a thunderstorm now and then after heavy
   rain, and often a rainbow once the rain clears. Each lasts a while
   (sunny 1-3 hours, a storm 10-25 minutes, a rainbow 5-10) and one
-  fades into the next over about a minute. For now it's just how
-  things look; it doesn't change the life yet.
+  fades into the next over about a minute.
   - Cloudy skies turn grey-blue with extra clouds drifting faster;
     rain falls in pixel drops slanted by the wind, splashing on the
     ground and rippling the Lake and the rice paddies, and the ground
@@ -157,6 +156,20 @@ Early development. What works so far:
     menu next to the others for now, saved) turns the brightening off
     and keeps the bolts.
   - Indoors you only see it through the window.
+  - It does a little, too:
+    - Rice grows 25% faster while it drizzles, rains or storms.
+    - In the rain fish bite 30% sooner, and busking pays 25% less
+      ($8 a session instead of $10).
+    - A thunderstorm stops fishing ("Too stormy to fish!", selling the
+      bucket) and busking ("Not under a tree in a storm!"), and neither
+      can start until it's over. Left to themselves, they won't choose
+      either in a storm, and with a tent or a house they'd rather go
+      home to rest. The Farm's chickens go into the barn and come back
+      out afterwards.
+    - The first rainbow of each life gives +3 happiness ("A rainbow!").
+    - A few life events only come in their weather: jumping in
+      puddles as a kid, a rainbow wish, a rainy day in, the lights going
+      out in a storm.
   - A little pixel icon at the right, under the top buttons, shows the
     weather; hover it for its name. The numbers and colors are in
     `src/data/weather.js`.
@@ -207,6 +220,8 @@ Early development. What works so far:
   - "Harvest" (when golden): a few swings of a sickle, then the rice
     sells for $25 ($30 weeded) with a bubble, and the paddy goes back
     to plain water.
+  - Three chickens peck about the pen in front of the barn (just for
+    looks; `src/data/farmAnimals.js`).
   - The numbers and text are in `src/data/farm.js`.
 - Fishing at the Lake: from age 6, click the dock to open its menu.
   - First "Buy a fishing rod - $30" (greyed out with "Need $X more"
@@ -358,7 +373,7 @@ code. Save a PNG in `assets/sprites/` named after what it replaces:
 one already), `farm.rice.seedling.png`, `farm.rice.young.png` and
 `farm.rice.ripe.png` (rice in a paddy, tiled across its water; the
 ripe one may have frames for the sway), `farm.weeds.png` (weeds in a
-paddy),
+paddy), `farm.chicken.png` (a chicken, 3 frames: stand, walk, peck),
 `fortuneTree.background.png` (the Fortune Tree's whole background, 107 x
 80, drawn from the bottom-left corner instead of the sky and grass;
 there's one already), the parallax layers `<place>.sky.png`,
@@ -419,7 +434,8 @@ npm.cmd start        # launch the game
 In Git Bash, plain `npm` works. The first start downloads Electron, so it
 takes a little longer. Run `npm.cmd test` for interaction rules, pose
 checks, end-of-life logic, the Lake, its wildlife and fishing, the
-Farm's rice paddies, the parallax backgrounds and the weather (Node
+Farm's rice paddies, the parallax backgrounds, the weather and what
+it does (Node
 22.7+), and
 `npm.cmd run test:smoke` for isolated Electron click/renderer checks
 with real mouse clicks (every place's clickable things are checked to
@@ -429,7 +445,8 @@ ribbit), a catch
 with its reveal card, the activity bar's Stop, planting and
 harvesting rice at the Farm, the pan and door fade between places,
 and setting the weather (the icon, a thunderstorm with every prop still
-clickable, the Lightning flashes setting).
+clickable and no busking or fishing offered, the Lightning flashes
+setting).
 The smoke check uses in-memory saves, leaving your life, Book and
 collection untouched.
 
