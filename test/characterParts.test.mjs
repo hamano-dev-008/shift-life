@@ -3,8 +3,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mix, partColorMap } from '../src/ui/characterColors.js';
-import { PART_ANIMATIONS, PART_PLACES, PART_COLORS } from '../src/data/characterParts.js';
-import { SKIN_TONES, HAIR_COLORS, SHIRT_COLORS } from '../src/data/appearance.js';
+import { partAnimation, partsComplete } from '../src/ui/characterParts.js';
+import {
+  PART_ANIMATIONS, PART_PLACES, PART_COLORS, PART_ORDER, LYING_PARTS,
+} from '../src/data/characterParts.js';
+import { SKIN_TONES, HAIR_COLORS, SHIRT_COLORS, HAIR_STYLES } from '../src/data/appearance.js';
 
 const ART_LOOK = { skin: '#f1c27d', hair: '#5a3825', shirt: '#e07a5f' };
 
@@ -65,8 +68,89 @@ test('every palette look gives well-formed colors', () => {
   }
 });
 
-test('every frame has the head and torso placed', () => {
+test('every frame has the head, torso and arm placed', () => {
   for (const [animation, { frames }] of Object.entries(PART_ANIMATIONS)) {
     assert.equal(PART_PLACES[animation].length, frames, animation);
+    for (const place of PART_PLACES[animation]) assert.deepEqual(Object.keys(place).sort(), ['arm', 'body', 'head']);
+  }
+  assert.deepEqual(PART_PLACES.sit.map(({ head }) => head), [[6, 11], [6, 12]]);
+});
+
+test('the arm comes right after the clothes, which keep the body job item', () => {
+  const parts = PART_ORDER.map(({ part }) => part);
+  assert.equal(parts.indexOf('arm'), parts.indexOf('clothes') + 1);
+  assert.equal(PART_ORDER.find(({ part }) => part === 'clothes').then, 'bodyItem');
+  assert.equal(PART_ORDER.find(({ part }) => part === 'arm').arm, true);
+});
+
+test('every adult pose has a part animation; nobody else does', () => {
+  const base = { gait: 'walk', walk: null, sit: false, lying: false, activity: null };
+  const walk = { cycle: 0.3 };
+  assert.equal(partAnimation('adult', base), 'idle');
+  assert.equal(partAnimation('adult', { ...base, walk }), 'walk');
+  for (const activity of ['read', 'coins', 'wave', 'fish', 'plant', 'weed', 'harvest']) {
+    assert.equal(partAnimation('adult', { ...base, activity }), 'idle', activity);
+  }
+  assert.equal(partAnimation('adult', { ...base, activity: 'jog', walk }), 'walk');
+  assert.equal(partAnimation('adult', { ...base, sit: true }), 'sit');
+  assert.equal(partAnimation('adult', { ...base, sit: true, activity: 'busk' }), 'sit');
+  assert.equal(partAnimation('adult', { ...base, lying: true, activity: 'rest' }), 'lying');
+  for (const stage of ['baby', 'child', 'teen', 'elder']) assert.equal(partAnimation(stage, base), null, stage);
+  assert.equal(partAnimation('adult', { ...base, gait: 'crawl' }), null);
+});
+
+// A stand-in for getSprite(): every part PNG for each animation, at its
+// size, except the names left out or shrunk.
+function fakeSprites({ without = [], small = [] } = {}) {
+  const size = (name) => {
+    const animation = name.split('.')[2];
+    if (animation === 'lying') return [16, 16];
+    return [20 * PART_ANIMATIONS[animation].frames, 26];
+  };
+  return (name) => {
+    if (without.includes(name)) return null;
+    const [w, h] = size(name);
+    return { image: { naturalWidth: small.includes(name) ? w - 1 : w, naturalHeight: h } };
+  };
+}
+
+test('each animation uses the part art only with every part PNG it needs', () => {
+  const all = fakeSprites();
+  for (const animation of ['idle', 'walk', 'sit', 'lying']) {
+    for (const hair of HAIR_STYLES) assert.equal(partsComplete(animation, hair, all), true, `${animation} ${hair}`);
+  }
+  const needed = {
+    idle: ['body', 'clothes', 'arm', 'face.smile', 'face.blink', 'hair.short'],
+    walk: ['body', 'clothes', 'arm', 'face.frown', 'hair.short'],
+    sit: ['body', 'clothes', 'arm', 'face.neutral', 'face.blink', 'hair.short'],
+    lying: ['head', 'hair.short', 'face.sleep'],
+  };
+  for (const [animation, parts] of Object.entries(needed)) {
+    for (const part of parts) {
+      const name = `parts.adult.${animation}.${part}`;
+      assert.equal(partsComplete(animation, 'short', fakeSprites({ without: [name] })), false, `missing ${name}`);
+      assert.equal(partsComplete(animation, 'short', fakeSprites({ small: [name] })), false, `too small ${name}`);
+    }
+  }
+});
+
+test('a missing part only matters to its own animation and hair style', () => {
+  const noSitArm = fakeSprites({ without: ['parts.adult.sit.arm'] });
+  assert.equal(partsComplete('sit', 'bun', noSitArm), false);
+  assert.equal(partsComplete('idle', 'bun', noSitArm), true);
+  assert.equal(partsComplete('lying', 'bun', noSitArm), true);
+  const noLongBack = fakeSprites({ without: ['parts.adult.sit.hair.long.back'] });
+  assert.equal(partsComplete('sit', 'long', noLongBack), false);
+  assert.equal(partsComplete('sit', 'short', noLongBack), true);
+  const noLyingBun = fakeSprites({ without: ['parts.adult.lying.hair.bun'] });
+  assert.equal(partsComplete('lying', 'bun', noLyingBun), false);
+  assert.equal(partsComplete('lying', 'spiky', noLyingBun), true);
+});
+
+test('the sleeping head part sits like the code-drawn head, with an "o" mouth in it', () => {
+  assert.deepEqual(LYING_PARTS.frame, { width: 16, height: 16 });
+  assert.deepEqual(LYING_PARTS.head, [5, 4]);
+  for (const [col, row] of LYING_PARTS.mouthOpen) {
+    assert.ok(col >= 0 && col < 8 && row >= 0 && row < 8, 'inside the 8 x 8 head');
   }
 });
