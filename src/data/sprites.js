@@ -161,10 +161,12 @@
 //     figure for that animation, including job items and activity props.
 //     walk, crawl and jog frames follow the distance walked (one loop per
 //     full walk cycle, like the code-drawn legs); the others play by time.
-//     parts.adult.<idle|walk|sit|lying>.<part>  Every adult pose in
-//     layers, recolored to the appearance, with job items, activity arms
-//     and props drawn on and one outline around it all (lying: only the
-//     head); each animation used only when all its parts are there.
+//     parts.<set>.<animation>.<part>  Every pose from baby to elder in
+//     layers (sets: baby, toddler, child, teen, adult, elder), recolored
+//     to the appearance, with job items, activity arms and props drawn on
+//     and one outline around it all (lying: only the head, the adult's;
+//     babies and toddlers sleep code-drawn); each animation used only
+//     when all its parts are there.
 //     Frames, parts, order and colors are in data/characterParts.js.
 //
 // Entries are keyed by sprite name. Each field is optional:

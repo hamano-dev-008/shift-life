@@ -10,9 +10,9 @@
 // outlined, then scaled up by CHARACTER_SCALE (data/layout.js), which is
 // separate from the scene scale (mirrored when facing left). Where a
 // sprite PNG exists for the body and animation (see data/sprites.js), it
-// is drawn instead, the same way. An adult is built from recolored part
-// art where all the pose's parts exist (ui/characterParts.js), with the
-// code-drawn arms, props and the sleeper's bedding on it.
+// is drawn instead, the same way. Every life stage is built from recolored
+// part art where all the pose's parts exist (ui/characterParts.js), with
+// the code-drawn arms, props and the sleeper's bedding on it.
 
 import { CHARACTER_SHAPES, CRAWL_POSE, SIT_POSE } from '../data/characterShapes.js';
 import {
@@ -28,8 +28,8 @@ import {
 import { lyingLayout, lyingHeadCenter } from './lying.js';
 import { createLayer, clearLayer, fill, outline, drawLayer } from './pixel.js';
 import { getSprite, frameAtTime, frameAtProgress, drawSprite } from './assets.js';
-import { adultParts, drawPartFrame } from './characterParts.js';
-import { PART_FRAME, PART_GUITAR, LYING_PARTS } from '../data/characterParts.js';
+import { characterParts, drawPartFrame } from './characterParts.js';
+import { PART_FRAME, PART_SETS, LYING_PARTS } from '../data/characterParts.js';
 
 // Big enough for the tallest stage plus hair and outline. Column ANCHOR is
 // the character's center; feet end just above the last row, which is left
@@ -210,7 +210,7 @@ export function drawCharacter(ctx, pose, stage, appearance, expression, groundY,
   clearLayer(layer);
   // Job items show only standing or walking, as in the code-drawn figure.
   const standing = !pose.lying && !pose.sit;
-  const parts = adultParts(stage, pose, standing ? wornLook(appearance, item) : appearance, expression);
+  const parts = characterParts(stage, pose, standing ? wornLook(appearance, item) : appearance, expression);
   if (pose.lying) {
     drawLying(px, shape, stage, appearance, expression, pose, parts);
   } else if (parts) {
@@ -276,38 +276,43 @@ function wornLook(appearance, item) {
   return item === 'labCoat' ? { ...appearance, shirt: LAB_COAT } : appearance;
 }
 
-// An adult standing, walking or sitting from the part art
+// Standing, walking, sitting or crawling from the part art
 // (ui/characterParts.js), with the job item's pieces on the art's own
 // torso and head. A standing activity's own arm, or the busker's guitar
 // and strumming arm, takes the art arm's place (the art arm stays where
-// the activity has none, such as jogging); then its props and notes.
+// the activity has none, such as jogging); then its props and notes. A
+// sitting baby's wobble shifts every part but the legs (and the places on
+// them).
 function drawParts(px, parts, shape, appearance, item, pose) {
   const look = wornLook(appearance, item);
+  const wobble = pose.wobble ?? 0;
   const left = ANCHOR - PART_FRAME.center;
   const top = LAYER_HEIGHT - PART_FRAME.height;
-  const at = ([col, row]) => [col - PART_FRAME.center, top + row];
-  const [headLeft, headTop] = at(parts.place.head);
-  const [bodyLeft, bodyTop] = at(parts.place.body);
-  const [armCol, armTop] = at(parts.place.arm);
+  const at = ([col, row]) => [col - PART_FRAME.center + wobble, top + row];
+  const { place } = parts;
+  const [headLeft, headTop] = at(place.head);
+  const [bodyLeft, bodyTop] = at(place.body);
+  const [armCol, armTop] = place.arm ? at(place.arm) : [];
   const busking = pose.activity === 'busk';
-  for (const { canvas, then, arm } of parts.strips) {
+  for (const { canvas, then, arm, still } of parts.strips) {
     if (arm && busking) {
-      const [hip, ground] = at([PART_GUITAR.hip, PART_GUITAR.ground]);
-      drawGuitar(px, shape, look, hip, ground, armCol, armTop, pose.activityTime);
+      const { hip, ground } = PART_SETS[parts.set].guitar;
+      const [hipCol, groundRow] = at([hip, ground]);
+      drawGuitar(px, shape, look, hipCol, groundRow, armCol, armTop, pose.activityTime);
       continue;
     }
     if (arm && pose.activity && drawActivityArm(px, shape, look, armCol, armTop, pose)) continue;
-    drawPartFrame(layer, parts, canvas, left, top);
+    drawPartFrame(layer, parts, canvas, left + (still ? 0 : wobble), top);
     if (then === 'bodyItem') {
-      drawJobItemOnBody(px, { ...shape, body: parts.place.body[2] }, appearance, item, bodyLeft, bodyTop);
+      drawJobItemOnBody(px, { ...shape, body: place.body[2] }, appearance, item, bodyLeft, bodyTop);
     } else if (then === 'headItem') {
       drawJobItemOnHead(px, shape, item, headLeft, headTop);
     }
   }
   if (pose.hitOnly) return;
-  if (busking) {
+  if (busking && place.arm) {
     drawNotes(px, headLeft + shape.head + 1, headTop + 2, pose.activityTime);
-  } else if (pose.activity) {
+  } else if (pose.activity && place.arm) {
     drawActivityExtras(px, shape, armCol, armTop, headLeft, headTop, pose);
   }
 }
@@ -458,8 +463,8 @@ function drawSitting(px, shape, stage, look, expression, pose) {
 // bag) from the chest down with the feet making a bump, its top edge over
 // the chest rising and falling with each breath, and z's floating up from
 // the face. The pillow and z's aren't part of the figure, so a hit mask
-// (pose.hitOnly) leaves them out. An adult's head comes from the part art
-// (`parts`) where it's all there.
+// (pose.hitOnly) leaves them out. From childhood on the head comes from
+// the part art (`parts`) where it's all there.
 function drawLying(px, shape, stage, look, expression, pose, parts) {
   const bed = pose.bed ?? REST_PREVIEW_BED;
   const t = pose.activityTime ?? 0;
@@ -488,7 +493,7 @@ function drawLying(px, shape, stage, look, expression, pose, parts) {
   if (!pose.hitOnly) drawZs(px, body.left + body.head - 1, row(lay.headTop) - 2, t);
 }
 
-// The sleeping adult's head from the part art, its 8 x 8 head where the
+// The sleeping head from the part art, its 8 x 8 head where the
 // code-drawn one goes (headLeft, headTop), and now and then a tiny "o"
 // mouth drawn over it.
 function drawLyingParts(px, parts, headLeft, headTop, mouthOpen) {

@@ -1,8 +1,6 @@
-// characterParts.js — The adult's layered part art (data/characterParts.js) for every adult pose, recolored per appearance.
+// characterParts.js — The layered part art (data/characterParts.js) for every life stage's poses, recolored per appearance.
 
-import {
-  PART_FRAME, PART_ANIMATIONS, PART_ORDER, PART_PLACES, LYING_PARTS, PART_MOUTH,
-} from '../data/characterParts.js';
+import { PART_FRAME, PART_SETS, LYING_PARTS, PART_MOUTH } from '../data/characterParts.js';
 import { getSprite } from './assets.js';
 import { partColorMap } from './characterColors.js';
 
@@ -11,56 +9,69 @@ const FACES = ['smile', 'neutral', 'frown', 'blink'];
 // Recolored strips by part and colors, made once each.
 const strips = new Map();
 
-// Whether every part is there, by animation and hair style. Sprites load
-// once at startup, so the answer is kept.
+// Whether every part is there, by set, animation and hair style. Sprites
+// load once at startup, so the answer is kept.
 const complete = new Map();
 
-// The part animation for an adult's pose ('idle', 'walk', 'sit' or
-// 'lying'), or null for anyone else. Standing activities are idle and
-// jogging is walk; the pose's own arm and props go on top.
-export function partAnimation(stage, pose) {
-  if (stage !== 'adult' || pose.gait !== 'walk') return null;
-  if (pose.lying) return 'lying';
-  if (pose.sit) return 'sit';
-  return pose.walk ? 'walk' : 'idle';
-}
-
-function partName(animation, part, hairStyle, face) {
-  return `parts.adult.${animation}.${part.replace('{hair}', hairStyle).replace(/^face$/, `face.${face}`)}`;
-}
-
-// The animation's parts for this hair style and face, back to front:
-// [{ name, then, arm }].
-function partsFor(animation, hairStyle, face) {
-  if (animation === 'lying') {
-    return LYING_PARTS.order.map((part) => ({ name: partName(animation, part, hairStyle) }));
+// The part set and animation for the pose ({ set, animation }), or null
+// to draw it in code. The set follows the body the code-drawn figure uses:
+// a toddler on their feet or plopped down is `toddler`, lying down the life
+// stage's. Standing activities are idle and jogging is walk; the pose's own
+// arm and props go on top.
+export function partPose(stage, pose) {
+  if (pose.lying) {
+    return PART_SETS[stage]?.lying ? { set: stage, animation: 'lying' } : null;
   }
-  return PART_ORDER
-    .filter(({ onlyFor }) => !onlyFor || onlyFor === hairStyle)
-    .map(({ part, then, arm }) => ({ name: partName(animation, part, hairStyle, face), then, arm }));
+  const set = pose.gait === 'toddle' ? 'toddler' : stage;
+  let animation;
+  if (pose.sit) animation = 'sit';
+  else if (pose.gait === 'crawl') animation = 'crawl';
+  else animation = pose.walk ? 'walk' : 'idle';
+  return PART_SETS[set]?.animations[animation] ? { set, animation } : null;
 }
 
-// A frame's size and the frames in a strip, for the animation.
-function frameOf(animation) {
+function partName(set, animation, part, hairStyle, face) {
+  return `parts.${set}.${animation}.${part.replace('{hair}', hairStyle).replace(/^face$/, `face.${face}`)}`;
+}
+
+// The parts for this set, animation, hair style and face, back to front:
+// [{ name, then, arm, still }]. Asleep, the head parts of LYING_PARTS.
+function partsFor(set, animation, hairStyle, face) {
+  if (animation === 'lying') {
+    return LYING_PARTS.order.map((part) => ({ name: partName(LYING_PARTS.set, animation, part, hairStyle) }));
+  }
+  return PART_SETS[set].order
+    .filter(({ onlyFor, onlyIn }) => (!onlyFor || onlyFor === hairStyle) && (!onlyIn || onlyIn === animation))
+    .map(({ part, then, arm, still }) => ({ name: partName(set, animation, part, hairStyle, face), then, arm, still }));
+}
+
+// A frame's size and the frames in a strip.
+function frameOf(set, animation) {
   if (animation === 'lying') return { ...LYING_PARTS.frame, frames: 1 };
-  return { width: PART_FRAME.width, height: PART_FRAME.height, frames: PART_ANIMATIONS[animation].frames };
+  return { width: PART_FRAME.width, height: PART_FRAME.height, frames: PART_SETS[set].animations[animation].frames };
 }
 
-// Whether every part this hair style can show in the animation has a PNG
-// big enough for its frames (every face too, so a blink never switches
-// art). `lookup(name)` is getSprite() or a stand-in.
-export function partsComplete(animation, hairStyle, lookup) {
-  const { width, height, frames } = frameOf(animation);
-  const names = new Set(FACES.flatMap((face) => partsFor(animation, hairStyle, face).map(({ name }) => name)));
+// The faces the set can show in the animation.
+function facesOf(set, animation) {
+  return PART_SETS[set].lookBack && animation === 'sit' ? [...FACES, 'back'] : FACES;
+}
+
+// Whether every part this hair style can show in the set's animation has
+// a PNG big enough for its frames (every face too, so a blink or a look
+// back never switches art). `lookup(name)` is getSprite() or a stand-in.
+export function partsComplete(set, animation, hairStyle, lookup) {
+  const { width, height, frames } = frameOf(set, animation);
+  const names = new Set(facesOf(set, animation)
+    .flatMap((face) => partsFor(set, animation, hairStyle, face).map(({ name }) => name)));
   return [...names].every((name) => {
     const image = lookup(name)?.image;
     return Boolean(image) && image.naturalWidth >= width * frames && image.naturalHeight >= height;
   });
 }
 
-function hasAllParts(animation, hairStyle) {
-  const key = `${animation}|${hairStyle}`;
-  if (!complete.has(key)) complete.set(key, partsComplete(animation, hairStyle, getSprite));
+function hasAllParts(set, animation, hairStyle) {
+  const key = `${set}|${animation}|${hairStyle}`;
+  if (!complete.has(key)) complete.set(key, partsComplete(set, animation, hairStyle, getSprite));
   return complete.get(key);
 }
 
@@ -89,28 +100,41 @@ function recolored(name, look, colors) {
   return canvas;
 }
 
-// The parts to draw for the pose, or null to draw it in code: {
-// animation, frame, size ({ width, height }), place (PART_PLACES; null
-// lying), mouth (the mouth's color), strips: [{ canvas, then, arm }] back
-// to front }. `look` is the appearance with any job item's shirt swapped
-// in.
-export function adultParts(stage, pose, look, expression) {
-  const animation = partAnimation(stage, pose);
-  if (!animation || !hasAllParts(animation, look.hairStyle)) return null;
-  const { width, height, frames } = frameOf(animation);
-  const frame = animation === 'walk'
-    ? Math.min(frames - 1, Math.floor(pose.walk.cycle * frames))
+// The face part for the pose: closed eyes while blinking, looking back
+// (sitting, where the set has it), or the expression.
+function faceOf(set, animation, pose, expression) {
+  if (pose.blinking) return 'blink';
+  if (pose.gaze === -1 && facesOf(set, animation).includes('back')) return 'back';
+  return expression;
+}
+
+// The parts to draw for the pose, or null to draw it in code: { set,
+// animation, frame, size ({ width, height }), place (the set's frame
+// place; null lying), mouth (the mouth's color), strips: [{ canvas, then,
+// arm, still }] back to front }. `look` is the appearance with any job
+// item's shirt swapped in.
+export function characterParts(stage, pose, look, expression) {
+  const chosen = partPose(stage, pose);
+  if (!chosen) return null;
+  const { set, animation } = chosen;
+  if (!hasAllParts(set, animation, look.hairStyle)) return null;
+  const colored = PART_SETS[set].hair ? { ...look, hair: PART_SETS[set].hair } : look;
+  const { width, height, frames } = frameOf(set, animation);
+  const stepped = animation === 'walk' || animation === 'crawl';
+  const frame = stepped
+    ? Math.min(frames - 1, Math.floor((pose.walk?.cycle ?? 0) * frames))
     : Math.min(frames - 1, animation === 'lying' ? 0 : pose.breath);
   let colors = null;
-  const colorMap = () => (colors ??= partColorMap(look));
+  const colorMap = () => (colors ??= partColorMap(colored));
   return {
+    set,
     animation,
     frame,
     size: { width, height },
-    place: PART_PLACES[animation]?.[frame] ?? null,
+    place: animation === 'lying' ? null : PART_SETS[set].animations[animation].places[frame],
     mouth: colorMap().get(PART_MOUTH),
-    strips: partsFor(animation, look.hairStyle, pose.blinking ? 'blink' : expression)
-      .map(({ name, then, arm }) => ({ canvas: recolored(name, look, colorMap), then, arm })),
+    strips: partsFor(set, animation, look.hairStyle, faceOf(set, animation, pose, expression))
+      .map(({ name, then, arm, still }) => ({ canvas: recolored(name, colored, colorMap), then, arm, still })),
   };
 }
 
