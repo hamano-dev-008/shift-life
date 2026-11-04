@@ -6,13 +6,13 @@
 
 // Walking speed per life stage, in character pixels per second: a calm
 // stroll.
-export const WALK_SPEED = { baby: 2, child: 7, teen: 7, adult: 6, elder: 3 };
+export const WALK_SPEED = { baby: 2, child: 10, teen: 11, adult: 11, elder: 6 };
 
 // How far each foot reaches forward or back at a contact pose. The walk
 // cycle (contact, passing, contact with the other leg, passing) advances
 // one frame per STRIDE pixels walked, so each step covers 2 x STRIDE: the
 // exact gap between the feet at contact, which keeps the feet planted.
-// At adult speed that's 3 frames, or 1.5 steps, per second.
+// At adult speed that's 5.5 frames, or 2.75 steps, per second.
 export const STRIDE = { baby: 1, child: 2, teen: 2, adult: 2, elder: 1 };
 
 // Pause after wandering to a random spot, and after reaching a prop.
