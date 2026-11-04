@@ -455,6 +455,7 @@ brings the running window to the front.
 
 ## Project layout
 
-See [AGENTS.md](AGENTS.md) for the folder structure, coding conventions,
-and workflow rules. It is written for AI coding agents but applies to human
-contributors too.
+See [docs/architecture.md](docs/architecture.md) for the folder structure
+and how each system works, and [AGENTS.md](AGENTS.md) for the coding,
+art and workflow rules. Both are written for AI coding agents but apply to
+human contributors too.
