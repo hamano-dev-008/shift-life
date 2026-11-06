@@ -121,6 +121,12 @@ Early development. What works so far:
     the side and the Cafe fades in with them at the door. "Go outside"
     (the door) takes them back where they came from. Its numbers are
     in `src/data/cafe.js`.
+  - Inside, the old master polishes cups and brews at the siphons
+    behind the counter, customers drop in for a coffee at the counter
+    or the table and leave again, and Tama the cat naps on the window
+    sill, waking now and then to stretch or pad along it. Click the
+    master for a friendly word, or Tama for a meow (a little happiness,
+    like the Lake's wildlife).
   - The place button (the map pin in the top bar) opens "Go to", listing
     the other places. Pick one and the character walks there, through
     any places in between (the Lake to the living room goes past the

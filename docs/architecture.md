@@ -295,6 +295,15 @@ Shift-Life/
 │   │   │                  chairs, plant, the counter with its siphons
 │   │   │                  and stools (and its front again, over
 │   │   │                  whoever stands behind it)
+│   │   ├── cafeLife.js    The Cafe's people and cat, visual only (no
+│   │   │                  DOM, so tests run it): the master polishing,
+│   │   │                  brewing and walking behind the counter,
+│   │   │                  customers coming in, sitting with a cup and
+│   │   │                  leaving, Tama sleeping, waking, stretching
+│   │   │                  and padding along the sill; clicks, boxes
+│   │   ├── cafeLifeArt.js Draws them: the master and customers with
+│   │   │                  the character art, the polished cup, cups
+│   │   │                  and steam, the siphon bubbling, the cat
 │   │   ├── lake.js        Draws the Lake: the code-drawn background
 │   │   │                  (when lake.png is missing), the water
 │   │   │                  shimmer (sparkles that twinkle and drift),
@@ -610,7 +619,10 @@ Shift-Life/
                        cafe.test.mjs (the Cafe in town: routes in and
                        out from every place, never a shortcut, the
                        door back to where they came from, the fades,
-                       walls and feet, the picture's numbers),
+                       walls and feet, the picture's numbers; the
+                       master's spots and states, customers on their
+                       own seats coming and going with their cups, the
+                       cat on the sill, the clicks and boxes),
                        activities.test.mjs (activities and fishing:
                        rod, bites, odds, earnings, sizes, selling,
                        collection and records, saving, a data-only
@@ -1233,6 +1245,33 @@ Parents' Yard and then of My Yard (see **Farm**).
   Behind the counter the floor is further back (`behindRow`): the
   counter's front (`drawCafeCounterFront()`) is drawn again over
   whoever stands there.
+- The Cafe's life (`ui/cafeLife.js`, drawn by `ui/cafeLifeArt.js`;
+  numbers in `CAFE_MASTER`, `CAFE_CUSTOMERS`, `CAFE_CAT`, `CAFE_CUP`;
+  made each time the Cafe is shown, never saved). Drawn back to front:
+  the cat, the master (feet on `behindRow`), the counter's front, then
+  the customers, their cups and the siphon's bubbles.
+  - The master (an elder in a white shirt and apron, drawn with
+    `drawCharacter()` like the character) polishes a cup at the far
+    end (the `hold` arm, `heldHand()` in `ui/sprite.js`, a white cup
+    and a cloth going round it), brews at a siphon (bubbles in its
+    bulb) or stands a moment, walking between the `spots` (all right of
+    the flap, where the character works).
+  - Customers (`randomAppearance()` in `game/character.js`; a quarter
+    of them elders): up to `max` (2), one every `spawnEvery` while a
+    seat in `seats` is free (`chairL` is kept for the character). They
+    come in at the door, walk to the seat, sit (the sit pose on the
+    seat's row), get a cup on the counter or table `servedAfter`
+    seconds later (steam rising), stay `stay`, and walk out the door.
+    Sometimes one is already there when the Cafe is shown.
+  - Tama the cat (code-drawn at `SCENE_SCALE`, outlined): sleeps curled
+    on the sill (breathing), sits up (blinking), maybe stretches, maybe
+    pads to another spot on the sill, and curls up again.
+  - Clicking the master (head and shoulders above the counter) gets one
+    of `CAFE_MASTER.lines`; clicking the cat wakes her ("mrrp?") or
+    gets "meow~". Both are `#wildlife` buttons like the Lake's critters
+    (ids `master` and `cat`), with the same bubble, hover outline (the
+    master's only above the counter) and the shared +1 happiness
+    cooldown.
 - A new place needs an entry in `PLACES` (with exits both ways), any
   new scenery pieces in `SCENERY` (`ui/scene.js`, with code-drawn
   art) and props in `PROPS` (`data/layout.js`), and its sprite names

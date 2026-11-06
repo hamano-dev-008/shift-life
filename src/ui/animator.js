@@ -569,7 +569,7 @@ function updateTimers(anim, dt) {
 // uses the same cycle: "near" is the near hand with the far knee, "far" is
 // the far hand with the near knee, so opposite hand and knee move together.
 // `cycle` is how far through the whole cycle, 0 to 1 (for sprite sheets).
-function walkPose(p, stride) {
+export function walkPose(p, stride) {
   const frame = Math.floor(p / stride); // 0 contact, 1 passing, 2 contact (other leg), 3 passing
   const intoStep = p % (2 * stride);
   const planted = stride - intoStep;

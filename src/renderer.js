@@ -137,6 +137,12 @@ import {
 } from './ui/lakeLife.js';
 import { toLandNow, huntNow } from './ui/lakeFrogs.js';
 import { drawLakeLife, boxToRect, drawCritter } from './ui/lakeLifeArt.js';
+import { createCafeLife, updateCafeLife, clickCafeCritter, cafeBoxes } from './ui/cafeLife.js';
+import {
+  drawMaster, drawCafeLifeFront, drawCat, drawCafeCritter,
+} from './ui/cafeLifeArt.js';
+import { drawCafeCounterFront } from './ui/cafe.js';
+import { CAFE_PLACE, CAFE_MASTER, CAFE_CAT } from './data/cafe.js';
 import { LAKE_PLACE, BOBBER_SPOT, DOCK_PROP } from './data/lake.js';
 import { WILDLIFE_CLICK, LAKE_LIFE_TEXT } from './data/lakeLife.js';
 import { createGoMenu } from './ui/goMenu.js';
@@ -501,6 +507,10 @@ async function start() {
   // says "ribbit!" and hops, a butterfly flutters off, and either gives a
   // little happiness on a real-time cooldown (game/lakeLife.js).
   let lakeLife = null;
+  // The Cafe's master, customers and cat (ui/cafeLife.js), made each time
+  // the Cafe is shown, never saved. The master and the cat are clickable
+  // like the Lake's wildlife: a line, a meow, the same little treat.
+  let cafeLife = null;
   // The Farm's chickens, made each time the Farm is shown (purely visual,
   // never saved); in a thunderstorm they go into the barn.
   let farmAnimals = null;
@@ -581,8 +591,8 @@ async function start() {
   const wildlifeReward = createWildlifeReward();
   let critterBubbleUntil = 0;
   function clickWildlife(id) {
-    if (!lakeLife || game.endOfLife.ended) return;
-    const reaction = clickCritter(lakeLife, id);
+    if (!(lakeLife || cafeLife) || game.endOfLife.ended) return;
+    const reaction = lakeLife ? clickCritter(lakeLife, id) : clickCafeCritter(cafeLife, id);
     if (!reaction) return;
     const now = performance.now();
     const deltas = rewardWildlifeClick(game.character, wildlifeReward, now);
@@ -601,16 +611,23 @@ async function start() {
     critterBubble.style.top = `${Math.max(2, rect.top - critterBubble.offsetHeight)}px`;
     critterBubbleUntil = now + WILDLIFE_CLICK.bubbleSeconds * 1000;
   }
+  // What the wildlife buttons are called, by kind.
+  const CRITTER_LABELS = {
+    frog: WILDLIFE_CLICK.frogLabel,
+    butterfly: WILDLIFE_CLICK.butterflyLabel,
+    master: CAFE_MASTER.label,
+    cat: CAFE_CAT.label,
+  };
   // One invisible button over each frog and butterfly (generous areas),
-  // reused by id; none while travelling, after the life ends, or away
-  // from the Lake.
+  // or the Cafe's master and cat, reused by id; none while travelling,
+  // after the life ends, or elsewhere.
   function updateWildlifeTargets(active) {
     wildlife.hidden = !active;
     if (!active) {
       if (wildlife.childElementCount) wildlife.replaceChildren();
       return;
     }
-    const boxes = critterBoxes(lakeLife);
+    const boxes = lakeLife ? critterBoxes(lakeLife) : cafeBoxes(cafeLife);
     const keep = new Set(boxes.map((box) => String(box.id)));
     for (const button of [...wildlife.children]) {
       if (!keep.has(button.dataset.id)) button.remove();
@@ -620,9 +637,8 @@ async function start() {
       if (!button) {
         button = document.createElement('button');
         button.dataset.id = String(box.id);
-        const title = box.kind === 'frog' ? WILDLIFE_CLICK.frogLabel : WILDLIFE_CLICK.butterflyLabel;
         // No native tooltip (the hover outline shows it's clickable).
-        button.setAttribute('aria-label', title);
+        button.setAttribute('aria-label', CRITTER_LABELS[box.kind]);
         button.addEventListener('click', () => clickWildlife(box.id));
         wildlife.append(button);
       }
@@ -982,7 +998,7 @@ async function start() {
   function updateTrip(now) {
     if (!trip || !hasExited(animator)) return;
     const from = game.place;
-    const left = { scene, treeDecor, lakeLife, farmAnimals };
+    const left = { scene, treeDecor, lakeLife, farmAnimals, cafeLife };
     const next = trip.route.shift();
     const way = exitBetween(game, from, next);
     const kind = transitionFor(from, next, way.via, settings.parallax);
@@ -1432,6 +1448,23 @@ async function start() {
     } else {
       deco.lakeLife = null;
     }
+    // The Cafe: the cat on the sill and the master behind the counter,
+    // then the counter's front over the master's legs, then the customers
+    // and their cups in front of it.
+    if (place.id === CAFE_PLACE) {
+      deco.cafeLife ??= createCafeLife();
+      updateCafeLife(deco.cafeLife, dt);
+      drawCat(target, layout, deco.cafeLife);
+      drawMaster(target, layout, deco.cafeLife);
+      drawCafeCounterFront(target, layout);
+      drawCafeLifeFront(target, layout, deco.cafeLife);
+      if (hovered?.kind === 'critter'
+        && hoverOutline.draw(target, (maskCtx) => drawCafeCritter(maskCtx, layout, deco.cafeLife, hovered.id), seconds)) {
+        outlined = `critter:${hovered.id}`;
+      }
+    } else {
+      deco.cafeLife = null;
+    }
     return outlined;
   }
 
@@ -1618,7 +1651,7 @@ async function start() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     const hovered = hoveredThing(ended);
     let outlined = '';
-    const here = { treeDecor, lakeLife, farmAnimals };
+    const here = { treeDecor, lakeLife, farmAnimals, cafeLife };
     if (panning) {
       drawPan(panning, now, dt, here, weather);
     } else {
@@ -1631,6 +1664,7 @@ async function start() {
     }
     treeDecor = here.treeDecor;
     lakeLife = here.lakeLife;
+    cafeLife = here.cafeLife;
     farmAnimals = here.farmAnimals;
     // The character waits past the edge while the view pans.
     if (!panning) {
@@ -1683,8 +1717,8 @@ async function start() {
     // A catch's reveal card over the scene (fishing carries on behind).
     catchReveal.draw(ctx, now);
     const revealing = catchReveal.isOpen();
-    updateWildlifeTargets(Boolean(lakeLife) && !travelling() && !ended);
-    critterBubble.hidden = critterBubble.hidden || now >= critterBubbleUntil || !lakeLife || revealing;
+    updateWildlifeTargets(Boolean(lakeLife || cafeLife) && !travelling() && !ended);
+    critterBubble.hidden = critterBubble.hidden || now >= critterBubbleUntil || !(lakeLife || cafeLife) || revealing;
     propBubble.hidden = propBubble.hidden || now >= propBubbleUntil || place.id !== propBubblePlace
       || travelling() || Boolean(ended);
     if (farewell) drawFarewellFade(ctx, canvas.width, canvas.height, (now - farewell.since) / 1000);

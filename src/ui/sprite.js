@@ -739,6 +739,12 @@ function drawActivityArm(px, shape, look, col, bodyTop, pose) {
       px(col + 1, bodyTop, 1, 1, look.shirt);
       px(col + 1, bodyTop - 2, 1, 2, look.skin);
       return true;
+    case 'hold':
+      // Something held out in front (the Cafe's cup being polished);
+      // drawn by whoever holds it, from heldHand().
+      px(col, bodyTop + 1, 1, sleeve, look.shirt);
+      px(col + 1, bodyTop + sleeve, 2, 1, look.skin);
+      return true;
     case 'reachDown':
       // Reaching down in front for the branch (or the apple) on the ground.
       px(col, bodyTop + 1, 1, sleeve, look.shirt);
@@ -847,6 +853,12 @@ export function fishingHand(stage, pose, groundY, scale) {
 // way: what holds the branch up to the golden apple, or the won apple.
 export function raisedHand(stage, pose, groundY, scale) {
   return handAt(stage, pose, groundY, scale, true);
+}
+
+// Where the hand held out in front is (pose.activity 'hold'), the same
+// way.
+export function heldHand(stage, pose, groundY, scale) {
+  return handAt(stage, pose, groundY, scale, false);
 }
 
 // The front hand in canvas pixels: raised (`up`), or held out in front.

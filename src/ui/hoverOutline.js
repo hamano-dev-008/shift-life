@@ -33,7 +33,9 @@ export function hoverTargetOf(element) {
   const prop = element.closest('#targets button');
   if (prop?.dataset.prop) return { kind: 'prop', id: prop.dataset.prop };
   const critter = element.closest('#wildlife button');
-  if (critter?.dataset.id) return { kind: 'critter', id: Number(critter.dataset.id) };
+  // The Lake's critters have numbers; the Cafe's master and cat, names.
+  const id = critter?.dataset.id;
+  if (id) return { kind: 'critter', id: /^\d+$/.test(id) ? Number(id) : id };
   if (element.closest('#character-target')) return { kind: 'character' };
   return null;
 }

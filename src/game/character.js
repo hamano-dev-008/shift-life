@@ -51,21 +51,27 @@ function distinctHair(hair, skin) {
   return toHex([0, 0, 0]);
 }
 
+// A random look: skin, a hair color that stands out from it, hair style
+// and shirt (also for the Cafe's customers).
+export function randomAppearance() {
+  const skin = pick(SKIN_TONES);
+  return {
+    skin,
+    hair: distinctHair(pick(HAIR_COLORS), skin),
+    hairStyle: pick(HAIR_STYLES),
+    shirt: pick(SHIRT_COLORS),
+  };
+}
+
 // Creates a newborn with a random name, look, and traits. bornAt is the clock time,
 // in years, of their birth.
 export function createCharacter(bornAt) {
-  const skin = pick(SKIN_TONES);
   return {
     name: pick(NAMES),
     bornAt,
     stats: { ...START_STATS },
     traits: rollTraits(),
-    appearance: {
-      skin,
-      hair: distinctHair(pick(HAIR_COLORS), skin),
-      hairStyle: pick(HAIR_STYLES),
-      shirt: pick(SHIRT_COLORS),
-    },
+    appearance: randomAppearance(),
   };
 }
 
