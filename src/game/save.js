@@ -31,6 +31,7 @@ function toSaveData(game) {
     goals: game.goals,
     jobs: game.jobs,
     place: game.place,
+    townFrom: game.townFrom ?? null,
     // A pick under way isn't kept: after a load the apple hangs there
     // again (or, once fallen, the result has already been paid).
     fortuneTree: { ...game.fortuneTree, picking: null },
@@ -46,7 +47,7 @@ function toSaveData(game) {
 }
 
 // Returns the saved { clock, character, events, goals, jobs, place,
-// fortuneTree, home, housing, endOfLife, activities, autonomy, farm,
+// townFrom (where they came into town from, or null), fortuneTree, home, housing, endOfLife, activities, autonomy, farm,
 // weather, weatherSeen }, or null if there's no usable save. Saves from before events,
 // goals, jobs, places, the Fortune Tree, Home, housing, the end of life,
 // activities, the character's own plans, the Farm or the weather existed
@@ -67,6 +68,7 @@ export async function loadGame() {
     goals: restoreGoalState(data.goals, data.clock.years),
     jobs: restoreJobState(data.jobs, data.clock.years),
     place: restorePlace(data.place),
+    townFrom: typeof data.townFrom === 'string' ? data.townFrom : null,
     fortuneTree: restoreTreeState(data.fortuneTree),
     home: restoreHomeState(data.home),
     housing: restoreHousingState(data.housing, ageOf(character, data.clock.years)),

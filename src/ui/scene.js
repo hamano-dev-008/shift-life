@@ -27,6 +27,8 @@ import { DOCK_PROP } from '../data/lake.js';
 import { FARM_BACKGROUND, FARM_BACKGROUND_FALLBACK, PADDIES } from '../data/farm.js';
 import { drawFarmGround } from './farm.js';
 import { TREE_BACKGROUND, TREE_BACKGROUND_FALLBACK, WELL_PROP } from '../data/fortuneTreeDecor.js';
+import { CAFE_DOOR_PROP, CAFE_COUNTER_PROP } from '../data/cafe.js';
+import { drawCafe } from './cafe.js';
 import { getSprite, isAnimated, frameAtTime, drawSprite } from './assets.js';
 import { PARALLAX_LAYERS, LAYERED_BACKGROUNDS, PIECE_LAYERS } from '../data/parallax.js';
 import { BACK_LAYERS, wrapX, edgeGaps } from './parallax.js';
@@ -335,6 +337,10 @@ const SCENERY = [
   background(FARM_BACKGROUND, null, FARM_BACKGROUND_FALLBACK),
   background('farm.ground', drawFarmGround),
   ...PADDIES.map((paddy) => prop(paddy.id, NO_ART)),
+  // The Cafe's room; its door and counter are part of it.
+  background('cafe', drawCafe),
+  prop(CAFE_DOOR_PROP, NO_ART),
+  prop(CAFE_COUNTER_PROP, NO_ART),
 ];
 
 function createCanvas(layout, width = layout.width) {

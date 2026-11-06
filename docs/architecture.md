@@ -289,6 +289,12 @@ Shift-Life/
 │   │   ├── housing.js     Draws the sleeping bag and the tent in code
 │   │   ├── room.js        Draws Home's living room in code: wallpaper,
 │   │   │                  wooden floor, window, front door, sofa
+│   │   ├── cafe.js        Draws the Cafe in code: wall, paneling,
+│   │   │                  lanterns, shoji window and sill, door and
+│   │   │                  noren, menu board, shelves, table and
+│   │   │                  chairs, plant, the counter with its siphons
+│   │   │                  and stools (and its front again, over
+│   │   │                  whoever stands behind it)
 │   │   ├── lake.js        Draws the Lake: the code-drawn background
 │   │   │                  (when lake.png is missing), the water
 │   │   │                  shimmer (sparkles that twinkle and drift),
@@ -470,6 +476,10 @@ Shift-Life/
 │       │                  props, own feet row and walking limits),
 │       │                  where a new life starts, the default place,
 │       │                  travel distances, Go to text
+│       ├── cafe.js        The Cafe: its place id, picture size, feet
+│       │                  row and walls, the door, counter (and the
+│       │                  row behind it), window, sill, seats, table,
+│       │                  siphons, in the picture's pixels; text
 │       ├── farm.js        The Farm: its place id, background and
 │       │                  fallback, feet row, walking limits, minimum
 │       │                  age, the paddies' water rows and columns and
@@ -597,6 +607,10 @@ Shift-Life/
                        before its bubble, lost into fairies, the well's
                        glow brightening and fading, stopping
                        before or after the fall, leaving, not saved),
+                       cafe.test.mjs (the Cafe in town: routes in and
+                       out from every place, never a shortcut, the
+                       door back to where they came from, the fades,
+                       walls and feet, the picture's numbers),
                        activities.test.mjs (activities and fishing:
                        rod, bites, odds, earnings, sizes, selling,
                        collection and records, saving, a data-only
@@ -1199,6 +1213,26 @@ Parents' Yard and then of My Yard (see **Farm**).
     No clicks while travelling or once the life has ended.
 - Work trips work the same everywhere (out the nearest open side and
   back; at the Farm always the left).
+- The Cafe (`data/cafe.js`, drawn by `ui/cafe.js`; `cafe` in `PLACES`,
+  `town: true`) is in town: not beside any place. `placeView()` adds
+  the ways in and out (`townExits()`): from every place with an edge
+  exit an exit `via: 'town'` (indoor rooms go out through their door
+  first), and from the Cafe out its `door` prop to each of those, the
+  one they came from (`game.townFrom`, set by `enterPlace()` and
+  saved) first, so clicking the door ("Go outside") leads back there.
+  `routeBetween()` never passes through a town place on the way
+  elsewhere. Leaving for town, the renderer walks them off the nearest
+  open side (`townSide()`); coming back from town they walk in from
+  the right (else the left). Both show as a fade (`transitionFor()`).
+  The room is one picture (107 x 80, the `cafe` sprite, else
+  code-drawn), feet on row 72, walls both sides (`CAFE_WALK`, so no
+  work trips leave from here), indoors for the weather
+  (`INDOOR_PLACES`). Its door and counter are props with no art of
+  their own (click areas and spots, like the dock): the door's spot
+  is where they come in and go out; the counter's spot is its flap.
+  Behind the counter the floor is further back (`behindRow`): the
+  counter's front (`drawCafeCounterFront()`) is drawn again over
+  whoever stands there.
 - A new place needs an entry in `PLACES` (with exits both ways), any
   new scenery pieces in `SCENERY` (`ui/scene.js`, with code-drawn
   art) and props in `PROPS` (`data/layout.js`), and its sprite names
@@ -2182,7 +2216,7 @@ all five files live in `%APPDATA%\shift-life\`.
 - `window-state.json` holds the window position. It's ignored if it
   would put the window off every connected screen.
 - `save.json` holds the life: `{ version, clock: { years }, character,
-  events, goals, jobs, place, fortuneTree, home, housing, endOfLife,
+  events, goals, jobs, place, townFrom, fortuneTree, home, housing, endOfLife,
   activities, autonomy, farm, weather, weatherSeen }`.
   `character` includes
   `stats` and `traits`; `events`

@@ -7,6 +7,9 @@
 import { LAKE_ART, DOCK, DOCK_PROP, FISHING_SPOT_X } from './lake.js';
 import { WELL, WELL_PROP } from './fortuneTreeDecor.js';
 import { FARM_ART, PADDIES, PADDY_WATER } from './farm.js';
+import {
+  CAFE_ART, CAFE_DOOR, CAFE_DOOR_PROP, CAFE_COUNTER, CAFE_COUNTER_PROP,
+} from './cafe.js';
 
 // Overall scene scale: screen pixels per scene pixel. Whole numbers only,
 // so pixels stay crisp. Sizes everything except the character.
@@ -75,6 +78,26 @@ export const PROPS = {
     visitOffset: Math.floor((paddy.left + paddy.right) / 2) - paddy.left - 1,
     visit: false,
   }])),
+  // The Cafe's door and counter are part of its picture too (CAFE_DOOR
+  // and CAFE_COUNTER in data/cafe.js): click areas, and the spots at the
+  // door and at the counter's flap.
+  [CAFE_DOOR_PROP]: {
+    edge: 'left',
+    margin: CAFE_DOOR.left + 1,
+    width: CAFE_DOOR.right - CAFE_DOOR.left - 1,
+    height: CAFE_DOOR.bottom - CAFE_DOOR.top - 1,
+    base: CAFE_ART.height - CAFE_DOOR.bottom,
+    visitOffset: CAFE_DOOR.x - CAFE_DOOR.left - 1,
+  },
+  [CAFE_COUNTER_PROP]: {
+    edge: 'left',
+    margin: CAFE_COUNTER.left + 1,
+    width: CAFE_COUNTER.right - CAFE_COUNTER.left - 1,
+    height: CAFE_COUNTER.bottom - CAFE_COUNTER.top - 1,
+    base: CAFE_ART.height - CAFE_COUNTER.bottom,
+    visitOffset: CAFE_COUNTER.flap - CAFE_COUNTER.left - 1,
+    visit: false,
+  },
 };
 
 // How close to the window edges the character's center may wander.

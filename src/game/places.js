@@ -30,19 +30,36 @@ export function placeExists(game, id) {
   return Boolean(place) && meetsRequirement(game, place.requires);
 }
 
+const isEdge = (via) => via === 'left' || via === 'right';
+const hasEdgeExit = (place) => place.exits.some((exit) => isEdge(exit.via));
+
+// The ways into town and back (`town` in data/places.js): from a place
+// with an edge exit to each town place (`via: 'town'`), and from a town
+// place out its door to each of those, the one they came from
+// (game.townFrom) first, so the door leads back there.
+function townExits(game, place) {
+  if (place.town) {
+    return PLACES.filter((other) => !other.town && hasEdgeExit(other))
+      .sort((a, b) => (b.id === game.townFrom) - (a.id === game.townFrom))
+      .map((other) => ({ to: other.id, via: place.door }));
+  }
+  if (!hasEdgeExit(place)) return [];
+  return PLACES.filter((other) => other.town).map((other) => ({ to: other.id, via: 'town' }));
+}
+
 // Place `id` as it is right now: { id, name, scenery, exits, targets }
 // with only the scenery that shows (the current housing prop), the exits
-// to places that exist through props that show, and the targets that
-// show. Null if the place doesn't exist now.
+// to places that exist through props that show (and to and from town),
+// and the targets that show. Null if the place doesn't exist now.
 export function placeView(game, id) {
   if (!placeExists(game, id)) return null;
   const place = placeById(id);
   const scenery = place.scenery.filter((name) => showsPiece(game, name));
-  const shows = (via) => via === 'left' || via === 'right' || scenery.includes(via);
+  const shows = (via) => isEdge(via) || via === 'town' || scenery.includes(via);
   return {
     ...place,
     scenery,
-    exits: place.exits.filter((exit) => placeExists(game, exit.to) && shows(exit.via)),
+    exits: [...place.exits, ...townExits(game, place)].filter((exit) => placeExists(game, exit.to) && shows(exit.via)),
     targets: Object.fromEntries(Object.entries(place.targets ?? {}).filter(([prop]) => scenery.includes(prop))),
   };
 }
@@ -65,13 +82,16 @@ export function exitBetween(game, from, to) {
 }
 
 // The places passed through going from `from` to `to`, in order, ending
-// with `to` (fewest steps first), or null if there's no way there now.
+// with `to` (fewest steps first), or null if there's no way there now. A
+// town place is only ever where a trip starts or ends, never a shortcut
+// on the way.
 export function routeBetween(game, from, to) {
   const cameFrom = new Map([[from, null]]);
   const queue = [from];
   while (queue.length) {
     const id = queue.shift();
     if (id === to) break;
+    if (id !== from && placeById(id).town) continue;
     for (const exit of placeView(game, id)?.exits ?? []) {
       if (cameFrom.has(exit.to)) continue;
       cameFrom.set(exit.to, id);
@@ -131,6 +151,8 @@ export function settlePlace(game) {
 // menu's Go to).
 export function enterPlace(game, id) {
   if (!placeExists(game, id)) return;
+  // Into town: remember where from (saved), for the way back out.
+  if (placeById(id).town && !placeById(game.place)?.town) game.townFrom = game.place;
   game.place = id;
   settlePlace(game);
 }

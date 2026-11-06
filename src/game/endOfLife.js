@@ -313,6 +313,7 @@ export function startNewLife(game, options = {}) {
   game.goals = createGoalState(0);
   game.jobs = createJobState();
   game.place = NEW_LIFE_PLACE;
+  game.townFrom = null;
   game.fortuneTree = createTreeState();
   game.home = createHomeState();
   game.housing = createHousingState();

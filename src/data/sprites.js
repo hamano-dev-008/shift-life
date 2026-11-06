@@ -62,6 +62,12 @@
 //             lake.butterfly.<color> (white, yellow, orange, blue), used
 //             as is. Bottom edge on the butterfly's row, `anchorX` on its
 //             middle. The code-drawn one is 3 x 3, no outline.
+//   The Cafe (data/cafe.js):
+//     cafe    The whole room, 107 x 80, drawn from the window's
+//             bottom-left corner like the Lake's; positions in
+//             data/cafe.js are in its pixels. Without it the room is
+//             code-drawn (ui/cafe.js), its counter drawn again over
+//             whoever stands behind it.
 //   The Farm (data/farm.js):
 //     farm.background  The whole background (sky, the three rice
 //             paddies, the path, the barn), 107 x 80, drawn from the

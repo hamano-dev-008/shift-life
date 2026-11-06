@@ -115,6 +115,12 @@ Early development. What works so far:
     there, and back): three rice paddies along a dirt path, with a red
     barn. It's open on the left only; the path stops short of the right
     edge. Anyone can visit; farming starts at 10 (see below).
+  - The Cafe is in town, a small Japanese kissaten: paper lanterns, a
+    shoji window, a noren over the door, a wooden counter with siphon
+    brewers and red stools. Pick it in "Go to": the character walks off
+    the side and the Cafe fades in with them at the door. "Go outside"
+    (the door) takes them back where they came from. Its numbers are
+    in `src/data/cafe.js`.
   - The place button (the map pin in the top bar) opens "Go to", listing
     the other places. Pick one and the character walks there, through
     any places in between (the Lake to the living room goes past the

@@ -8,6 +8,9 @@ import { TREE_BACKGROUND, WELL_PROP, WELL_TEXT } from './fortuneTreeDecor.js';
 import {
   FARM_PLACE, FARM_BACKGROUND, FARM_FEET_FROM_BOTTOM, FARM_WALK, PADDIES, FARM_TEXT,
 } from './farm.js';
+import {
+  CAFE_PLACE, CAFE_FEET_FROM_BOTTOM, CAFE_WALK, CAFE_DOOR_PROP, CAFE_COUNTER_PROP, CAFE_TEXT,
+} from './cafe.js';
 
 // Each place has:
 //   id        Unique and saved; don't rename one once it has shipped.
@@ -30,6 +33,11 @@ import {
 //             Links go both ways: the destination needs an exit back, and
 //             that exit is where the character comes in (from that edge,
 //             or at that door).
+//   town      Optional: a place in town, not beside any other. It's
+//             reached from every place with an edge exit (walking off
+//             the nearest open side, exit `via: 'town'`) and left through
+//             its `door` prop back to any of them (game/places.js adds
+//             these exits).
 //   targets   Props that can be clicked, with the hover title: { propId:
 //             title }. Clicking a prop that's an exit's `via` walks the
 //             character through it; resting props (REST_SEATS in
@@ -118,6 +126,19 @@ export const PLACES = [
     // Beside the parents' yard while growing up, then My Yard.
     exits: [{ to: 'yard', via: 'left' }, { to: 'myYard', via: 'left' }],
     targets: Object.fromEntries(PADDIES.map((paddy, i) => [paddy.id, FARM_TEXT.paddyNames[i]])),
+  },
+  {
+    id: CAFE_PLACE,
+    name: CAFE_TEXT.name,
+    // The room (one picture), and its door and counter (part of it). The
+    // door leads back out to wherever they came into town from.
+    scenery: ['cafe', CAFE_DOOR_PROP, CAFE_COUNTER_PROP],
+    feetFromBottom: CAFE_FEET_FROM_BOTTOM,
+    walk: CAFE_WALK,
+    town: true,
+    door: CAFE_DOOR_PROP,
+    exits: [],
+    targets: { [CAFE_DOOR_PROP]: CAFE_TEXT.door },
   },
 ];
 

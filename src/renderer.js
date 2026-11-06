@@ -940,13 +940,23 @@ async function start() {
     return true;
   }
 
-  // Canvas x of the way out through `exit`: past the window edge, or at
-  // the door.
+  // The side a trip into town leaves by (the open one nearest canvas x
+  // `x`), or comes back in by (`x` null: the right if it's open).
+  function townSide(layout, x = null) {
+    const { left, right } = layout.openSides;
+    if (!left || !right) return left ? 'left' : 'right';
+    if (x === null) return 'right';
+    return x < layout.width / 2 ? 'left' : 'right';
+  }
+
+  // Canvas x of the way out through `exit`: past the window edge (the
+  // nearest open one into town), or at the door.
   function exitX(layout, exit) {
     const past = TRAVEL.exitPast * layout.scale;
-    if (exit.via === 'left') return -past;
-    if (exit.via === 'right') return layout.width + past;
-    return layout.props[exit.via].visitX;
+    const via = exit.via === 'town' ? townSide(layout, animator.x) : exit.via;
+    if (via === 'left') return -past;
+    if (via === 'right') return layout.width + past;
+    return layout.props[via].visitX;
   }
 
   function headForExit() {
@@ -990,10 +1000,12 @@ async function start() {
     const back = exitBetween(game, next, from);
     const { layout } = scene;
     const last = trip.route.length === 0;
-    if (back.via === 'left' || back.via === 'right') {
+    // Back from town they walk in from a side.
+    const side = back.via === 'town' ? townSide(layout) : back.via;
+    if (side === 'left' || side === 'right') {
       const walkIn = TRAVEL.entryWalk * layout.scale;
-      const inX = back.via === 'left' ? layout.wanderMinX + walkIn : layout.wanderMaxX - walkIn;
-      enterScene(animator, layout, exitX(layout, back), inX);
+      const inX = side === 'left' ? layout.wanderMinX + walkIn : layout.wanderMaxX - walkIn;
+      enterScene(animator, layout, exitX(layout, { via: side }), inX);
     } else {
       enterScene(animator, layout, exitX(layout, back));
     }
@@ -1522,7 +1534,9 @@ async function start() {
     // cooldown, never soon after a click, and not while anything is
     // showing (a menu, card, the stats, a bubble, a catch reveal, the
     // activity bar).
-    const working = isEmployed(game) && settings.workTrips;
+    // No work trips where both sides are walls (the Cafe).
+    const { openSides } = scene.layout;
+    const working = isEmployed(game) && settings.workTrips && (openSides.left || openSides.right);
     const busy = needed || now < speechUntil || catchReveal.isOpen() || !activityBar.hidden
       || !critterBubble.hidden || !propBubble.hidden || !document.getElementById('stats').hidden
       || Boolean(document.querySelector('#app .panel:not([hidden])')) || travelling() || Boolean(ended)

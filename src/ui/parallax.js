@@ -89,7 +89,7 @@ export function swayShift(sway, layer, scale) {
 
 // Which way a trip from place `from` to `to` through `via` (an exit's,
 // data/places.js) is shown: 'pan' through a side between outdoor places,
-// 'fade' through a door, or null (at once: parallax off).
+// 'fade' through a door or into town, or null (at once: parallax off).
 export function transitionFor(from, to, via, enabled) {
   if (!enabled) return null;
   if (via === 'left' || via === 'right') {
