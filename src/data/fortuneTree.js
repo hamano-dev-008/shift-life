@@ -35,7 +35,8 @@ export const APPLE_REWARD = 888;
 // branch, `poke` poking (the stick jabs up every `pokeBeat`), `fall` the
 // apple dropping to the ground, then `hold` holding a won apple up high,
 // or `fairies` watching a lost one burst into fairies that fly into the
-// wishing well.
+// wishing well (long enough for the well's glow to fade after the last,
+// WELL_GLOW in data/fortuneTreeDecor.js).
 export const PICK = {
   standOff: 4,
   side: 'right',
@@ -44,7 +45,7 @@ export const PICK = {
   pokeBeat: 0.3,
   fall: 0.8,
   hold: 2.5,
-  fairies: 4,
+  fairies: 6,
 };
 
 // Where the apple hangs: the pixel its center lands on, as { col, row }

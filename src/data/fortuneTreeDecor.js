@@ -170,3 +170,22 @@ export const FAIRIES = {
   mouth: { x: 0.5, y: 0.62 },
   colors: { body: '#f2c14e', wing: '#fffbe0', sparkle: '#ffe26e' },
 };
+
+// The wishing well glows as the fairies dive in: `rings` of `color` discs
+// of whole scene pixels `radius` from a point `lift` scene pixels above
+// the well's mouth (FAIRIES.mouth: over the opening, not the stones),
+// outermost first at `alpha` times the level. Each fairy in brightens it
+// a step (a share of the fairies), and once the last is in it holds
+// `hold` seconds and fades out over `fade` seconds in `fadeSteps` steps.
+export const WELL_GLOW = {
+  color: '#ffe26e',
+  lift: 3,
+  rings: [
+    { radius: 9, alpha: 0.16 },
+    { radius: 6.5, alpha: 0.24 },
+    { radius: 4, alpha: 0.36 },
+  ],
+  hold: 0.8,
+  fade: 1.6,
+  fadeSteps: 4,
+};

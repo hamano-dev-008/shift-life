@@ -354,7 +354,8 @@ Shift-Life/
 │   │   │                  the grass, the long one held up and jabbing,
 │   │   │                  the apple falling, on the grass and held up,
 │   │   │                  a lost one's burst and fairies flying into
-│   │   │                  the well; the spot under the apple
+│   │   │                  the well, and its glow; the spot under the
+│   │   │                  apple
 │   │   ├── treeDecor.js   The Fortune Tree's falling golden leaves, its
 │   │   │                  wind and the ready apple's glow and sparkles,
 │   │   │                  visual only (no DOM, so tests run it): leaves
@@ -593,7 +594,8 @@ Shift-Life/
                        dev, flying off in the rain),
                        applePick.test.mjs (picking the golden apple:
                        only once under it, the steps, won held up
-                       before its bubble, lost into fairies, stopping
+                       before its bubble, lost into fairies, the well's
+                       glow brightening and fading, stopping
                        before or after the fall, leaving, not saved),
                        activities.test.mjs (activities and fishing:
                        rod, bites, odds, earnings, sizes, selling,
@@ -1501,7 +1503,9 @@ text are in `data/fortuneTree.js`; logic in `game/fortuneTree.js`.
   branch dropped, the apple falling and bouncing at their feet). Won:
   `hold` (picking it up and holding it high over the hand), then the
   golden bubble. Lost: `fairies` (it bursts into golden fairies that
-  fly in arcs into the wishing well), its bubble "The apple burst into
+  fly in arcs into the wishing well, which glows a step brighter as
+  each goes in, then holds and fades: `WELL_GLOW`, `wellGlowLevel()`),
+  its bubble "The apple burst into
   fairies..." as it lands. Stop (the bar) or leaving the place calls
   it off: before the fall nothing happens (the apple still hangs);
   after it the result stands and Stop shows its bubble if it hadn't

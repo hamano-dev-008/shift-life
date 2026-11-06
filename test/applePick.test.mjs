@@ -1,7 +1,7 @@
 // applePick.test.mjs — Picking the golden apple: walking under it first,
 // then the branch, the poking, the fall (when it's decided), holding up a
-// won apple or the fairies of a lost one, stopping, leaving, and what the
-// bar and menu say.
+// won apple or the fairies of a lost one (and the well glowing as they
+// go in), stopping, leaving, and what the bar and menu say.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createClock } from '../src/game/clock.js';
@@ -14,6 +14,8 @@ import { activityBarView, stopFromBar } from '../src/game/activityBar.js';
 import { enterPlace } from '../src/game/places.js';
 import { saveGame } from '../src/game/save.js';
 import { PICK, APPLE_REWARD, TREE_TEXT, FORTUNE_TREE_PLACE } from '../src/data/fortuneTree.js';
+import { FAIRIES } from '../src/data/fortuneTreeDecor.js';
+import { wellGlowLevel } from '../src/ui/applePick.js';
 
 const won = () => 0;
 const lost = () => 0.999;
@@ -146,4 +148,18 @@ test('if the apple goes before it falls, the pick ends', () => {
   game.fortuneTree.appleReady = false;
   run(game, 0.25, won);
   assert.equal(isPicking(game), false);
+});
+
+test('the well glows a step brighter as each fairy goes in, then fades out before the pick is over', () => {
+  const levels = [];
+  for (let t = 0; t <= PICK.fairies; t += 0.05) levels.push(wellGlowLevel(t));
+  assert.equal(levels[0], 0, 'dark until the first is in');
+  const peak = levels.indexOf(1);
+  assert.ok(peak > 0, 'full once all are in');
+  const rising = levels.slice(0, peak + 1);
+  assert.deepEqual(rising, [...rising].sort((a, b) => a - b), 'only brighter while they go in');
+  assert.deepEqual(new Set(rising), new Set(Array.from({ length: FAIRIES.count + 1 }, (_, i) => i / FAIRIES.count)));
+  const fading = levels.slice(peak);
+  assert.deepEqual(fading, [...fading].sort((a, b) => b - a), 'only dimmer after');
+  assert.equal(levels.at(-1), 0, 'dark again before the pick ends');
 });

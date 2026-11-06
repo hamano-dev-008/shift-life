@@ -292,7 +292,8 @@ Early development. What works so far:
     session since the last golden apple, up to 50%. The menu shows the
     current chance. A golden apple pays $888: they pick it up and hold
     it high. A miss bursts into little golden fairies that fly off into
-    the wishing well. Either way the next one is 8 hours away.
+    the wishing well, which glows brighter as each one goes in and then
+    fades. Either way the next one is 8 hours away.
   - Two short twigs and a long branch lie in the grass under the tree;
     after picking, the long one lies where it was dropped until you
     come back.

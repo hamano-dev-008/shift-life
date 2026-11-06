@@ -6,12 +6,13 @@
 // step and the seconds into it, so nothing needs saving. Numbers and
 // colors in data/fortuneTreeDecor.js and data/fortuneTree.js.
 
-import { BRANCHES, PICK_LOOK, FAIRIES, WELL_PROP } from '../data/fortuneTreeDecor.js';
+import { BRANCHES, PICK_LOOK, FAIRIES, WELL_PROP, WELL_GLOW } from '../data/fortuneTreeDecor.js';
 import { PICK, TREE_PROP } from '../data/fortuneTree.js';
 import { OUTLINE_COLOR } from '../data/appearance.js';
 import { createLayer, fill, outline, drawLayer } from './pixel.js';
 import { appleCenter, drawGoldenApple } from './goldenApple.js';
 import { propRect } from './scene.js';
+import { glowDisc } from './treeDecor.js';
 
 // What shows at `t` seconds into `step` (null: walking under the apple):
 // { activity (the character's pose: 'reachDown', 'reachUp' or null),
@@ -197,9 +198,39 @@ function wellMouth(layout) {
   return { x: well.left + well.width * FAIRIES.mouth.x, y: well.top + well.height * FAIRIES.mouth.y };
 }
 
+// When fairy `i` (from 0) is in the well, in seconds into a lost apple's
+// end.
+const fairyIn = (i) => FAIRIES.burst.seconds * 0.5 + i * FAIRIES.stagger + FAIRIES.fly;
+
+// How bright the well glows `t` seconds into a lost apple's end (0-1): a
+// step brighter for each fairy in, then held and faded out in steps once
+// the last is in (WELL_GLOW).
+export function wellGlowLevel(t) {
+  let inside = 0;
+  for (let i = 0; i < FAIRIES.count; i++) if (t >= fairyIn(i)) inside += 1;
+  const after = t - fairyIn(FAIRIES.count - 1) - WELL_GLOW.hold;
+  if (after <= 0) return inside / FAIRIES.count;
+  const { fade, fadeSteps } = WELL_GLOW;
+  return Math.max(0, Math.ceil((1 - after / fade) * fadeSteps) / fadeSteps);
+}
+
+function drawWellGlow(ctx, layout, mouth, level) {
+  if (level <= 0) return;
+  const { scale } = layout;
+  const x = Math.round(mouth.x / scale) * scale;
+  const y = (Math.round(mouth.y / scale) - WELL_GLOW.lift) * scale;
+  ctx.save();
+  ctx.fillStyle = WELL_GLOW.color;
+  for (const ring of WELL_GLOW.rings) {
+    ctx.globalAlpha = Math.min(1, ring.alpha * level);
+    for (const [dx, dy] of glowDisc(ring.radius)) ctx.fillRect(x + dx * scale, y + dy * scale, scale, scale);
+  }
+  ctx.restore();
+}
+
 // `t` seconds into a lost apple's end: the burst where it landed, then
 // the fairies flying off in arcs into the wishing well (or just up and
-// away if there's no well).
+// away if there's no well), which glows as they go in.
 export function drawFairies(ctx, layout, t) {
   const { scale } = layout;
   const from = groundApple(layout);
@@ -211,9 +242,11 @@ export function drawFairies(ctx, layout, t) {
       dot(ctx, layout, from.x + Math.cos(angle) * r, from.y + Math.sin(angle) * r * 0.6, FAIRIES.colors.sparkle);
     }
   }
-  const to = wellMouth(layout) ?? { x: from.x, y: -20 * scale };
+  const mouth = wellMouth(layout);
+  if (mouth) drawWellGlow(ctx, layout, mouth, wellGlowLevel(t));
+  const to = mouth ?? { x: from.x, y: -20 * scale };
   for (let i = 0; i < FAIRIES.count; i++) {
-    const u = (t - burst.seconds * 0.5 - i * FAIRIES.stagger) / FAIRIES.fly;
+    const u = (t - fairyIn(i)) / FAIRIES.fly + 1;
     if (u < 0) continue;
     // In: a glint at the well's mouth for a moment.
     if (u >= 1) {
