@@ -28,6 +28,25 @@ export const APPLE_EVERY_HOURS = 8;
 export const PICK_CHANCE = { base: 0.1, perSession: 0.02, max: 0.5 };
 export const APPLE_REWARD = 888;
 
+// Picking the apple: the character walks under it (standing `standOff`
+// scene pixels to the `side` of it, facing it), picks up the long branch
+// lying there, pokes the apple until it falls, and the pick is decided
+// as it falls. Real seconds once there: `pickUp` crouching for the
+// branch, `poke` poking (the stick jabs up every `pokeBeat`), `fall` the
+// apple dropping to the ground, then `hold` holding a won apple up high,
+// or `fairies` watching a lost one burst into fairies that fly into the
+// wishing well.
+export const PICK = {
+  standOff: 4,
+  side: 'right',
+  pickUp: 1.2,
+  poke: 3,
+  pokeBeat: 0.3,
+  fall: 0.8,
+  hold: 2.5,
+  fairies: 4,
+};
+
 // Where the apple hangs: the pixel its center lands on, as { col, row }
 // from the top-left of the tree's art. `sprite` is for tree.png (in its
 // own pixels), `code` for the code-drawn tree (in scene pixels, counting
@@ -51,6 +70,7 @@ export const TREE_TEXT = {
   play: 'Play an instrument',
   stop: 'Stop playing',
   pick: 'Pick the golden apple',
+  picking: 'Picking the apple...',
   idleStatus: 'Busking pays ${pay} every {minutes} min.',
   playingStatus: 'Playing: {time} of {total}',
   sessions: 'Full sessions: {count}',
@@ -59,9 +79,13 @@ export const TREE_TEXT = {
   chance: 'Pick chance: {percent}%',
   sessionPaid: { heading: 'Busking', text: 'Tips from passersby!' },
   appleWon: { heading: 'Golden apple!', text: '{name} picked the golden apple!' },
-  appleLost: { text: 'The apple slipped away...' },
+  appleLost: { text: 'The apple burst into fairies...' },
   // The activity bar while busking; {time} and {total} as m:ss.
   bar: 'Busking - {time} of {total}',
   // The activity bar while walking to the tree to play.
   onTheWay: 'Walking to the tree...',
+  // The activity bar while picking the apple: walking under it, then
+  // getting the branch and poking.
+  pickOnTheWay: 'Walking to the apple...',
+  pickBar: 'Picking the golden apple...',
 };

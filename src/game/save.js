@@ -31,7 +31,9 @@ function toSaveData(game) {
     goals: game.goals,
     jobs: game.jobs,
     place: game.place,
-    fortuneTree: game.fortuneTree,
+    // A pick under way isn't kept: after a load the apple hangs there
+    // again (or, once fallen, the result has already been paid).
+    fortuneTree: { ...game.fortuneTree, picking: null },
     home: game.home,
     housing: game.housing,
     endOfLife: game.endOfLife,

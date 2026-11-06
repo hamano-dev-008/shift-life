@@ -127,3 +127,46 @@ export const APPLE_GLOW = {
 export const TREE_DECOR_TEXT = {
   notHere: 'Only at the Fortune Tree.',
 };
+
+// Branches lying in the grass under the tree, code-drawn at SCENE_SCALE
+// with an outline. Each is `length` scene pixels long, its middle `dx`
+// scene pixels from the tree's middle (the long one: from the golden
+// apple's), lying `row` rows below the character's feet row (negative is
+// further back). The long one is what the character picks up to poke the
+// apple down; once done they drop it where they stand, and it lies there
+// until the Fortune Tree is shown again.
+export const BRANCHES = {
+  twigs: [
+    { dx: -14, row: -1, length: 5 },
+    { dx: 30, row: -1, length: 7 },
+  ],
+  long: { dx: -2, row: 0, length: 20 },
+  colors: { wood: '#8b5a3c', light: '#b07a4f' },
+};
+
+// How picking the golden apple looks (its steps and times are PICK in
+// data/fortuneTree.js): reaching down for the branch over the first
+// `reachShare` of picking it up, the branch's tip pulling back `pullBack`
+// character pixels between jabs (each PICK.pokeBeat), the apple bouncing
+// `bounce` scene pixels over the last `bounceShare` of its fall, and
+// `grab` seconds reaching down for a won apple before holding it up.
+export const PICK_LOOK = { reachShare: 0.6, pullBack: 3, bounce: 3, bounceShare: 0.3, grab: 0.5 };
+
+// A lost apple bursts (a ring of `burst.dots` sparkles spreading
+// `burst.radius` scene pixels over `burst.seconds`) into `count` golden
+// fairies. Each sets off `stagger` seconds after the one before, flies
+// `fly` seconds in an arc rising `rise` scene pixels (random between)
+// above the higher end, bobbing `wobble` pixels, wings beating every
+// `flap` seconds, and dives into the wishing well's mouth (`mouth`:
+// fractions of the well's drawn box). Code-drawn 3 x 3 at SCENE_SCALE.
+export const FAIRIES = {
+  count: 5,
+  burst: { dots: 8, radius: 6, seconds: 0.4 },
+  stagger: 0.2,
+  fly: 2.4,
+  rise: [3, 8],
+  wobble: 1.5,
+  flap: 0.1,
+  mouth: { x: 0.5, y: 0.62 },
+  colors: { body: '#f2c14e', wing: '#fffbe0', sparkle: '#ffe26e' },
+};

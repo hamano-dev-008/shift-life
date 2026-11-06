@@ -3,8 +3,9 @@
 // center, right, center, left, the frame chosen by the wind in
 // ui/treeDecor.js), otherwise a small code-drawn apple with a blinking
 // glint, shifted a pixel as it swings. Either way it's drawn at the
-// tree's scale, centered on APPLE_SPOT (data/fortuneTree.js). Also where
-// it hangs, for the glow and sparkles around it (ui/treeDecorArt.js).
+// tree's scale, centered on APPLE_SPOT (data/fortuneTree.js), or anywhere
+// while it falls and is held up (ui/applePick.js). Also where it hangs,
+// for the glow and sparkles around it (ui/treeDecorArt.js).
 
 import { APPLE_SPOT, APPLE_GLINT, TREE_PROP } from '../data/fortuneTree.js';
 import { OUTLINE_COLOR } from '../data/appearance.js';
@@ -59,11 +60,13 @@ export function appleCenter(layout) {
 
 // Draws the apple on the tree, `seconds` in (for the code-drawn glint),
 // swung to `frame` (APPLE_SWING.frames: 0 center, 1 right, 2 center, 3
-// left). Does nothing if the place has no tree.
-export function drawGoldenApple(ctx, layout, seconds, frame = 0) {
+// left), or with `at` ({ x, y }, canvas pixels) centered there instead
+// (falling, or held up once picked). Does nothing if the place has no
+// tree.
+export function drawGoldenApple(ctx, layout, seconds, frame = 0, at = null) {
   const tree = propRect(layout, TREE_PROP);
   if (!tree) return;
-  const { x, y } = appleCenter(layout);
+  const { x, y } = at ?? appleCenter(layout);
   const scale = tree.scale;
 
   const sprite = getSprite('goldenApple');

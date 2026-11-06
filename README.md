@@ -286,10 +286,16 @@ Early development. What works so far:
     timer waits until they stop. An event already waiting stays waiting.
     Pay and goal boosts carry on.
   - "Pick the golden apple": a golden apple grows on the tree every 8
-    real hours (one at a time). Picking it works 10% of the time, plus 2%
-    per full busking session since the last golden apple, up to 50%.
-    The menu shows the current chance. A golden apple pays $888; a miss
-    loses the apple. Either way the next one is 8 hours away.
+    real hours (one at a time). The character walks under it, picks up
+    the long branch lying in the grass there and pokes the apple until
+    it falls. It works 10% of the time, plus 2% per full busking
+    session since the last golden apple, up to 50%. The menu shows the
+    current chance. A golden apple pays $888: they pick it up and hold
+    it high. A miss bursts into little golden fairies that fly off into
+    the wishing well. Either way the next one is 8 hours away.
+  - Two short twigs and a long branch lie in the grass under the tree;
+    after picking, the long one lies where it was dropped until you
+    come back.
   These timers use real time (game speed doesn't change them) and pause
   while the app is closed. The numbers are in `src/data/fortuneTree.js`.
 - Babies crawl on hands and knees in short trips and sit up in between,

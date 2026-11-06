@@ -347,8 +347,14 @@ Shift-Life/
 │   │   ├── eventCard.js   The event card: prompt and choice buttons
 │   │   ├── goalMenu.js    The goal menu: pick a goal, boost, milestones
 │   │   ├── goldenApple.js The golden apple on the tree (sprite frame
-│   │   │                  picked by the wind, or code), and where it
-│   │   │                  hangs (appleCenter())
+│   │   │                  picked by the wind, or code), or anywhere
+│   │   │                  (falling, held), and where it hangs
+│   │   │                  (appleCenter())
+│   │   ├── applePick.js   How picking the apple looks: the branches in
+│   │   │                  the grass, the long one held up and jabbing,
+│   │   │                  the apple falling, on the grass and held up,
+│   │   │                  a lost one's burst and fairies flying into
+│   │   │                  the well; the spot under the apple
 │   │   ├── treeDecor.js   The Fortune Tree's falling golden leaves, its
 │   │   │                  wind and the ready apple's glow and sparkles,
 │   │   │                  visual only (no DOM, so tests run it): leaves
@@ -516,7 +522,9 @@ Shift-Life/
 │       │                  the wishing well (size, colors, click text),
 │       │                  falling leaves (how often, how many, canopy,
 │       │                  speed, sway, flutter, landing, fade, sparkle
-│       │                  chance, colors), apple sparkles, the wind
+│       │                  chance, colors), apple sparkles, the
+│       │                  branches under the tree, how picking looks
+│       │                  (PICK_LOOK), the fairies, the wind
 │       │                  (gusts, swing timing, leaf push), the apple's
 │       │                  swing frames and glow (color, rings, pulse,
 │       │                  pick flash), dev note
@@ -583,6 +591,10 @@ Shift-Life/
                        (leap, tongue, catch share, a miss flees),
                        butterflies' count, area and reeds, clicks,
                        dev, flying off in the rain),
+                       applePick.test.mjs (picking the golden apple:
+                       only once under it, the steps, won held up
+                       before its bubble, lost into fairies, stopping
+                       before or after the fall, leaving, not saved),
                        activities.test.mjs (activities and fishing:
                        rod, bites, odds, earnings, sizes, selling,
                        collection and records, saving, a data-only
@@ -1327,10 +1339,10 @@ menu `ui/farmMenu.js`): rice paddies right of the yard.
   strongest near the apple; drawn after the leaves and before the
   apple. It pulses (`glowLevel()`: between `pulse.low` and
   `pulse.high` and back every `pulse.period`, 2 s, in `pulse.steps`
-  steps). Picking the apple (won or missed) calls `flashApple()`: the
-  glow is `flash.boost` times as bright, fading in `flash.steps` over
-  `flash.seconds`, and the apple stays drawn until it's over
-  (`isFlashing()`).
+  steps). When a poked apple comes loose (the pick's `fall` step) the
+  renderer calls `flashApple()`: the glow is `flash.boost` times as
+  bright, fading in `flash.steps` over `flash.seconds` (`isFlashing()`),
+  around the falling apple.
 
 ## Yard and Home art
 
@@ -1470,10 +1482,43 @@ text are in `data/fortuneTree.js`; logic in `game/fortuneTree.js`.
   (`ui/goldenApple.js`) at `APPLE_SPOT`: the `goldenApple` sprite if
   there is one (4 frames of 8 x 6, the frame picked by the wind), else
   a code-drawn apple with a glint, at the tree's scale, centered on
-  the spot, with its glow behind (see **Fortune Tree decoration**). Picking succeeds with `PICK_CHANCE` (base + perSession x
-  sessions, capped): `APPLE_REWARD` dollars, a golden bubble, and
-  `sessions` back to 0. A miss shows "The apple slipped away...".
-  Either way the apple is gone and the next one starts growing.
+  the spot, with its glow behind (see **Fortune Tree decoration**).
+- Picking it ("Pick the golden apple", `startPicking()`; the menu
+  closes and the plan, if any, is called off): busking stops and
+  `tree.picking` (`{ step, ms, won, news }`, not saved: `saveGame()`
+  writes `picking: null`) starts. `stayKey()` is `'picking'`: the
+  renderer's `stayFor()` sends them to `pickSpot()`, `PICK.standOff`
+  scene pixels right of the apple facing it (stay mode `'doing'`, the
+  pose's activity from `pickLook()`); the bar says "Walking to the
+  apple...", then "Picking the golden apple...". Events aren't frozen.
+  Once there, on the real-time life tick (`updateFortuneTree()`), the
+  steps run `PICK` seconds each: `pickUp` (reaching down for the long
+  branch lying there, then holding it up), `poke` (it jabs the apple,
+  which shakes through its swing frames), then the pick is decided
+  (`rollPick()`: `PICK_CHANCE`, base + perSession x sessions, capped;
+  won pays `APPLE_REWARD` and sets `sessions` back to 0; either way the
+  apple is gone and the next one starts growing) and `fall` (the
+  branch dropped, the apple falling and bouncing at their feet). Won:
+  `hold` (picking it up and holding it high over the hand), then the
+  golden bubble. Lost: `fairies` (it bursts into golden fairies that
+  fly in arcs into the wishing well), its bubble "The apple burst into
+  fairies..." as it lands. Stop (the bar) or leaving the place calls
+  it off: before the fall nothing happens (the apple still hangs);
+  after it the result stands and Stop shows its bubble if it hadn't
+  shown yet. While picking, busking can't start and the menu's pick
+  button says "Picking the apple..." (disabled). An apple gone before
+  it fell (a new life) ends the pick.
+- The renderer counts each step's seconds itself from when it first
+  shows (`updatePickShown()`; the game moves steps on in 250ms ticks),
+  so the look is smooth. Held, the branch is drawn from `raisedHand()`
+  (`ui/sprite.js`, the `reachUp` arm) to under the apple in whole
+  character pixels with an outline (`drawHeldBranch()`); dropped, it
+  lies where they stood (`treeDecor.branchX`) until the tree is shown
+  again. The arms are `reachUp` (raised) and `reachDown` (to the
+  ground), standing activities like the others (code and part art).
+- Branches (`BRANCHES`, `drawBranches()`): two twigs by the trunk and
+  the long branch under the apple, code-drawn at `SCENE_SCALE` with an
+  outline, on the grass behind the character.
 
 ## End of life
 

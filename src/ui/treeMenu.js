@@ -44,12 +44,13 @@ function renderOptions(menu, view, actions) {
     ? element('button', 'active', TREE_TEXT.stop)
     : element('button', '', TREE_TEXT.play);
   toggle.addEventListener('click', view.playing ? actions.stop : actions.play);
-  // No busking in a thunderstorm (the status says why).
-  toggle.disabled = !view.playing && view.stormy;
+  // No busking in a thunderstorm (the status says why), nor while picking.
+  toggle.disabled = !view.playing && (view.stormy || view.picking);
   const buttons = [toggle];
   if (view.appleReady) {
-    const pick = element('button', 'golden', TREE_TEXT.pick);
+    const pick = element('button', 'golden', view.picking ? TREE_TEXT.picking : TREE_TEXT.pick);
     pick.addEventListener('click', actions.pick);
+    pick.disabled = view.picking;
     buttons.push(pick);
   }
   options.replaceChildren(...buttons);
@@ -105,7 +106,7 @@ export function createTreeMenu(menu, actions) {
       if (menu.hidden) return;
       const titleNode = menu.querySelector('.menu-title');
       if (titleNode.textContent !== title) titleNode.textContent = title;
-      const optionsKey = `${view.unlocked}|${view.playing}|${view.appleReady}|${view.stormy}`;
+      const optionsKey = `${view.unlocked}|${view.playing}|${view.appleReady}|${view.stormy}|${view.picking}`;
       if (optionsKey !== shownOptions) {
         shownOptions = optionsKey;
         renderOptions(menu, view, wrapped);

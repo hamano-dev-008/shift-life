@@ -1,6 +1,7 @@
 // stay.js — The "on the way" stage shared by everything the character
-// stays put to do: busking under the Fortune Tree, resting, and place
-// activities (fishing, and any added in data/activities.js). Once one is
+// stays put to do: busking under the Fortune Tree, picking its apple,
+// resting, and place activities (fishing, and any added in
+// data/activities.js). Once one is
 // chosen they walk to its spot; it only starts counting when they've
 // arrived: its real-time timers, rewards and bites, and the event freeze.
 // Arrival is visual: the animator settles into the pose, the renderer
@@ -12,12 +13,13 @@
 import { PLACE_ACTIVITIES } from '../data/activities.js';
 
 // What's running that needs its spot: 'activity:<id>', 'farm:<paddy>'
-// (a job at a rice paddy), 'busking', 'resting', or null. An activity
-// comes first, as in the activity bar.
+// (a job at a rice paddy), 'picking' (the golden apple), 'busking',
+// 'resting', or null. An activity comes first, as in the activity bar.
 export function stayKey(game) {
   const activity = game.activities?.current;
   if (activity) return `activity:${activity.id}`;
   if (game.farm?.job) return `farm:${game.farm.job.paddy}`;
+  if (game.fortuneTree?.picking) return 'picking';
   if (game.fortuneTree?.playing) return 'busking';
   if (game.home?.resting) return 'resting';
   return null;
@@ -54,9 +56,9 @@ export function arriveAtStay(game) {
 
 // Whether new events wait now: busking, resting, or an activity with
 // `freezeEvents`, but only once they've arrived. Before that events come
-// as normal.
+// as normal. Picking the apple (a few seconds, like a farm job) doesn't.
 export function stayFreezesEvents(game) {
-  if (!hasArrived(game)) return false;
+  if (!hasArrived(game) || stayKey(game) === 'picking') return false;
   const activity = game.activities?.current;
   if (activity) return Boolean(PLACE_ACTIVITIES[activity.id]?.freezeEvents);
   return true;

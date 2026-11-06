@@ -45,7 +45,7 @@ import {
   settlePlace, restSpotOf, updatePlaces,
 } from './game/places.js';
 import {
-  updateFortuneTree, isPlaying, startPlaying, stopPlaying, pickApple, treeView,
+  updateFortuneTree, isPlaying, startPlaying, stopPlaying, treeView, startPicking, isPicking,
 } from './game/fortuneTree.js';
 import {
   updateHome, isResting, startResting, stopResting, restView,
@@ -100,7 +100,7 @@ import { SPEEDS } from './data/balance.js';
 import { CRAWL_UNTIL_AGE, FIRST_STEPS } from './data/infant.js';
 import { TRAVEL, PLACE_TEXT } from './data/places.js';
 import { FAREWELL, END_TEXT } from './data/endOfLife.js';
-import { FORTUNE_TREE_PLACE, TREE_PROP } from './data/fortuneTree.js';
+import { FORTUNE_TREE_PLACE, TREE_PROP, PICK } from './data/fortuneTree.js';
 import { REST_SEATS, REST_BEDS, REST_PREVIEW_BED, REST_DEV_TEXT } from './data/home.js';
 import {
   computeLayout, createScenery, propClickRect, propRect, drawPropAlone, propArtFrame,
@@ -113,13 +113,16 @@ import {
 import { drawDockSilhouette } from './ui/lake.js';
 import { drawGoldenApple } from './ui/goldenApple.js';
 import {
+  pickLook, pickSpot, drawBranches, drawHeldBranch, drawPickedApple, drawFairies,
+} from './ui/applePick.js';
+import {
   createTreeDecor, updateTreeDecor, appleFrame, startGust, flashApple, isFlashing, createWind, updateWind, isGusting,
 } from './ui/treeDecor.js';
 import {
   treeDecorArea, drawTreeDecor, drawAppleSparkles, drawAppleGlow,
 } from './ui/treeDecorArt.js';
 import {
-  WELL_PROP, WELL_TEXT, WELL_BUBBLE_SECONDS, TREE_DECOR_TEXT,
+  WELL_PROP, WELL_TEXT, WELL_BUBBLE_SECONDS, TREE_DECOR_TEXT, APPLE_SWING,
 } from './data/fortuneTreeDecor.js';
 import { createTreeMenu } from './ui/treeMenu.js';
 import { drawFarewellFade } from './ui/farewell.js';
@@ -153,7 +156,7 @@ import {
   takeLeftForWork, isAtWork, callBackFromWork,
 } from './ui/animator.js';
 import {
-  drawCharacter, figureHeight, fishingHand, headX, lyingXForHead,
+  drawCharacter, figureHeight, fishingHand, raisedHand, headX, lyingXForHead,
 } from './ui/sprite.js';
 import {
   bubbleBottomY, drawEventBubble, placeOver, placeSpeech, formatDeltas, formatRaise,
@@ -353,13 +356,11 @@ async function start() {
       playerTookOver();
       if (stopPlaying(game)) saveGame(game);
     },
+    // Off to poke the apple down; the result comes as it lands
+    // (updateFortuneTree()).
     pick: () => {
-      // Won or missed, the glow flashes before the apple goes.
-      if (treeDecor && game.fortuneTree.appleReady) flashApple(treeDecor);
-      const news = pickApple(game);
-      if (!news) return;
-      showNews(news);
-      saveGame(game);
+      playerTookOver();
+      if (startPicking(game)) saveGame(game);
     },
     onOpen: () => closePanels('tree'),
   });
@@ -554,6 +555,28 @@ async function start() {
   }
   // The Fortune Tree's falling leaves (ui/treeDecor.js), while it's shown.
   let treeDecor = null;
+  // Picking the golden apple, as shown this frame: { step (null while
+  // walking under it), t (seconds into it, counted here so it's smooth),
+  // look (pickLook()) }, or null. The step's start is noted when it first
+  // shows (the game moves it on in 250ms ticks).
+  let pickShown = null;
+  let pickSince = { key: null, at: 0 };
+  function updatePickShown(now) {
+    if (!isPicking(game) || game.place !== FORTUNE_TREE_PLACE) {
+      pickShown = null;
+      pickSince = { key: null, at: 0 };
+      return;
+    }
+    const step = hasArrived(game) ? game.fortuneTree.picking.step : null;
+    const key = step ?? 'walk';
+    if (pickSince.key !== key) {
+      pickSince = { key, at: now };
+      // Knocked loose: the glow flashes as it drops.
+      if (step === 'fall' && treeDecor) flashApple(treeDecor);
+    }
+    const t = (now - pickSince.at) / 1000;
+    pickShown = { step, t, look: pickLook(step, t) };
+  }
   let lastFishPhase = null;
   const wildlifeReward = createWildlifeReward();
   let critterBubbleUntil = 0;
@@ -1082,6 +1105,9 @@ async function start() {
         facing: 1,
       };
     }
+    // Under the golden apple to poke it down, posed as pickLook() says.
+    const under = place.id === FORTUNE_TREE_PLACE && isPicking(game) ? pickSpot(layout) : null;
+    if (under) return { x: under.x, mode: 'doing', activity: pickShown?.look.activity ?? null, facing: under.facing };
     if (place.id === FORTUNE_TREE_PLACE && isPlaying(game) && layout.props[TREE_PROP]) {
       return { x: layout.props[TREE_PROP].visitX, mode: 'busking' };
     }
@@ -1280,7 +1306,7 @@ async function start() {
       // They choose something to do now, skipping the wait.
       planNow: () => {
         if (game.endOfLife.ended || travelling() || currentPlan(game) || isPlaying(game) || isResting(game)
-          || isDoingActivity(game) || currentFarmJob(game)) {
+          || isDoingActivity(game) || currentFarmJob(game) || isPicking(game)) {
           return AUTONOMY_TEXT.notNow;
         }
         restPreview = null;
@@ -1358,10 +1384,24 @@ async function start() {
       }
       const area = treeDecorArea(layout);
       if (area) updateTreeDecor(deco.treeDecor, dt, area, Math.random, { ownWind: false });
+      // The branches in the grass: the long one in hand while picking,
+      // and where it was dropped after (branchX, until the tree is shown
+      // again).
+      const pick = place.id === game.place ? pickShown : null;
+      drawBranches(target, layout, {
+        longX: deco.treeDecor.branchX ?? null,
+        longHeld: Boolean(pick) && (pick.look.stick === 'held' || pick.look.stick === 'jab'),
+      });
       drawTreeDecor(target, layout, deco.treeDecor);
       if (game.fortuneTree.appleReady || isFlashing(deco.treeDecor)) {
         drawAppleGlow(target, layout, seconds, deco.treeDecor.flashLeft);
-        drawGoldenApple(target, layout, seconds, appleFrame(deco.treeDecor.wind));
+      }
+      if (game.fortuneTree.appleReady) {
+        // Poked, it shakes through its swing frames.
+        const frame = pick?.look.apple === 'shaking'
+          ? Math.floor((2 * seconds) / PICK.pokeBeat) % APPLE_SWING.frames.length
+          : appleFrame(deco.treeDecor.wind);
+        drawGoldenApple(target, layout, seconds, frame);
       }
       if (game.fortuneTree.appleReady) drawAppleSparkles(target, layout, seconds);
     } else {
@@ -1476,6 +1516,7 @@ async function start() {
     updateDragSway(sway, dt, settings.parallax ? windowDrag.dragX() : null);
     const { ended } = game.endOfLife;
     if (ended && !farewell) startFarewell(now);
+    updatePickShown(now);
     const stay = stayOf(stage);
     // Work trips: only with a job and the setting on, at most one per
     // cooldown, never soon after a click, and not while anything is
@@ -1489,7 +1530,7 @@ async function start() {
     // Their own plans: left alone long enough (nothing running, nothing
     // showing, not away), now and then they choose something to do.
     const running = isPlaying(game) || isResting(game) || isDoingActivity(game)
-      || Boolean(currentFarmJob(game));
+      || Boolean(currentFarmJob(game)) || isPicking(game);
     const idle = !busy && !running && !restPreview && !farewell && !isAtWork(animator);
     if (mayChoose(choosing, now, { enabled: settings.ownPlans, idle })) beginOwnPlan(now);
     // While the view pans they wait past the edge, then walk in.
@@ -1583,6 +1624,18 @@ async function start() {
         expression, layout.feetY, layout.characterScale, jobItem(game));
       if (pose.activity === 'fish' && look) {
         drawFishing(ctx, layout, fishingHand(stage, pose, layout.feetY, layout.characterScale), look);
+      }
+      // Picking the apple: the branch held up, the apple falling or held
+      // up, the fairies; once it's dropped the branch stays where it fell.
+      if (pickShown && place.id === FORTUNE_TREE_PLACE) {
+        const { look: pickLooks, t } = pickShown;
+        const hand = pose.activity === 'reachUp' ? raisedHand(stage, pose, layout.feetY, layout.characterScale) : null;
+        if (hand && (pickLooks.stick === 'held' || pickLooks.stick === 'jab')) {
+          drawHeldBranch(ctx, layout, hand, game.character.appearance.skin, pickLooks.stick === 'jab' ? t : null);
+        }
+        drawPickedApple(ctx, layout, pickLooks, t, seconds, hand);
+        if (pickLooks.fairies) drawFairies(ctx, layout, t);
+        if (pickLooks.stick === 'dropped' && treeDecor) treeDecor.branchX = pose.x + pose.facing * 3 * layout.scale;
       }
       if (hovered?.kind === 'character' && hoverOutline.draw(ctx, (maskCtx) => {
         drawCharacter(maskCtx, pose, stage, game.character.appearance,

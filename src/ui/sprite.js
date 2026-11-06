@@ -731,6 +731,19 @@ function drawActivityArm(px, shape, look, col, bodyTop, pose) {
       }
       return true;
     }
+    case 'reachUp':
+      // Picking the golden apple: hand raised high, holding the branch up
+      // to poke it (or the won apple overhead); both drawn by
+      // ui/applePick.js from raisedHand().
+      px(col, bodyTop + 1, 1, 1, look.shirt);
+      px(col + 1, bodyTop, 1, 1, look.shirt);
+      px(col + 1, bodyTop - 2, 1, 2, look.skin);
+      return true;
+    case 'reachDown':
+      // Reaching down in front for the branch (or the apple) on the ground.
+      px(col, bodyTop + 1, 1, sleeve, look.shirt);
+      px(col + 1, bodyTop + sleeve + 1, 1, shape.body - sleeve, look.skin);
+      return true;
     case 'wave': {
       // Shoulder, elbow out, hand up beside the face rocking side to side.
       const rock = Math.floor(pose.activityTime / WAVE_BEAT) % 2;
@@ -827,13 +840,22 @@ function drawActivityExtras(px, shape, armCol, bodyTop, headLeft, headTop, pose)
 // showing a catch it's the raised hand. Matches the code-drawn figure;
 // a character.<body>.fish sprite should hold its hand in the same place.
 export function fishingHand(stage, pose, groundY, scale) {
+  return handAt(stage, pose, groundY, scale, pose.fishing?.phase === 'show');
+}
+
+// Where the raised hand is (pose.activity 'reachUp', standing), the same
+// way: what holds the branch up to the golden apple, or the won apple.
+export function raisedHand(stage, pose, groundY, scale) {
+  return handAt(stage, pose, groundY, scale, true);
+}
+
+// The front hand in canvas pixels: raised (`up`), or held out in front.
+function handAt(stage, pose, groundY, scale, up) {
   const shape = shapeOf(stage, pose);
   const bodyTop = FOOT_ROW - shape.legs - shape.body;
   const armCol = -Math.floor(shape.width / 2) + shape.width;
   const sleeve = Math.ceil((shape.body - 1) / 2);
-  const [col, row] = pose.fishing?.phase === 'show'
-    ? [armCol + 1, bodyTop - 2]
-    : [armCol + 2, bodyTop + sleeve];
+  const [col, row] = up ? [armCol + 1, bodyTop - 2] : [armCol + 2, bodyTop + sleeve];
   const top = groundY + scale - LAYER_HEIGHT * scale;
   return {
     x: pose.x + pose.facing * (col + 0.5) * scale,

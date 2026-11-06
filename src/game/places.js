@@ -8,7 +8,7 @@
 import { PLACES, DEFAULT_PLACE } from '../data/places.js';
 import { FORTUNE_TREE_PLACE } from '../data/fortuneTree.js';
 import { REST_SEATS } from '../data/home.js';
-import { stopPlaying } from './fortuneTree.js';
+import { stopPlaying, stopPicking, isPicking } from './fortuneTree.js';
 import { stopResting } from './home.js';
 import { stopActivity, currentActivity } from './activities.js';
 import { stopFarmJob } from './farm.js';
@@ -91,14 +91,16 @@ export function restSpotOf(game) {
 }
 
 // Ends whatever the character was doing that belongs to a place (busking,
-// resting, an activity such as fishing, which sells the bucket; call
+// picking the apple, resting, an activity such as fishing, which sells the bucket; call
 // stopActivity() first to get its bubble). Returns whether anything ended.
 export function leavePlace(game) {
   const stoppedPlaying = stopPlaying(game);
   const stoppedResting = stopResting(game);
   const stoppedActivity = Boolean(stopActivity(game));
   const stoppedJob = stopFarmJob(game);
-  return stoppedPlaying || stoppedResting || stoppedActivity || stoppedJob;
+  const stoppedPicking = isPicking(game);
+  stopPicking(game);
+  return stoppedPlaying || stoppedResting || stoppedActivity || stoppedJob || stoppedPicking;
 }
 
 // Makes sure the character is somewhere that exists, and doing only what
@@ -115,7 +117,10 @@ export function settlePlace(game) {
   }
   if (!placeExists(game, game.place)) game.place = DEFAULT_PLACE;
   if (moved) leavePlace(game);
-  if (game.place !== FORTUNE_TREE_PLACE) stopPlaying(game);
+  if (game.place !== FORTUNE_TREE_PLACE) {
+    stopPlaying(game);
+    stopPicking(game);
+  }
   if (!restSpotOf(game)) stopResting(game);
   if (currentActivity(game) && currentActivity(game).place !== game.place) stopActivity(game);
   if (game.place !== FARM_PLACE) stopFarmJob(game);
