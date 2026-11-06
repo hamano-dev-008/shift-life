@@ -1,16 +1,18 @@
-// lakeLife.js — The Lake's ambient wildlife, purely visual: frogs sitting
-// on the lily pads (blinking, croaking, hopping to the other free pad,
-// plopping into the water and coming up again later, diving when the
-// bobber lands near), and butterflies drifting in from the sides,
+// lakeLife.js — The Lake's ambient wildlife, purely visual: frogs (their
+// ways in ui/lakeFrogs.js) and butterflies drifting in from the sides,
 // fluttering in soft loops over the shore and reeds, resting on a reed
-// for a while, then flying on or leaving. Clicking a frog makes it say
-// "ribbit!" and hop; clicking a butterfly makes it flutter away fast.
-// Nothing here is saved: the renderer makes a new one each time the Lake
-// is shown. Positions are lake.png pixels (data/lakeLife.js);
-// ui/lakeLifeArt.js draws it. No DOM here, so tests can run it.
+// for a while, then flying on or leaving (or caught by a frog's tongue).
+// Clicking a frog makes it say "ribbit!" and hop; clicking a butterfly
+// makes it flutter away fast. Nothing here is saved: the renderer makes a
+// new one each time the Lake is shown. Positions are lake.png pixels
+// (data/lakeLife.js); ui/lakeLifeArt.js draws it. No DOM here, so tests
+// can run it.
 
 import { LILY_PADS, FROGS, BUTTERFLIES, WILDLIFE_CLICK } from '../data/lakeLife.js';
 import { LAKE_ART } from '../data/lake.js';
+import {
+  between, newFrog, updateFrog, plop, hopAway, isSitting, onPad,
+} from './lakeFrogs.js';
 
 // The code-drawn frog is 4 x 3 pixels and a butterfly 3 x 3; click areas
 // and the scare distance use these.
@@ -22,15 +24,9 @@ const OFF_SIDE = 4;
 // loop around it never goes on forever).
 const TARGET_SECONDS = 8;
 
-function between([min, max], random) {
-  return min + (max - min) * random();
-}
-
 function wholeBetween([min, max], random) {
   return min + Math.floor(random() * (max - min + 1));
 }
-
-const padCenter = (pad) => (pad.left + pad.right + 1) / 2;
 
 // A butterfly's wing color, picked by weight (blue is rare).
 export function pickButterflyColor(random = Math.random) {
@@ -45,14 +41,13 @@ export function pickButterflyColor(random = Math.random) {
 
 // The wildlife now: { time (seconds), frogs, butterflies, effects
 // (ripples and splashes on the water), nextId, spawnIn }.
-//   frog:      { id, pad (index, or null under water), x (middle), row
-//              (bottom edge), state ('sit', 'croak', 'hop', 'under'), t
-//              (seconds into it), blinkIn, blinkLeft, croakIn, moveIn,
-//              hop ({ from, to, toPad, seconds, height }) }
+//   frog:      see newFrog() in ui/lakeFrogs.js.
 //   butterfly: { id, color, x, row (middle and bottom), heading
-//              (radians), state ('wander', 'land', 'leave', 'flee'), t,
-//              target ({ x, row, reed }), targetLeft (seconds before
-//              trying somewhere else), stayLeft, landLeft }
+//              (radians), state ('wander', 'land', 'leave', 'flee',
+//              'caught' on a frog's tongue), t, target ({ x, row, reed }),
+//              targetLeft (seconds before trying somewhere else),
+//              stayLeft, landLeft, scared (a tongue just missed it),
+//              eaten }
 //   effect:    { kind ('ripple' or 'splash'), x, row, t }
 export function createLakeLife(random = Math.random) {
   const life = { time: 0, frogs: [], butterflies: [], effects: [], nextId: 1, spawnIn: 0 };
@@ -63,127 +58,6 @@ export function createLakeLife(random = Math.random) {
   for (let i = 0; i < start; i++) addButterfly(life, random, null, true);
   life.spawnIn = between(BUTTERFLIES.spawnEvery, random);
   return life;
-}
-
-function newFrog(life, pad, random) {
-  const frog = {
-    id: life.nextId++, pad, x: 0, row: 0, state: 'sit', t: 0, blinkIn: 0, blinkLeft: 0, croakIn: 0, moveIn: 0, hop: null,
-  };
-  sitOn(frog, pad, random);
-  return frog;
-}
-
-// Puts the frog on pad `pad`, sitting, with fresh timers.
-function sitOn(frog, pad, random) {
-  frog.pad = pad;
-  frog.x = padCenter(LILY_PADS[pad]);
-  frog.row = LILY_PADS[pad].row;
-  frog.state = 'sit';
-  frog.t = 0;
-  frog.hop = null;
-  frog.blinkIn = between(FROGS.blinkEvery, random);
-  frog.croakIn = between(FROGS.croakEvery, random);
-  frog.moveIn = between(FROGS.moveEvery, random);
-}
-
-// Pads nobody sits on or is hopping to.
-function freePads(life) {
-  const taken = new Set(life.frogs.flatMap((frog) => [frog.pad, frog.hop?.toPad]).filter((pad) => pad != null));
-  return LILY_PADS.map((_, i) => i).filter((i) => !taken.has(i));
-}
-
-const onPad = (frog) => frog.state === 'sit' || frog.state === 'croak';
-
-function addEffect(life, kind, x, row) {
-  life.effects.push({ kind, x, row, t: 0 });
-}
-
-// Hops to pad `to`, or on the spot (`to` null).
-function startHop(frog, to) {
-  const from = { x: frog.x, row: frog.row };
-  const dest = to == null ? from : { x: padCenter(LILY_PADS[to]), row: LILY_PADS[to].row };
-  const kind = to == null ? FROGS.inPlaceHop : FROGS.hop;
-  frog.hop = { from, to: dest, toPad: to ?? frog.pad, seconds: kind.seconds, height: kind.height };
-  if (to != null) frog.pad = null;
-  frog.state = 'hop';
-  frog.t = 0;
-}
-
-// Into the water: a ripple (and a splash when scared), then under water
-// for a while.
-function plop(life, frog, random, splash = false) {
-  addEffect(life, 'ripple', frog.x, frog.row);
-  if (splash) addEffect(life, 'splash', frog.x, frog.row);
-  frog.pad = null;
-  frog.hop = null;
-  frog.state = 'under';
-  frog.t = 0;
-  frog.moveIn = between(FROGS.underwater, random);
-}
-
-function updateFrog(life, frog, dt, random) {
-  frog.t += dt;
-  switch (frog.state) {
-    case 'sit':
-    case 'croak':
-      if (frog.blinkLeft > 0) frog.blinkLeft -= dt;
-      frog.blinkIn -= dt;
-      if (frog.blinkIn <= 0) {
-        frog.blinkLeft = FROGS.blinkFor;
-        frog.blinkIn = between(FROGS.blinkEvery, random);
-      }
-      if (frog.state === 'croak') {
-        if (frog.t >= FROGS.croakFrame * 3) {
-          frog.state = 'sit';
-          frog.t = 0;
-        }
-        return;
-      }
-      frog.croakIn -= dt;
-      if (frog.croakIn <= 0) {
-        frog.state = 'croak';
-        frog.t = 0;
-        frog.croakIn = between(FROGS.croakEvery, random);
-        return;
-      }
-      frog.moveIn -= dt;
-      if (frog.moveIn <= 0) {
-        const free = freePads(life);
-        if (free.length && random() < FROGS.hopShare) {
-          startHop(frog, free[Math.floor(random() * free.length)]);
-        } else {
-          plop(life, frog, random);
-        }
-      }
-      return;
-    case 'hop': {
-      const { hop } = frog;
-      const u = Math.min(1, frog.t / hop.seconds);
-      frog.x = hop.from.x + (hop.to.x - hop.from.x) * u;
-      // An arc from pad to pad, rising about `height` above the higher.
-      const line = hop.from.row + (hop.to.row - hop.from.row) * u;
-      const rise = hop.height + Math.abs(hop.to.row - hop.from.row) / 2;
-      frog.row = line - 4 * rise * u * (1 - u);
-      if (u >= 1) {
-        const moved = hop.to.x !== hop.from.x;
-        sitOn(frog, hop.toPad, random);
-        if (moved) addEffect(life, 'ripple', frog.x, frog.row);
-      }
-      return;
-    }
-    default: {
-      // Under water: up again on a free pad when the time comes.
-      frog.moveIn -= dt;
-      if (frog.moveIn > 0) return;
-      const free = freePads(life);
-      if (!free.length) {
-        frog.moveIn = between(FROGS.underwater, random) / 2;
-        return;
-      }
-      sitOn(frog, free[Math.floor(random() * free.length)], random);
-      addEffect(life, 'ripple', frog.x, frog.row);
-    }
-  }
 }
 
 // Adds a butterfly (color `color`, or picked by weight). `inside`: it's
@@ -247,6 +121,12 @@ function angleTo(from, to) {
 
 function updateButterfly(life, butterfly, dt, random) {
   butterfly.t += dt;
+  // The frog's tongue moves it.
+  if (butterfly.state === 'caught') return;
+  if (butterfly.scared) {
+    butterfly.scared = false;
+    leave(butterfly, 'flee');
+  }
   if (butterfly.state === 'land') {
     butterfly.landLeft -= dt;
     if (butterfly.landLeft <= 0) {
@@ -294,8 +174,8 @@ function updateButterfly(life, butterfly, dt, random) {
   }
 }
 
-const isGone = (butterfly) => (butterfly.state === 'leave' || butterfly.state === 'flee')
-  && (butterfly.x < -OFF_SIDE * 1.5 || butterfly.x > LAKE_ART.width + OFF_SIDE * 1.5);
+const isGone = (butterfly) => butterfly.eaten || ((butterfly.state === 'leave' || butterfly.state === 'flee')
+  && (butterfly.x < -OFF_SIDE * 1.5 || butterfly.x > LAKE_ART.width + OFF_SIDE * 1.5));
 
 // Moves everything on by `dt` seconds.
 export function updateLakeLife(life, dt, random = Math.random) {
@@ -343,26 +223,25 @@ export function croakNow(life) {
 export function hopNow(life, random = Math.random) {
   const frog = life.frogs.find(onPad);
   if (!frog) return null;
-  const free = freePads(life);
-  startHop(frog, free.length ? free[Math.floor(random() * free.length)] : null);
+  hopAway(life, frog, random);
   return frog;
 }
 
-// Clicked: a frog on a pad says "ribbit!" and hops; a flying or resting
-// butterfly flutters away fast. Returns { kind, text (or null), x, row
-// (where the frog was, for its bubble) }, or null if it can't react
-// (a frog mid-hop or under water, a butterfly already going).
+// Clicked: a sitting frog (on a pad or the shore) says "ribbit!" and hops
+// away; a flying or resting butterfly flutters away fast. Returns { kind,
+// text (or null), x, row (where the frog was, for its bubble) }, or null
+// if it can't react (a frog mid-hop or under water, a butterfly already
+// going or caught).
 export function clickCritter(life, id, random = Math.random) {
   const frog = life.frogs.find((candidate) => candidate.id === id);
   if (frog) {
-    if (!onPad(frog)) return null;
+    if (!isSitting(frog)) return null;
     const at = { x: frog.x, row: frog.row };
-    const free = freePads(life);
-    startHop(frog, free.length ? free[Math.floor(random() * free.length)] : null);
+    hopAway(life, frog, random);
     return { kind: 'frog', text: WILDLIFE_CLICK.ribbit, ...at };
   }
   const butterfly = life.butterflies.find((candidate) => candidate.id === id);
-  if (!butterfly || butterfly.state === 'flee') return null;
+  if (!butterfly || butterfly.state === 'flee' || butterfly.state === 'caught') return null;
   leave(butterfly, 'flee');
   return { kind: 'butterfly', text: null, x: butterfly.x, row: butterfly.row };
 }
@@ -381,7 +260,7 @@ export function critterBoxes(life) {
       top: frog.row - FROG_SIZE.height - pad, bottom: frog.row + pad });
   }
   for (const butterfly of life.butterflies) {
-    if (butterfly.x < -2 || butterfly.x > LAKE_ART.width + 2) continue;
+    if (butterfly.state === 'caught' || butterfly.x < -2 || butterfly.x > LAKE_ART.width + 2) continue;
     const left = butterfly.x - BUTTERFLY_SIZE.width / 2;
     boxes.push({ id: butterfly.id, kind: 'butterfly', left: left - pad, right: left + BUTTERFLY_SIZE.width + pad,
       top: butterfly.row - BUTTERFLY_SIZE.height - pad, bottom: butterfly.row + pad });

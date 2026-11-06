@@ -295,10 +295,13 @@ Shift-Life/
 │   │   │                  and the dock's silhouette (its wood's pixels
 │   │   │                  in the picture) for the hover outline
 │   │   ├── lakeLife.js    The Lake's wildlife, visual only (no DOM, so
-│   │   │                  tests run it): frogs on the lily pads (blink,
-│   │   │                  croak, hop, plop, dive at the bobber),
-│   │   │                  butterflies (drift in, loop, rest on reeds,
-│   │   │                  leave), click reactions, click boxes
+│   │   │                  tests run it): butterflies (drift in, loop,
+│   │   │                  rest on reeds, leave), click reactions,
+│   │   │                  click boxes; runs the frogs
+│   │   ├── lakeFrogs.js   The frogs: on the lily pads (blink, croak,
+│   │   │                  hop, plop, dive at the bobber) and the shore
+│   │   │                  grass (crouch, leap and tongue at
+│   │   │                  butterflies, now and then a catch)
 │   │   ├── lakeLifeArt.js Draws the wildlife (code or lake.frog /
 │   │   │                  lake.butterfly sprites, tinted per color),
 │   │   │                  ripples and splashes; click boxes to canvas;
@@ -576,8 +579,10 @@ Shift-Life/
                        limits, dock, work trips, shimmer),
                        lakeLife.test.mjs (wildlife: the click cooldown,
                        pads and reeds, frogs hopping, plopping and
-                       diving, butterflies' count, area and reeds,
-                       clicks, dev),
+                       diving, onto the shore and back, hunting
+                       (leap, tongue, catch share, a miss flees),
+                       butterflies' count, area and reeds, clicks,
+                       dev),
                        activities.test.mjs (activities and fishing:
                        rod, bites, odds, earnings, sizes, selling,
                        collection and records, saving, a data-only
@@ -1144,6 +1149,21 @@ Parents' Yard and then of My Yard (see **Farm**).
     splash (the left pad is in range of `BOBBER_SPOT`). Code-drawn
     4 x 3 with an outline, or the `lake.frog` sprite (idle, blink,
     croak, hop).
+  - Frogs on land (`ui/lakeFrogs.js`): `landShare` of a pad frog's
+    moves hop up onto a free `LAND_SPOTS` spot on the shore grass
+    right of the dock (rows 68-69, one frog a spot); after `landFor`
+    seconds it hops back to a free pad (else another spot). There,
+    `FROGS.hunt`: every `delay` seconds it looks for a flying or
+    resting butterfly within `notice` (columns either side, rows
+    above), crouches (narrowed eyes) for `crouch`, then leaps (`leap`
+    arc) onto the free spot nearest it (or its own). At the top of
+    the leap the tongue (a line of `colors.tongue` pixels from the
+    mouth) flicks toward it, up to `tongue.reach` and back over
+    `tongue.seconds`. A butterfly in reach is caught with
+    `catchChance` (20%): it rides the tongue in (state `caught`, no
+    click box) and is gone (`eaten`), and the frog's throat stays
+    puffed for `gulp`. Otherwise it flees like a clicked one. The
+    bobber never scares a frog on land.
   - Butterflies (up to `BUTTERFLIES.max`, 3; a few already there)
     drift in from either side every `spawnEvery`, wander the `area`
     (x 70-107, rows 45-75) turning slowly toward one spot after
@@ -1155,8 +1175,9 @@ Parents' Yard and then of My Yard (see **Farm**).
     `lake.butterfly.<color>`, or `lake.butterfly` tinted.
   - Clicking (invisible buttons in `#wildlife` over each one, with
     `WILDLIFE_CLICK.hitPadding` around, under the props' and the
-    character's click areas): a frog on a pad says "ribbit!" (`#critter-bubble`, briefly)
-    and hops (to a free pad, or on the spot); a butterfly flutters
+    character's click areas): a sitting frog says "ribbit!" (`#critter-bubble`, briefly)
+    and hops (to a free pad, else from the shore to another spot, or
+    on the spot); a butterfly flutters
     away fast. Either gives +1 happiness through
     `rewardWildlifeClick()` (`game/lakeLife.js`), at most once per
     `cooldownMs` of real time (30s, shared by all), like the pokes.
@@ -1955,8 +1976,9 @@ only when running from source: `main.js` answers `app:is-dev` with
   bite now and catch a fish of a chosen rarity now ("Not fishing."
   unless fishing), preview a rarity's reveal card ("Reveal" row: a
   made-up catch from `previewCatch()`, nothing changes), at the Lake
-  add a butterfly or a rare blue one, make a frog croak or hop
-  ("Wildlife" row; "Only at the Lake." elsewhere), grow every owned
+  add a butterfly or a rare blue one, make a frog croak or hop, send a
+  pad frog to the shore ("To shore") or have a shore frog go for the
+  nearest butterfly ("Hunt") ("Wildlife" row; "Only at the Lake." elsewhere), grow every owned
   paddy to its next stage and give every paddy ("Farm" row), the player's
   "Work trips" setting (On/Off, saved; here until there's a player
   settings menu), the "Let them choose" setting (On/Off, saved) with

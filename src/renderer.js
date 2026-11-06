@@ -132,6 +132,7 @@ import { createCatchReveal } from './ui/catchReveal.js';
 import {
   createLakeLife, updateLakeLife, bobberLanded, clickCritter, critterBoxes, addButterfly, croakNow, hopNow,
 } from './ui/lakeLife.js';
+import { toLandNow, huntNow } from './ui/lakeFrogs.js';
 import { drawLakeLife, boxToRect, drawCritter } from './ui/lakeLifeArt.js';
 import { LAKE_PLACE, BOBBER_SPOT, DOCK_PROP } from './data/lake.js';
 import { WILDLIFE_CLICK, LAKE_LIFE_TEXT } from './data/lakeLife.js';
@@ -1230,6 +1231,14 @@ async function start() {
       frogHop: () => {
         if (!lakeLife) return LAKE_LIFE_TEXT.notHere;
         return hopNow(lakeLife) ? null : LAKE_LIFE_TEXT.noFrog;
+      },
+      frogToLand: () => {
+        if (!lakeLife) return LAKE_LIFE_TEXT.notHere;
+        return toLandNow(lakeLife) ? null : LAKE_LIFE_TEXT.noFrog;
+      },
+      frogHunt: () => {
+        if (!lakeLife) return LAKE_LIFE_TEXT.notHere;
+        return huntNow(lakeLife) ? null : LAKE_LIFE_TEXT.noHunt;
       },
       // The "Work trips" player setting (saved in settings.json).
       workTrips: () => settings.workTrips,

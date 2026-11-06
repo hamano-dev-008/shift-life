@@ -1,9 +1,10 @@
 // lakeLife.js — The Lake's ambient wildlife, as data: frogs on the lily
 // pads (blinking, croaking, hopping, plopping into the water, diving when
-// the bobber lands near) and butterflies over the shore and reeds
+// the bobber lands near) and on the shore grass (hunting butterflies with
+// their tongue), and butterflies over the shore and reeds
 // (drifting in, fluttering in loops, resting on reeds, leaving), their
 // colors and timing, and clicking them (a small happiness reward on a
-// real-time cooldown). Pure data: ui/lakeLife.js runs them,
+// real-time cooldown). Pure data: ui/lakeLife.js and ui/lakeFrogs.js run them,
 // ui/lakeLifeArt.js draws them, game/lakeLife.js gives the reward.
 //
 // Positions are in lake.png's pixels like data/lake.js: x from the
@@ -16,6 +17,15 @@
 export const LILY_PADS = [
   { left: 3, right: 5, row: 70 },
   { left: 72, right: 77, row: 75 },
+];
+
+// Spots on the shore grass right of the dock where a frog can sit: its
+// middle column and the row its bottom edge rests on (like LILY_PADS).
+export const LAND_SPOTS = [
+  { x: 87, row: 68 },
+  { x: 93, row: 69 },
+  { x: 99, row: 68 },
+  { x: 104, row: 69 },
 ];
 
 // Frogs:
@@ -36,7 +46,26 @@ export const LILY_PADS = [
 //   ripple      The ring spreading on the water: seconds, widest radius
 //               (pixels) and how flat it is (rows per column).
 //   splash      Seconds the drops fly when diving.
-//   colors      body, dark (legs), eye, throat (the croak's puff).
+//   landShare   Share of a pad frog's moves that go up onto a free
+//               LAND_SPOTS spot instead (so about 1 move in 3).
+//   landFor     Seconds on land ([min, max]) before hopping back to a
+//               free pad (or to another spot if none is free).
+//   hunt        A frog on land goes for a butterfly that comes near:
+//                 notice     Butterflies within `cols` columns and
+//                            `rows` rows above it ([min, max]).
+//                 delay      Seconds before it notices one, after
+//                            landing or a try ([min, max]).
+//                 crouch     Seconds it crouches before leaping.
+//                 leap       The leap: seconds and height (pixels) of
+//                            the arc, landing on the spot nearest the
+//                            butterfly (or back on its own).
+//                 tongue     At the top of the leap the tongue flicks
+//                            out up to `reach` pixels and back over
+//                            `seconds`.
+//                 catchChance  Chance a butterfly in reach is caught
+//                            (gulped down); otherwise it flutters away.
+//                 gulp       Seconds the cheeks stay puffed after a catch.
+//   colors      body, dark (legs), eye, throat (the croak's puff), tongue.
 export const FROGS = {
   count: [1, 2],
   blinkEvery: [2.5, 6],
@@ -51,7 +80,18 @@ export const FROGS = {
   scare: 9,
   ripple: { seconds: 1.4, radius: 5, flat: 0.4 },
   splash: 0.5,
-  colors: { body: '#5f9e3a', dark: '#3f6e27', eye: '#e9e27a', throat: '#e3ecb4' },
+  landShare: 0.35,
+  landFor: [20, 60],
+  hunt: {
+    notice: { cols: 14, rows: [2, 16] },
+    delay: [1, 4],
+    crouch: 0.4,
+    leap: { seconds: 0.8, height: 6 },
+    tongue: { reach: 9, seconds: 0.45 },
+    catchChance: 0.2,
+    gulp: 0.9,
+  },
+  colors: { body: '#5f9e3a', dark: '#3f6e27', eye: '#e9e27a', throat: '#e3ecb4', tongue: '#e0627a' },
 };
 
 // Butterflies:
@@ -125,5 +165,6 @@ export const WILDLIFE_CLICK = {
 export const LAKE_LIFE_TEXT = {
   notHere: 'Only at the Lake.',
   noFrog: 'No frog on a pad.',
+  noHunt: 'Needs a frog on the shore and a butterfly.',
   full: 'Already 3 butterflies.',
 };

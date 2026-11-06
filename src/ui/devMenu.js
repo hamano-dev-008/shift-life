@@ -49,7 +49,8 @@ function row(label, ...children) {
 // on why the life can't end now), setHealth(n), giveRod(), biteNow() and
 // catchRarity(rarityId) (each returns null, or a note such as "Not
 // fishing."), showReveal(rarityId) (previews a reveal card),
-// spawnButterfly(colorId or null), frogCroak() and frogHop() (each
+// spawnButterfly(colorId or null), frogCroak(), frogHop(), frogToLand()
+// and frogHunt() (each
 // returns null, or a note such as "Only at the Lake."), workTrips()
 // (whether the "Work trips" setting is on), setWorkTrips(on), ownPlans()
 // and setOwnPlans(on) (the "Let them choose" setting), planNow() (they
@@ -180,7 +181,9 @@ export function createDevMenu(menu, gear, actions) {
       button('Butterfly', lakeAction(() => actions.spawnButterfly(null))),
       button(`${rare.id[0].toUpperCase()}${rare.id.slice(1)} one`, lakeAction(() => actions.spawnButterfly(rare.id))),
       button('Croak', lakeAction(actions.frogCroak)),
-      button('Frog hop', lakeAction(actions.frogHop)));
+      button('Frog hop', lakeAction(actions.frogHop)),
+      button('To shore', lakeAction(actions.frogToLand)),
+      button('Hunt', lakeAction(actions.frogHunt)));
 
     // A player setting, here until there's a player settings menu.
     const workTrips = row(WORK_TRIP_TEXT.setting, ...[true, false].map((on) =>

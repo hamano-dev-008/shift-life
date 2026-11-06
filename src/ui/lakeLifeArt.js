@@ -1,7 +1,8 @@
 // lakeLifeArt.js — Draws the Lake's wildlife (ui/lakeLife.js) at
 // SCENE_SCALE, behind the character: frogs (sitting, blinking, croaking
-// with a throat puff, hopping) code-drawn with an outline or from the
-// lake.frog sprite, butterflies (wings open and closed) code-drawn in
+// with a throat puff, hopping, crouching to hunt, flicking their tongue,
+// puffed after a gulp) code-drawn with an outline or from the lake.frog
+// sprite, butterflies (wings open and closed) code-drawn in
 // their color or from lake.butterfly.<color> / a tinted lake.butterfly
 // sprite, and the ripples and splashes on the water. Also turns click
 // boxes into canvas rectangles. Colors come from data/lakeLife.js.
@@ -11,6 +12,7 @@ import { LAKE_ART } from '../data/lake.js';
 import { OUTLINE_COLOR } from '../data/appearance.js';
 import { createLayer, fill, outline, drawLayer } from './pixel.js';
 import { getSprite, drawSprite } from './assets.js';
+import { mouthOf, tongueOut } from './lakeFrogs.js';
 
 // Pure art: the water's ripple and splash colors.
 const RIPPLE = '#a9cdf3';
@@ -70,11 +72,13 @@ export function boxToRect(layout, box) {
   return { left, top, width: Math.max(0, right - left), height: Math.max(0, bottom - top) };
 }
 
-// Which frog frame shows now.
+// Which frog frame shows now. Crouching to hunt it narrows its eyes;
+// after a gulp its throat stays puffed.
 function frogFrame(frog) {
   if (frog.state === 'hop') return 'hop';
   if (frog.state === 'croak') return Math.floor(frog.t / FROGS.croakFrame) === 1 ? 'croakBig' : 'croak';
-  return frog.blinkLeft > 0 ? 'blink' : 'idle';
+  if (frog.gulpLeft > 0) return 'croakBig';
+  return frog.blinkLeft > 0 || frog.state === 'crouch' ? 'blink' : 'idle';
 }
 
 function drawFrog(ctx, layout, frog) {
@@ -165,6 +169,17 @@ function drawRipple(ctx, layout, effect) {
   }
 }
 
+// The tongue: a line of pixels from the mouth out to its tip.
+function drawTongue(ctx, layout, frog) {
+  const mouth = mouthOf(frog);
+  const out = tongueOut(frog.tongue);
+  const steps = Math.ceil(Math.hypot(frog.tongue.dx, frog.tongue.drow) * out);
+  for (let i = 0; i <= steps; i++) {
+    const share = steps ? (i / steps) * out : 0;
+    dot(ctx, layout, mouth.x - 0.5 + frog.tongue.dx * share, mouth.row + frog.tongue.drow * share, FROGS.colors.tongue);
+  }
+}
+
 // Drops flying up and out from (x, row).
 function drawSplash(ctx, layout, effect) {
   const u = effect.t / FROGS.splash;
@@ -200,7 +215,9 @@ export function drawLakeLife(ctx, layout, life) {
     else drawSplash(ctx, layout, effect);
   }
   for (const frog of life.frogs) {
-    if (frog.state !== 'under') drawFrog(ctx, layout, frog);
+    if (frog.state === 'under') continue;
+    drawFrog(ctx, layout, frog);
+    if (frog.tongue) drawTongue(ctx, layout, frog);
   }
   for (const butterfly of life.butterflies) drawButterfly(ctx, layout, butterfly);
 }

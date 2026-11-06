@@ -101,7 +101,10 @@ Early development. What works so far:
   - Wildlife lives at the Lake: one or two frogs on the lily pads blink,
     croak, now and then hop to the other pad or plop into the water and
     come back later, and dive with a splash if the bobber lands next to
-    them. Up to three butterflies (white, yellow, orange, and now and
+    them. Now and then a frog hops up onto the shore grass right of the
+    dock for a while and goes for butterflies that flutter near: it
+    crouches, leaps and flicks out its tongue. Usually the butterfly
+    gets away; about 1 try in 5 it's caught with a gulp. Up to three butterflies (white, yellow, orange, and now and
     then a rare blue one) drift in over the shore and reeds, rest on a
     reed for a while, and drift off again. Click a frog and it says
     "ribbit!" and hops; click a butterfly and it flutters away. Either
@@ -342,8 +345,8 @@ the resting pose ("Rest now"), jump to age 18 to test moving out, set the
 housing tier (sleeping bag, tent, house), jump to any place without
 walking (the Lake included), give a fishing rod, make a fish bite
 now, catch a fish of a chosen rarity now, preview the catch reveal
-card for each rarity, add a butterfly (or a blue one) or make a frog
-croak or hop at the Lake, grow every paddy at the Farm to its next
+card for each rarity, add a butterfly (or a blue one), make a frog
+croak or hop, send one to the shore or have it hunt at the Lake, grow every paddy at the Farm to its next
 stage or give all three paddies, turn work trips on or off, turn "Let them
 choose" on or off or have them choose something now, turn the parallax
 backgrounds on or off, set the weather or bring the next one, turn

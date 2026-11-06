@@ -3,7 +3,8 @@
 // distinct pads, hopping only to a free pad, plopping and coming back,
 // diving when the bobber lands near, ribbit on click) and butterflies
 // (never more than the most, staying near their area, resting on reeds,
-// fleeing when clicked), and the click boxes.
+// fleeing when clicked), frogs on the shore hunting them (crouch, leap,
+// tongue, now and then a catch), and the click boxes.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createClock } from '../src/game/clock.js';
@@ -13,7 +14,8 @@ import {
   createLakeLife, updateLakeLife, bobberLanded, clickCritter, critterBoxes, addButterfly, croakNow, hopNow,
   pickButterflyColor,
 } from '../src/ui/lakeLife.js';
-import { LILY_PADS, FROGS, BUTTERFLIES, WILDLIFE_CLICK } from '../src/data/lakeLife.js';
+import { toLandNow, huntNow } from '../src/ui/lakeFrogs.js';
+import { LILY_PADS, LAND_SPOTS, FROGS, BUTTERFLIES, WILDLIFE_CLICK } from '../src/data/lakeLife.js';
 import { LAKE_ART, BOBBER_SPOT } from '../src/data/lake.js';
 
 // A repeatable random number generator (mulberry32).
@@ -82,7 +84,7 @@ test('the data fits the picture: pads, the butterflies\' area, reeds, a rare blu
   assert.ok(counts.white > counts.blue * 3);
 });
 
-test('frogs sit on different pads, blink and croak, and stay on pads or under water', () => {
+test('frogs sit on different pads, blink and croak, and stay on pads, shore spots or under water', () => {
   for (let seed = 1; seed < 30; seed++) {
     const random = seeded(seed);
     const life = createLakeLife(random);
@@ -102,7 +104,8 @@ test('frogs sit on different pads, blink and croak, and stay on pads or under wa
     croaked ||= frog.state === 'croak';
     states.add(frog.state);
     if (frog.state === 'sit') {
-      assert.ok(LILY_PADS.some((pad) => frog.row === pad.row && frog.x === (pad.left + pad.right + 1) / 2));
+      assert.ok(LILY_PADS.some((pad) => frog.row === pad.row && frog.x === (pad.left + pad.right + 1) / 2)
+        || LAND_SPOTS.some((spot) => frog.row === spot.row && frog.x === spot.x));
     }
   }
   assert.ok(blinked && croaked);
@@ -116,7 +119,7 @@ test('a frog hops only to a free pad, else on the spot; plopped frogs come back 
   const padA = a.pad;
   hopNow(two, random);
   assert.equal(a.state, 'hop');
-  assert.equal(a.hop.toPad, padA);
+  assert.equal(a.hop.seat.pad, padA);
   run(two, FROGS.inPlaceHop.seconds + 0.1, random);
   assert.equal(a.pad, padA);
   assert.notEqual(a.pad, b.pad);
@@ -125,7 +128,7 @@ test('a frog hops only to a free pad, else on the spot; plopped frogs come back 
   const [frog] = one.frogs;
   const from = frog.pad;
   hopNow(one, random);
-  assert.notEqual(frog.hop.toPad, from);
+  assert.notEqual(frog.hop.seat.pad, from);
   // Mid-hop it's in the air above the line between the pads.
   run(one, FROGS.hop.seconds / 2, random);
   assert.ok(frog.row < Math.min(...LILY_PADS.map((p) => p.row)));
@@ -224,4 +227,108 @@ test('dev: croak and hop need a frog on a pad; click boxes are generous', () => 
   assert.equal(croakNow(life), false);
   assert.equal(hopNow(life, random), null);
   assert.deepEqual(critterBoxes(life), []);
+});
+
+// One frog sitting on the shore and a butterfly resting `dx` columns
+// right of it and `up` rows above, in a life of its own.
+function frogOnShore(random, dx = 3, up = 8) {
+  const life = withFrogs(1, random);
+  const [frog] = life.frogs;
+  assert.ok(toLandNow(life, random));
+  run(life, FROGS.hop.seconds + 0.1, random);
+  assert.equal(frog.state, 'sit');
+  const butterfly = addButterfly(life, random);
+  Object.assign(butterfly, { x: frog.x + dx, row: frog.row - up, state: 'land', landLeft: 1000, target: null });
+  return { life, frog, butterfly };
+}
+
+test('shore spots are on the grass right of the dock, inside where butterflies fly', () => {
+  const { area } = BUTTERFLIES;
+  for (const spot of LAND_SPOTS) {
+    assert.ok(spot.x > 80 && spot.x >= area.left && spot.x <= area.right, `${spot.x}`);
+    assert.ok(spot.row > area.top && spot.row <= area.bottom, `${spot.row}`);
+  }
+});
+
+test('frogs now and then hop up onto the shore, one to a spot, and come back to the water', () => {
+  const random = seeded(7);
+  const life = withFrogs(2, random);
+  let onShore = 0;
+  let backOnPad = false;
+  for (let t = 0; t < 2000; t += 1 / 20) {
+    updateLakeLife(life, 1 / 20, random);
+    life.butterflies = [];
+    const spots = life.frogs.map((f) => f.spot).filter((spot) => spot != null);
+    assert.equal(new Set(spots).size, spots.length, 'two frogs on one spot');
+    if (spots.length) onShore += 1;
+    else if (onShore) backOnPad ||= life.frogs.some((f) => f.pad != null);
+  }
+  assert.ok(onShore > 0 && backOnPad);
+});
+
+test('a frog on the shore crouches, leaps and flicks its tongue at a butterfly that comes near', () => {
+  const random = seeded(3);
+  const { life, frog, butterfly } = frogOnShore(random);
+  run(life, FROGS.hunt.delay[1] + 0.1, random);
+  assert.ok(frog.state === 'crouch' || frog.state === 'hop', frog.state);
+  let flicked = false;
+  for (let t = 0; t < FROGS.hunt.crouch + FROGS.hunt.leap.seconds + 0.2; t += 1 / 60) {
+    updateLakeLife(life, 1 / 60, random);
+    flicked ||= Boolean(frog.tongue);
+  }
+  assert.ok(flicked);
+  assert.equal(frog.state, 'sit');
+  assert.ok(frog.spot != null, 'it lands back on the shore');
+  assert.ok(butterfly.state === 'caught' || butterfly.state === 'flee', butterfly.state);
+});
+
+test('the tongue catches a butterfly in reach about catchChance of the time; one out of reach always gets away', () => {
+  let caught = 0;
+  const tries = 300;
+  for (let i = 0; i < tries; i++) {
+    const random = seeded(100 + i);
+    const { life, frog, butterfly } = frogOnShore(random);
+    assert.equal(huntNow(life), true);
+    run(life, FROGS.hunt.crouch + FROGS.hunt.leap.seconds + FROGS.hunt.tongue.seconds + 0.2, random);
+    // A missed one flees (and may already be off the window).
+    if (butterfly.eaten) {
+      caught += 1;
+      assert.ok(!life.butterflies.includes(butterfly));
+      assert.ok(frog.gulpLeft > 0 || frog.state !== 'sit', 'cheeks puffed after a catch');
+    } else {
+      assert.equal(butterfly.state, 'flee');
+    }
+  }
+  const share = caught / tries;
+  assert.ok(Math.abs(share - FROGS.hunt.catchChance) < 0.07, `${share}`);
+
+  for (let i = 0; i < 50; i++) {
+    const random = seeded(500 + i);
+    const { life, butterfly } = frogOnShore(random, 14, 30);
+    huntNow(life);
+    run(life, FROGS.hunt.crouch + FROGS.hunt.leap.seconds + FROGS.hunt.tongue.seconds + 0.2, random);
+    assert.ok(!butterfly.eaten && butterfly.state === 'flee');
+  }
+});
+
+test("a caught butterfly rides the tongue in and can't be clicked; a frog on the shore can, and the bobber leaves it be", () => {
+  for (let seed = 1; seed < 200; seed++) {
+    const random = seeded(seed);
+    const { life, frog, butterfly } = frogOnShore(random);
+    huntNow(life);
+    run(life, FROGS.hunt.crouch + FROGS.hunt.leap.seconds / 2 + 0.05, random);
+    if (butterfly.state !== 'caught') continue;
+    assert.equal(clickCritter(life, butterfly.id), null);
+    assert.ok(!critterBoxes(life).some((box) => box.id === butterfly.id));
+    run(life, FROGS.hunt.tongue.seconds, random);
+    assert.ok(!life.butterflies.includes(butterfly));
+    run(life, FROGS.hunt.leap.seconds, random);
+    assert.equal(frog.state, 'sit');
+    assert.equal(bobberLanded(life, frog.x), 0);
+    const reaction = clickCritter(life, frog.id, random);
+    assert.equal(reaction.text, WILDLIFE_CLICK.ribbit);
+    assert.equal(frog.state, 'hop');
+    return;
+  }
+  assert.fail('no catch in 200 tries');
 });
