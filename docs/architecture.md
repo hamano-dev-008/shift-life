@@ -582,7 +582,7 @@ Shift-Life/
                        diving, onto the shore and back, hunting
                        (leap, tongue, catch share, a miss flees),
                        butterflies' count, area and reeds, clicks,
-                       dev),
+                       dev, flying off in the rain),
                        activities.test.mjs (activities and fishing:
                        rod, bites, odds, earnings, sizes, selling,
                        collection and records, saving, a data-only
@@ -644,7 +644,8 @@ Shift-Life/
                        menus saying why; busking $8 in the rain; own
                        plans in a storm: no fishing or busking, home to
                        rest with a tent or house, mostly; the chickens
-                       in and out of the barn, staying in the pen; the
+                       in and out of the barn, staying in the pen; no
+                       butterflies from drizzle to storm; the
                        first rainbow once a life, saved; the weather
                        events only in their weather, well formed),
                        parallax.test.mjs (the
@@ -1900,6 +1901,13 @@ see the end of this section).
     the storm!" (`seeksShelter()` in `game/autonomy.js`).
   - Chickens (`animals`): in a storm the Farm's chickens go into the
     barn and come back out after (see **Farm**).
+  - Butterflies (`butterflies`, `butterfliesAway()`): from drizzle to
+    thunderstorm the renderer passes `rainy` to `createLakeLife()`
+    (none to start with) and `updateLakeLife()`: butterflies flying or
+    resting leave off the nearest side (one on a frog's tongue is
+    still eaten) and none spawn; the dev "Butterfly" buttons say "No
+    butterflies in the rain." Once it's dry they come in again every
+    `spawnEvery`.
   - Rainbow (`rainbow`): the first time a rainbow comes in each life
     (`game.weatherSeen = { rainbow }`, saved, new each life), +3
     happiness with a golden bubble "A rainbow!".

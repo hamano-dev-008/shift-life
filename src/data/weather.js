@@ -312,6 +312,8 @@ export const WEATHER_TEXT = {
 //   animals     In `kinds` the Farm's chickens (data/farmAnimals.js) go
 //               into the barn, out of sight, and come back out after (the
 //               rice keeps growing either way).
+//   butterflies In `kinds` the Lake's butterflies (data/lakeLife.js)
+//               fly off and no new ones come; they come back after.
 //   rainbow     The first time `kinds` comes in each life (while alive):
 //               these stat changes, with a golden bubble.
 export const WEATHER_EFFECTS = {
@@ -321,6 +323,7 @@ export const WEATHER_EFFECTS = {
   storm: { kinds: ['storm'], activities: ['fishing'] },
   shelter: { kinds: ['storm'], avoid: ['fish', 'busk'], tiers: ['tent', 'house'], restWeight: 8 },
   animals: { kinds: ['storm'] },
+  butterflies: { kinds: ['drizzle', 'rain', 'heavyRain', 'storm'] },
   rainbow: { kinds: ['rainbow'], stats: { happiness: 3 } },
 };
 

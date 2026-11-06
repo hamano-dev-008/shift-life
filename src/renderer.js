@@ -71,7 +71,7 @@ import {
   createWeatherState, updateWeather, weatherLook, weatherView, weatherText, setWeather, skipWeather,
 } from './game/weather.js';
 import { updateWeatherEffects } from './game/weatherEffects.js';
-import { animalsInBarn } from './game/weather.js';
+import { animalsInBarn, butterfliesAway } from './game/weather.js';
 import {
   createRain, updateRain, createLightning, updateLightning, flashLevel, boltCells,
 } from './ui/weather.js';
@@ -1222,6 +1222,7 @@ async function start() {
       // a note when it can't, else null.
       spawnButterfly: (color) => {
         if (!lakeLife) return LAKE_LIFE_TEXT.notHere;
+        if (butterfliesAway(game)) return LAKE_LIFE_TEXT.rainy;
         return addButterfly(lakeLife, Math.random, color) ? null : LAKE_LIFE_TEXT.full;
       },
       frogCroak: () => {
@@ -1367,8 +1368,10 @@ async function start() {
       deco.treeDecor = null;
     }
     if (place.id === LAKE_PLACE) {
-      deco.lakeLife ??= createLakeLife();
-      updateLakeLife(deco.lakeLife, dt);
+      // No butterflies in the rain.
+      const rainy = butterfliesAway(game);
+      deco.lakeLife ??= createLakeLife(Math.random, { rainy });
+      updateLakeLife(deco.lakeLife, dt, Math.random, { rainy });
       drawLakeLife(target, layout, deco.lakeLife);
       if (hovered?.kind === 'critter'
         && hoverOutline.draw(target, (maskCtx) => drawCritter(maskCtx, layout, deco.lakeLife, hovered.id), seconds)) {

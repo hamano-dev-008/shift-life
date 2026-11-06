@@ -49,12 +49,14 @@ export function pickButterflyColor(random = Math.random) {
 //              stayLeft, landLeft, scared (a tongue just missed it),
 //              eaten }
 //   effect:    { kind ('ripple' or 'splash'), x, row, t }
-export function createLakeLife(random = Math.random) {
+// `rainy`: butterflies stay away (WEATHER_EFFECTS.butterflies), so
+// none are there to start with.
+export function createLakeLife(random = Math.random, { rainy = false } = {}) {
   const life = { time: 0, frogs: [], butterflies: [], effects: [], nextId: 1, spawnIn: 0 };
   const count = Math.min(LILY_PADS.length, wholeBetween(FROGS.count, random));
   const pads = LILY_PADS.map((_, i) => i).sort(() => random() - 0.5).slice(0, count);
   for (const pad of pads) life.frogs.push(newFrog(life, pad, random));
-  const start = wholeBetween(BUTTERFLIES.start, random);
+  const start = rainy ? 0 : wholeBetween(BUTTERFLIES.start, random);
   for (let i = 0; i < start; i++) addButterfly(life, random, null, true);
   life.spawnIn = between(BUTTERFLIES.spawnEvery, random);
   return life;
@@ -177,9 +179,15 @@ function updateButterfly(life, butterfly, dt, random) {
 const isGone = (butterfly) => butterfly.eaten || ((butterfly.state === 'leave' || butterfly.state === 'flee')
   && (butterfly.x < -OFF_SIDE * 1.5 || butterfly.x > LAKE_ART.width + OFF_SIDE * 1.5));
 
-// Moves everything on by `dt` seconds.
-export function updateLakeLife(life, dt, random = Math.random) {
+// Moves everything on by `dt` seconds. `rainy`: butterflies flying or
+// resting fly off the nearest side and no new ones come.
+export function updateLakeLife(life, dt, random = Math.random, { rainy = false } = {}) {
   life.time += dt;
+  if (rainy) {
+    for (const butterfly of life.butterflies) {
+      if (butterfly.state === 'wander' || butterfly.state === 'land') leave(butterfly, 'leave');
+    }
+  }
   for (const frog of life.frogs) updateFrog(life, frog, dt, random);
   for (const butterfly of life.butterflies) updateButterfly(life, butterfly, dt, random);
   life.butterflies = life.butterflies.filter((butterfly) => !isGone(butterfly));
@@ -187,7 +195,7 @@ export function updateLakeLife(life, dt, random = Math.random) {
     effect.t += dt;
     return effect.t < (effect.kind === 'ripple' ? FROGS.ripple.seconds : FROGS.splash);
   });
-  if (life.butterflies.length < BUTTERFLIES.max) {
+  if (!rainy && life.butterflies.length < BUTTERFLIES.max) {
     life.spawnIn -= dt;
     if (life.spawnIn <= 0) {
       addButterfly(life, random);

@@ -332,3 +332,23 @@ test("a caught butterfly rides the tongue in and can't be clicked; a frog on the
   }
   assert.fail('no catch in 200 tries');
 });
+
+test('in the rain butterflies fly off and none come; after it they come back', () => {
+  const random = seeded(9);
+  for (let seed = 1; seed < 30; seed++) {
+    assert.equal(createLakeLife(seeded(seed), { rainy: true }).butterflies.length, 0);
+  }
+  const life = withFrogs(1, random);
+  for (let i = 0; i < BUTTERFLIES.max; i++) addButterfly(life, random, null, true);
+  const rain = (seconds) => {
+    for (let t = 0; t < seconds; t += 1 / 30) updateLakeLife(life, 1 / 30, random, { rainy: true });
+  };
+  rain(1 / 30);
+  assert.ok(life.butterflies.every((b) => b.state === 'leave'));
+  rain(30);
+  assert.equal(life.butterflies.length, 0, 'all flew off');
+  rain(BUTTERFLIES.spawnEvery[1] * 4);
+  assert.equal(life.butterflies.length, 0, 'none came in the rain');
+  run(life, BUTTERFLIES.spawnEvery[1] + 1, random);
+  assert.ok(life.butterflies.length > 0, 'back after the rain');
+});

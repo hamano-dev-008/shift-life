@@ -170,6 +170,8 @@ Early development. What works so far:
       either in a storm, and with a tent or a house they'd rather go
       home to rest. The Farm's chickens go into the barn and come back
       out afterwards.
+    - From drizzle to thunderstorm, the Lake's butterflies fly off and
+      none come; they're back once it's dry (fog and rainbows too).
     - The first rainbow of each life gives +3 happiness ("A rainbow!").
     - A few life events only come in their weather: jumping in
       puddles as a kid, a rainbow wish, a rainy day in, the lights going

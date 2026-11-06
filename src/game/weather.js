@@ -219,6 +219,11 @@ export function animalsInBarn(game) {
   return weatherIn(game, WEATHER_EFFECTS.animals.kinds);
 }
 
+// Whether the Lake's butterflies stay away (WEATHER_EFFECTS.butterflies).
+export function butterfliesAway(game) {
+  return weatherIn(game, WEATHER_EFFECTS.butterflies.kinds);
+}
+
 // The life's weather moments: none yet.
 export function createWeatherSeenState() {
   return { rainbow: false };

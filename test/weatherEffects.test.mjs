@@ -25,7 +25,7 @@ import { possibleChoices, choiceWeight, choosePlan } from '../src/game/autonomy.
 import { startEvent } from '../src/game/events.js';
 import {
   createWeatherState, setWeather, riceGrowthSpeed, biteSpeed, buskingPay, isStormy, stormStops, animalsInBarn,
-  restoreWeatherSeenState,
+  butterfliesAway, restoreWeatherSeenState,
 } from '../src/game/weather.js';
 import { updateWeatherEffects } from '../src/game/weatherEffects.js';
 import {
@@ -379,5 +379,12 @@ test('the weather events: only in their weather, and well formed', () => {
         assert.equal(came.has(event.id), fits, `${event.id} at ${stage} in ${kind}`);
       }
     }
+  }
+});
+
+test('butterflies stay away from drizzle to thunderstorm, and come in fog, sun, clouds and rainbows', () => {
+  for (const kind of Object.keys(WEATHER)) {
+    const rainy = ['drizzle', 'rain', 'heavyRain', 'storm'].includes(kind);
+    assert.equal(butterfliesAway(lifeAt(20, { weather: kind })), rainy, kind);
   }
 });

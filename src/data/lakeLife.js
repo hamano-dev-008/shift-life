@@ -166,5 +166,6 @@ export const LAKE_LIFE_TEXT = {
   notHere: 'Only at the Lake.',
   noFrog: 'No frog on a pad.',
   noHunt: 'Needs a frog on the shore and a butterfly.',
+  rainy: 'No butterflies in the rain.',
   full: 'Already 3 butterflies.',
 };
