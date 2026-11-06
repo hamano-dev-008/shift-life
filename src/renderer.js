@@ -28,7 +28,9 @@ import { createInteraction, calmInteraction, pokeCharacter } from './game/intera
 import { createCharacterTarget, reactionPose } from './ui/interaction.js';
 import { enableWindowDrag } from './ui/windowDrag.js';
 import { createClock, startClock } from './game/clock.js';
-import { ageOf, lifeStageOf, expressionOf, setStat } from './game/character.js';
+import {
+  ageOf, lifeStageOf, expressionOf, setStat, realMinutesPerYear,
+} from './game/character.js';
 import {
   updateEvents, startEvent, postponeAutoDecide, pendingEventView, chooseEvent,
 } from './game/events.js';
@@ -237,7 +239,7 @@ async function start() {
     restartChoosing(choosing, performance.now());
     saveGame(game);
   }
-  startClock(game.clock);
+  startClock(game.clock, () => realMinutesPerYear(game.character, game.clock.years));
   setInterval(() => saveGame(game), AUTOSAVE_MS);
   // Fires however the window closes (button, Alt+F4, taskbar).
   window.addEventListener('beforeunload', () => saveGameNow(game));

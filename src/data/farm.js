@@ -53,7 +53,9 @@ export const PADDIES = [
 // come up: with `weedChance`, at a random point in `weedsAt` (shares of
 // the growth). Pulling them adds `weedBonus` to the harvest. Harvesting
 // a ripe paddy sells it for `pay` dollars (plus the bonus) and leaves
-// plain water again.
+// plain water again. Side income (AGENTS.md: below a career's $25 an
+// hour): a paddy nets about ($25 - $5) / 6 = $3.30 a real hour, all
+// three about $10-12 with weeds pulled.
 export const RICE = {
   seedCost: 5,
   growHours: 6,

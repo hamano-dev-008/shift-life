@@ -1,7 +1,8 @@
 // clock.js — Real-time simulation clock. Tracks in-game time in years and
-// advances it by real elapsed time while the app is running, at the
-// current speed (SPEEDS in data/balance.js). A stopped clock (the life
-// has ended) stands still.
+// advances it by real elapsed time while the app is running: at normal
+// speed as fast as the life stage says (realMinutesPerYear in
+// data/lifeStages.js), at the dev speeds (SPEEDS in data/balance.js) at
+// their fixed rate. A stopped clock (the life has ended) stands still.
 
 import { SPEEDS } from '../data/balance.js';
 
@@ -17,19 +18,21 @@ export function createClock(years = 0) {
   return { years, speed: 'normal', stopped: false };
 }
 
-export function advanceClock(clock, realMs) {
+// minutesPerYear: real minutes per year at normal speed right now.
+export function advanceClock(clock, realMs, minutesPerYear) {
   if (clock.stopped) return;
-  const msPerYear = (SPEEDS[clock.speed] ?? SPEEDS.normal).secondsPerYear * 1000;
-  clock.years += realMs / msPerYear;
+  const secondsPerYear = SPEEDS[clock.speed]?.secondsPerYear ?? minutesPerYear * 60;
+  clock.years += realMs / (secondsPerYear * 1000);
 }
 
 // Starts advancing the clock in the background. Uses a timer rather than
 // animation frames so time keeps passing while the window is minimized.
-export function startClock(clock) {
+// minutesPerYear() gives the normal-speed rate for the current age.
+export function startClock(clock, minutesPerYear) {
   let last = performance.now();
   setInterval(() => {
     const now = performance.now();
-    advanceClock(clock, Math.min(now - last, MAX_TICK_MS));
+    advanceClock(clock, Math.min(now - last, MAX_TICK_MS), minutesPerYear());
     last = now;
   }, TICK_MS);
 }

@@ -13,17 +13,19 @@ export const TREE_MIN_AGE = 6;
 // Every SESSION_MINUTES of busking pays SESSION_PAY dollars and counts as
 // one full session. Real minutes: game speed doesn't change it, and time
 // doesn't pass while the app is closed. Stopping early pays nothing for
-// the unfinished session.
-export const SESSION_MINUTES = 8;
-export const SESSION_PAY = 10;
+// the unfinished session. Targets about $5 per real hour (AGENTS.md).
+export const SESSION_MINUTES = 60;
+export const SESSION_PAY = 5;
 
 // A golden apple grows every APPLE_EVERY_HOURS real hours, one at a time
 // (the timer waits while one is ready). Picking succeeds with chance
 // base + perSession x full sessions since the last successful pick, at
 // most max. Success pays APPLE_REWARD and resets the sessions counted.
-// Either way the apple is gone and the next one starts growing.
-export const APPLE_EVERY_HOURS = 2;
-export const PICK_CHANCE = { base: 0.1, perSession: 0.01, max: 0.5 };
+// Either way the apple is gone and the next one starts growing. Targets
+// an apple about every 8 real hours (AGENTS.md); an hour of busking adds
+// 2%.
+export const APPLE_EVERY_HOURS = 8;
+export const PICK_CHANCE = { base: 0.1, perSession: 0.02, max: 0.5 };
 export const APPLE_REWARD = 888;
 
 // Where the apple hangs: the pixel its center lands on, as { col, row }

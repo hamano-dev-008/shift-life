@@ -7,18 +7,15 @@
 
 import { EVENTS } from '../data/events.js';
 import {
-  EVENT_GAP_YEARS, AUTO_DECIDE_SECONDS, REAL_MINUTES_PER_YEAR, DECISION_WHIM,
-  GOAL_DECISION_WEIGHT, GOAL_EVENT_WEIGHT,
+  EVENT_GAP_MINUTES, AUTO_DECIDE_SECONDS, DECISION_WHIM, GOAL_DECISION_WEIGHT, GOAL_EVENT_WEIGHT,
 } from '../data/balance.js';
-import { ageOf, lifeStageOf, changeStats } from './character.js';
+import { LIFE_STAGES } from '../data/lifeStages.js';
+import { ageOf, lifeStageOf, changeStats, yearsOfRealMinutes } from './character.js';
 import { weatherKindOf } from './weather.js';
 import {
   JOB_OFFER_ID, jobById, isEmployed, jobTitle, wantsJobOffer, makeJobOffer, jobOfferEvent,
   applyJobChange,
 } from './jobs.js';
-
-// The auto-decide wait in in-game years, so fast-forward shortens it too.
-const AUTO_DECIDE_YEARS = AUTO_DECIDE_SECONDS / (REAL_MINUTES_PER_YEAR * 60);
 
 // Picks from `list`, each item as likely as weight(item).
 function pickWeighted(list, weight) {
@@ -30,9 +27,15 @@ function pickWeighted(list, weight) {
   return list[list.length - 1];
 }
 
-function randomGap() {
-  const [min, max] = EVENT_GAP_YEARS;
+// A random wait for the next event, in real minutes.
+function randomGapMinutes() {
+  const [min, max] = EVENT_GAP_MINUTES;
   return min + Math.random() * (max - min);
+}
+
+// The same in in-game years, at the character's age at clock time `at`.
+function gapAt(game, at) {
+  return yearsOfRealMinutes(game.character, at, randomGapMinutes());
 }
 
 function eventById(id) {
@@ -50,9 +53,13 @@ function eventOf(pending) {
 // an answer, { id, shownAt }, plus `offer` (job ids) for a job offer.
 // seen: times each event has happened. lastId: the most recent event, so
 // it isn't repeated back to back. frozenAt: clock time events were frozen
-// (see updateEvents()), or null.
+// (see updateEvents()), or null. A new life starts at the first stage,
+// so the first gap is at its pace.
 export function createEventState(years) {
-  return { nextAt: years + randomGap(), pending: null, seen: {}, lastId: null, frozenAt: null };
+  return {
+    nextAt: years + randomGapMinutes() / LIFE_STAGES[0].realMinutesPerYear,
+    pending: null, seen: {}, lastId: null, frozenAt: null,
+  };
 }
 
 // The time as events see it: the clock, or while frozen, the moment they
@@ -157,12 +164,14 @@ export function updateEvents(game, { holdAutoDecide = false, freeze = false } = 
     events.frozenAt = null;
   }
   if (events.pending) {
+    // In in-game years, so fast-forward shortens the wait too.
     const waited = clock.years - events.pending.shownAt;
-    return !holdAutoDecide && waited >= AUTO_DECIDE_YEARS ? autoDecide(game) : null;
+    const limit = yearsOfRealMinutes(game.character, clock.years, AUTO_DECIDE_SECONDS / 60);
+    return !holdAutoDecide && waited >= limit ? autoDecide(game) : null;
   }
   if (clock.years >= events.nextAt && !startEvent(game)) {
     // Nothing fits this age yet: look again after another gap.
-    events.nextAt = clock.years + randomGap();
+    events.nextAt = clock.years + gapAt(game, clock.years);
   }
   return null;
 }
@@ -241,7 +250,7 @@ function resolve(game, event, choice, auto) {
   events.seen[event.id] = (events.seen[event.id] ?? 0) + 1;
   events.lastId = event.id;
   events.pending = null;
-  events.nextAt = eventTime(game) + randomGap();
+  events.nextAt = eventTime(game) + gapAt(game, eventTime(game));
   const text = fillText(outcome.text, game, { job, newJob: change?.newJob });
   return { text, deltas, raise: change?.raise ?? 0, auto };
 }

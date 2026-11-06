@@ -178,7 +178,7 @@ test('clicking the "!" in time reels in at once with better odds for rarer fish'
   assert.ok(counts.true > counts.false * 1.8);
 });
 
-test('ignoring every bite earns about $4 a real minute', () => {
+test('ignoring every bite earns about $12 a real hour (AGENTS.md: fishing ~$12/h)', () => {
   // Expected value per catch over the expected cycle length.
   const odds = catchOdds(false);
   const total = odds.reduce((sum, e) => sum + e.weight, 0);
@@ -188,8 +188,8 @@ test('ignoring every bite earns about $4 a real minute', () => {
   }, 0) / total;
   const { biteWait, biteWindow, reel, show } = FISHING_TIMES;
   const cycleMinutes = ((biteWait[0] + biteWait[1]) / 2 + biteWindow + reel + show) / 60;
-  const perMinute = average / cycleMinutes;
-  assert.ok(perMinute > 3.6 && perMinute < 4.4, `$${perMinute.toFixed(2)}/min`);
+  const perHour = (average / cycleMinutes) * 60;
+  assert.ok(perHour > 10.8 && perHour < 13.2, `$${perHour.toFixed(2)}/h`);
   assert.deepEqual(RARITIES.map((r) => r.id), ['junk', 'common', 'uncommon', 'rare', 'legendary']);
 
   // And a simulated 40 real hours of it, in 2s ticks.
@@ -200,8 +200,8 @@ test('ignoring every bite earns about $4 a real minute', () => {
   const minutes = 40 * 60;
   for (let ms = 0; ms < minutes * 60 * SECOND; ms += 2000) updateActivities(game, 2000, random);
   stopActivity(game);
-  const simulated = game.character.stats.money / minutes;
-  assert.ok(simulated > 3.3 && simulated < 4.7, `$${simulated.toFixed(2)}/min simulated`);
+  const simulated = (game.character.stats.money / minutes) * 60;
+  assert.ok(simulated > 10 && simulated < 14, `$${simulated.toFixed(2)}/h simulated`);
 });
 
 test('stopping sells the bucket with the total in a bubble; travelling or leaving does too', () => {
@@ -336,7 +336,7 @@ test('dev actions: a bite or a catch needs fishing; give rod', () => {
   assert.equal(news.celebrate, true);
   assert.match(news.text, /golden koi/);
   const [koi] = game.activities.current.fishing.bucket;
-  assert.ok(koi.value >= 300 * (1 - SIZE_VALUE) && koi.value <= 300 * (1 + SIZE_VALUE), `${koi.value}`);
+  assert.ok(koi.value >= 10 * (1 - SIZE_VALUE) && koi.value <= 10 * (1 + SIZE_VALUE), `${koi.value}`);
   assert.ok(koi.size >= 40 && koi.size <= 75);
 });
 
@@ -353,10 +353,10 @@ test('each catch has a size in its range; bigger ones sell for a little more, ju
     assert.ok(min > 0 && max > min, fish.id);
     assert.ok(Number.isInteger(size) && size >= min && size <= max, fish.id);
   }
-  const salmon = fishById('salmon');
-  assert.equal(catchValue(salmon, salmon.size[0]), Math.round(50 * (1 - SIZE_VALUE)));
-  assert.equal(catchValue(salmon, salmon.size[1]), Math.round(50 * (1 + SIZE_VALUE)));
-  assert.equal(catchValue(salmon, (salmon.size[0] + salmon.size[1]) / 2), 50);
+  const koi = fishById('goldenKoi');
+  assert.equal(catchValue(koi, koi.size[0]), Math.round(10 * (1 - SIZE_VALUE)));
+  assert.equal(catchValue(koi, koi.size[1]), Math.round(10 * (1 + SIZE_VALUE)));
+  assert.equal(catchValue(koi, (koi.size[0] + koi.size[1]) / 2), 10);
   assert.equal(catchValue(fishById('boot'), null), 0);
 
   // On average, sizes don't change what fishing earns.
@@ -511,7 +511,7 @@ test('the activity bar: what is running, the bucket, and Stop as its own menu do
   startPlaying(game);
   arriveAtStay(game);
   assert.equal(activityBarView(game).kind, 'busking');
-  assert.equal(activityBarView(game).text, 'Busking - 0:00 of 8:00');
+  assert.equal(activityBarView(game).text, 'Busking - 0:00 of 60:00');
   assert.equal(stopFromBar(game).stopped, true);
   assert.equal(isPlaying(game), false);
 

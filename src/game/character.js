@@ -149,11 +149,28 @@ export function ageOf(character, years) {
   return Math.max(0, Math.floor(years - character.bornAt));
 }
 
-// Life stage id ('baby', 'child', ...) for an age in whole years.
-export function lifeStageOf(age) {
+function stageAt(age) {
   let stage = LIFE_STAGES[0];
   for (const candidate of LIFE_STAGES) {
     if (age >= candidate.minAge) stage = candidate;
   }
-  return stage.id;
+  return stage;
+}
+
+// Life stage id ('baby', 'child', ...) for an age in whole years.
+export function lifeStageOf(age) {
+  return stageAt(age).id;
+}
+
+// Real minutes one in-game year lasts at normal speed, at clock time
+// `years` (it follows the life stage).
+export function realMinutesPerYear(character, years) {
+  return stageAt(ageOf(character, years)).realMinutesPerYear;
+}
+
+// In-game years that `minutes` real minutes at normal speed make at clock
+// time `years`. Waits kept in in-game years this way still shorten with
+// fast-forward.
+export function yearsOfRealMinutes(character, years, minutes) {
+  return minutes / realMinutesPerYear(character, years);
 }

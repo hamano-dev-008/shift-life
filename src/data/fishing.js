@@ -21,11 +21,12 @@ export const FISHING_TIMES = { biteWait: [30, 180], biteWindow: 4, reel: 3, show
 // fish. `clickBonus` multiplies the weight when the "!" was clicked in
 // time. `celebrate`: the catch shows in a golden bubble.
 //
-// Tuned to about $4 per real minute at normal odds: a cast-to-cast cycle
-// averages 105s of waiting + 4s bite + 3s reel + 3s showing = 115s, and a
-// catch is worth 0.6 x $4.50 + 0.11 x $15 + 0.035 x $50 + 0.005 x $300 =
-// $7.60 on average, so 7.60 / (115 / 60) = $3.97 a minute. Clicking the
-// "!" roughly doubles that.
+// Targets about $12 per real hour at normal odds (AGENTS.md: side income
+// stays below a career): a cast-to-cast cycle averages 105s of waiting +
+// 4s bite + 3s reel + 3s showing = 115s, about 31 catches an hour, and a
+// catch is worth 0.3 x $0.50 (carp) + 0.11 x $1 + 0.035 x $2 + 0.005 x
+// $10 = $0.38 on average, so 0.38 x 3600 / 115 = $11.90 an hour.
+// Clicking the "!" roughly doubles that.
 export const RARITIES = [
   { id: 'junk', name: 'Junk', weight: 250, clickBonus: 0.4, celebrate: false },
   { id: 'common', name: 'Common', weight: 600, clickBonus: 0.8, celebrate: false },
@@ -42,19 +43,19 @@ export const RARITIES = [
 // kept in the fish collection.
 export const FISH = [
   { id: 'boot', name: 'Old boot', rarity: 'junk', value: 0 },
-  { id: 'carp', name: 'Carp', rarity: 'common', value: [3, 6], size: [25, 60] },
-  { id: 'perch', name: 'Perch', rarity: 'common', value: [3, 6], size: [15, 35] },
-  { id: 'trout', name: 'Trout', rarity: 'uncommon', value: 15, size: [25, 55] },
-  { id: 'catfish', name: 'Catfish', rarity: 'uncommon', value: 15, size: [30, 80] },
-  { id: 'salmon', name: 'Salmon', rarity: 'rare', value: 50, size: [50, 90] },
-  { id: 'pike', name: 'Pike', rarity: 'rare', value: 50, size: [45, 110] },
-  { id: 'goldenKoi', name: 'Golden koi', rarity: 'legendary', value: 300, size: [40, 75] },
+  { id: 'carp', name: 'Carp', rarity: 'common', value: [0, 1], size: [25, 60] },
+  { id: 'perch', name: 'Perch', rarity: 'common', value: 0, size: [15, 35] },
+  { id: 'trout', name: 'Trout', rarity: 'uncommon', value: 1, size: [25, 55] },
+  { id: 'catfish', name: 'Catfish', rarity: 'uncommon', value: 1, size: [30, 80] },
+  { id: 'salmon', name: 'Salmon', rarity: 'rare', value: 2, size: [50, 90] },
+  { id: 'pike', name: 'Pike', rarity: 'rare', value: 2, size: [45, 110] },
+  { id: 'goldenKoi', name: 'Golden koi', rarity: 'legendary', value: 10, size: [40, 75] },
 ];
 
 // How much size changes a catch's value: the smallest of its kind sells
 // for (1 - SIZE_VALUE) of its value, the biggest for (1 + SIZE_VALUE),
 // rounded to whole dollars. Sizes are even across the range, so on
-// average it's the plain value (the $4 a minute above still holds).
+// average it's the plain value (the $12 an hour above still holds).
 export const SIZE_VALUE = 0.2;
 
 // Fishing visuals, in seconds: the bobber bobs every `bob`, a ripple

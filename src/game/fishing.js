@@ -153,11 +153,12 @@ function land(game, state, random) {
     ageOf(game.character, game.clock.years), size);
   enter(state, 'showing');
   const rarity = rarityById(fish.rarity);
-  const junk = value === 0;
+  // Small fish can be worth $0 too; only junk gets the joke.
+  const junk = fish.rarity === 'junk';
   return {
     heading: isNew ? FISHING_TEXT.newKind : (rarity.celebrate ? rarity.name : undefined),
     text: fill(junk ? FISHING_TEXT.caughtJunk : FISHING_TEXT.caught, { fish: fish.name.toLowerCase() }),
-    detail: junk ? '' : fill(FISHING_TEXT.inBucket, { value }),
+    detail: value ? fill(FISHING_TEXT.inBucket, { value }) : '',
     celebrate: rarity.celebrate || isNew,
     collected: changed,
     reveal: revealOf(fish, size, value, isNew, record),

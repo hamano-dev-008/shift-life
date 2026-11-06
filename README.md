@@ -53,7 +53,8 @@ Early development. What works so far:
   if any does). If you don't pick, they choose by goal and traits. There
   are 12 jobs, from barista and farmhand (anyone can start) to developer
   and surgeon (lots of smarts), each with a 3-step career path. Pay comes
-  in every in-game year, promotions come with time once they meet the
+  in every in-game month (about every 20 real minutes): an entry job
+  earns about $25 a real hour, the top job about $120. Promotions come with time once they meet the
   next step's smarts or health, and work events bring raises, overtime,
   tough bosses, layoffs and career changes. They wear their job's item
   (hard hat, tie, apron, chef hat...) and now and then (at most once
@@ -159,7 +160,7 @@ Early development. What works so far:
   - It does a little, too:
     - Rice grows 25% faster while it drizzles, rains or storms.
     - In the rain fish bite 30% sooner, and busking pays 25% less
-      ($8 a session instead of $10).
+      ($4 an hour instead of $5).
     - A thunderstorm stops fishing ("Too stormy to fish!", selling the
       bucket) and busking ("Not under a tree in a storm!"), and neither
       can start until it's over. Left to themselves, they won't choose
@@ -240,11 +241,11 @@ Early development. What works so far:
     legendary one flashes the window gold with slowly turning rays. The
     card fades by itself (rarer fish stay longer) or when clicked, and
     fishing carries on behind it. An old boot gets a shrug.
-  - Catches: junk (an old boot, $0), common (carp, perch, $3-6),
-    uncommon (trout, catfish, $15), rare (salmon, pike, $50) and
-    legendary (the golden koi, $300). Each fish has a random size in
+  - Catches: junk (an old boot, $0), common (perch $0, carp $0-1),
+    uncommon (trout, catfish, $1), rare (salmon, pike, $2) and
+    legendary (the golden koi, $10). Each fish has a random size in
     cm; bigger ones sell for up to 20% more, smaller ones up to 20%
-    less. Left alone, fishing earns about $4 a real minute.
+    less (whole dollars). Left alone, fishing earns about $12 a real hour.
   - The dock menu shows the bucket while fishing. "Stop fishing" sells
     everything and shows the total. Travelling away sells it too.
   - The fish collection (from the dock menu) records the first catch of
@@ -273,17 +274,17 @@ Early development. What works so far:
   Numbers and colors are in `src/data/fortuneTreeDecor.js`.
 - The Fortune Tree: from age 6, click the tree to open its menu:
   - "Play an instrument": the character sits under the tree with a
-    guitar, notes floating up. Every 8 real minutes of playing pays $10
+    guitar, notes floating up. Every real hour of playing pays $5
     and counts as a full session, until you stop. Stopping early pays
     nothing for the unfinished session. While playing they don't wander
     or go to work, and no new events (or job offers) come up: the event
     timer waits until they stop. An event already waiting stays waiting.
-    Yearly pay and goal boosts carry on.
-  - "Pick the golden apple": a golden apple grows on the tree every 2
-    real hours (one at a time). Picking it works 10% of the time, plus 1%
+    Pay and goal boosts carry on.
+  - "Pick the golden apple": a golden apple grows on the tree every 8
+    real hours (one at a time). Picking it works 10% of the time, plus 2%
     per full busking session since the last golden apple, up to 50%.
     The menu shows the current chance. A golden apple pays $888; a miss
-    loses the apple. Either way the next one is 2 hours away.
+    loses the apple. Either way the next one is 8 hours away.
   These timers use real time (game speed doesn't change them) and pause
   while the app is closed. The numbers are in `src/data/fortuneTree.js`.
 - Babies crawl on hands and knees in short trips and sit up in between,
@@ -291,7 +292,9 @@ Early development. What works so far:
   little celebration) and toddle with arms out, sometimes plopping down
   to sit; from 4 they walk normally. Crawl and toddle speeds and the
   ages are in `src/data/infant.js`.
-- Life runs in real time: one in-game year every 3 real minutes. The
+- Life runs in real time: an in-game year lasts 1 real hour in
+  childhood (to 18), 4 as an adult and 3 as an elder, so a life lasts
+  about a month of 8-hour days. The
   character grows from baby to child, teen, adult, and elder (grey hair),
   and the top-left label shows their name and age.
 - Growing old and the end of life:

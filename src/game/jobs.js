@@ -1,16 +1,19 @@
 // jobs.js — The character's working life: job offers (as events) from
-// JOB_MIN_AGE, the job held and its level, yearly pay, promotions, job
-// changes from work events, and retirement with a yearly pension. All job
-// content lives in data/jobs.js.
+// JOB_MIN_AGE, the job held and its level, pay (yearly amounts paid
+// monthly), promotions, job changes from work events, and retirement with
+// a pension. All job content lives in data/jobs.js.
 
 import {
   JOBS, JOB_MIN_AGE, RETIRE_AGE, PENSION_SHARE, PENSION_MIN, OFFER_SIZE, GOAL_JOB_WEIGHT,
-  HIRE_EFFECTS, PROMOTION_YEARS, JOB_TEXT, MIN_PAY_SHARE,
+  HIRE_EFFECTS, PROMOTION_YEARS, JOB_TEXT, MIN_PAY_SHARE, PAYDAYS_PER_YEAR,
 } from '../data/jobs.js';
 import { ageOf, changeStats } from './character.js';
 
 // The id job offers are saved and counted under in the event state.
 export const JOB_OFFER_ID = 'job-offer';
+
+// In-game years from one payday to the next.
+const PAY_GAP = 1 / PAYDAYS_PER_YEAR;
 
 export function jobById(id) {
   return JOBS.find((job) => job.id === id) ?? null;
@@ -47,7 +50,7 @@ export function restoreJobState(data, years) {
   if (state.retired) state.current = null;
   if (Number.isFinite(data?.pension) && data.pension >= 0) state.pension = data.pension;
   if (state.current || state.retired) {
-    state.nextPayAt = Number.isFinite(data?.nextPayAt) ? data.nextPayAt : years + 1;
+    state.nextPayAt = Number.isFinite(data?.nextPayAt) ? data.nextPayAt : years + PAY_GAP;
   }
   if (Array.isArray(data?.history)) {
     state.history = data.history.filter((entry) => jobById(entry?.id)
@@ -166,7 +169,7 @@ function startJob(game, id) {
   jobs.current = {
     id, level: 0, since: clock.years, hiredAge: ageOf(game.character, clock.years), bonus: 0,
   };
-  jobs.nextPayAt = clock.years + 1;
+  jobs.nextPayAt = clock.years + PAY_GAP;
 }
 
 // Ends the job held at clock time `at`, keeping it in the history.
@@ -225,7 +228,7 @@ function retire(game, at) {
   jobs.retired = true;
   endJob(game, at);
   jobs.pension = Math.max(PENSION_MIN, Math.round(lastPay * PENSION_SHARE));
-  jobs.nextPayAt = at + 1;
+  jobs.nextPayAt = at + PAY_GAP;
   const { retired } = JOB_TEXT;
   return {
     heading: retired.heading,
@@ -242,7 +245,8 @@ function checkPromotion(game, at) {
   const { current } = game.jobs;
   const job = jobById(current.id);
   const next = job.levels[current.level + 1];
-  if (!next || Math.round(at - current.since) < PROMOTION_YEARS[current.level]) return null;
+  // Half a payday's slack, so float sums of PAY_GAP don't miss the year.
+  if (!next || at - current.since < PROMOTION_YEARS[current.level] - PAY_GAP / 2) return null;
   if (!meets(game.character, next.needs)) return null;
   current.level += 1;
   current.since = at;
@@ -256,8 +260,15 @@ function checkPromotion(game, at) {
 
 const retiresBy = (game, at) => !game.jobs.retired && ageOf(game.character, at) >= RETIRE_AGE;
 
-// Call regularly (on the same timer as events). Pays the yearly pay or
-// pension when due (catching up after skipped years), promotes, and
+// Whole dollars for the payday at clock time `at`, of `yearly` dollars a
+// year. Rounding the running total rather than each share means a year's
+// paydays add up to the yearly amount, give or take a dollar.
+function paydayAmount(yearly, at) {
+  return Math.round(yearly * at) - Math.round(yearly * (at - PAY_GAP));
+}
+
+// Call regularly (on the same timer as events). Pays the pay or pension
+// when due (catching up after skipped paydays), promotes, and
 // retires at RETIRE_AGE. Returns bubbles to show, as [{ heading, text,
 // deltas or detail, celebrate }]; paydays caught up at once share one.
 export function updateJobs(game) {
@@ -272,14 +283,14 @@ export function updateJobs(game) {
       bubbles.push(retire(game, at));
       continue;
     }
-    const amount = jobs.current ? payOf(jobs.current) : jobs.pension;
+    const amount = paydayAmount(jobs.current ? payOf(jobs.current) : jobs.pension, at);
     salary ||= Boolean(jobs.current);
     paid += changeStats(character, { money: amount }).money ?? 0;
     if (jobs.current) {
       const promoted = checkPromotion(game, at);
       if (promoted) bubbles.push(promoted);
     }
-    jobs.nextPayAt = at + 1;
+    jobs.nextPayAt = at + PAY_GAP;
   }
   if (retiresBy(game, clock.years)) bubbles.push(retire(game, clock.years));
   if (paid) {

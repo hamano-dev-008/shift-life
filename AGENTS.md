@@ -150,9 +150,8 @@ Electron show an error dialog and hang instead of failing.
 
 ### Economy (targets in real hours of running, about 8 hours a day)
 
-These are the official targets. The slower-pacing change that meets them
-hasn't been built yet (a year is still 3 real minutes): build toward them,
-and don't add new numbers that only make sense at the old pace.
+These are the official targets, and the game is built to them
+(`test/economy.test.mjs` checks them).
 
 - One life lasts about a month: childhood ~1 real hour per year,
   adulthood ~4 hours per year, old age ~3 hours per year.

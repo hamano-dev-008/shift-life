@@ -1,14 +1,12 @@
 // balance.js — Tunable numbers for game pacing.
 
-// How long one in-game year lasts in real time, in minutes.
-export const REAL_MINUTES_PER_YEAR = 3;
-
 // Clock speeds, set from the dev menu (Ctrl+Shift+F toggles normal and
-// fast). Per speed: real seconds per in-game year, the menu button's
-// label, and the mark after the age in the name label. Not saved; every
-// launch starts at normal.
+// fast). Per speed: real seconds per in-game year (normal follows the
+// life stage, realMinutesPerYear in data/lifeStages.js), the menu
+// button's label, and the mark after the age in the name label. Not
+// saved; every launch starts at normal.
 export const SPEEDS = {
-  normal: { secondsPerYear: REAL_MINUTES_PER_YEAR * 60, label: 'Normal', mark: '' },
+  normal: { label: 'Normal', mark: '' },
   fast: { secondsPerYear: 5, label: 'Fast', mark: '>>' },
   veryFast: { secondsPerYear: 1, label: 'Very fast', mark: '>>>' },
 };
@@ -18,11 +16,11 @@ export const SPEEDS = {
 export const MOOD_SMILE_AT = 60;
 export const MOOD_FROWN_BELOW = 35;
 
-// In-game years between one event being answered and the next appearing:
-// [min, max], picked at random each time. Counting the wait for an answer,
-// that's about 1 event per year if the player never answers and nearly 2
-// if they answer right away.
-export const EVENT_GAP_YEARS = [0.35, 0.75];
+// Real minutes (at normal speed) between one event being answered and the
+// next appearing: [min, max], picked at random each time. Targets an
+// event every 15-30 real minutes (AGENTS.md). Kept as in-game time at the
+// age it's picked, so fast-forward brings events sooner too.
+export const EVENT_GAP_MINUTES = [15, 30];
 
 // If the player doesn't answer an event within this many real seconds (at
 // normal speed; fast-forward shortens it to match), the character decides.

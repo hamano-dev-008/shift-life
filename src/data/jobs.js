@@ -8,9 +8,14 @@ export const JOB_MIN_AGE = 18;
 // At this age the character retires: the job ends and a yearly pension
 // starts, PENSION_SHARE of their last yearly pay, but at least
 // PENSION_MIN dollars.
+// PENSION_MIN is a quarter of an entry job's pay.
 export const RETIRE_AGE = 65;
 export const PENSION_SHARE = 0.25;
-export const PENSION_MIN = 15;
+export const PENSION_MIN = 25;
+
+// Pay and pension come in this many paydays a year (monthly: about every
+// 20 real minutes for an adult), each its share of the yearly amount.
+export const PAYDAYS_PER_YEAR = 12;
 
 // How many jobs a job offer lists: [min, max]. Only jobs whose first
 // level's `needs` are met are offered. If any of those suit the active
@@ -29,6 +34,7 @@ export const HIRE_EFFECTS = { happiness: 5 };
 // Years at a level before a promotion to the next is possible:
 // PROMOTION_YEARS[0] at the first level, [1] at the second. Checked each
 // payday; the promotion happens once the next level's `needs` are met.
+// For an adult that's 12 and 24 real hours of work.
 export const PROMOTION_YEARS = [3, 6];
 
 // Text for job offers and the bubbles about work. {name} becomes the
@@ -61,7 +67,11 @@ export const CAREER_LABELS = {
 //           have a matching case in drawJobItem() in src/ui/sprite.js.
 //   levels  The career path, 3 levels, each { title, pay, needs }:
 //             title  16 characters at most (the stats panel).
-//             pay    Yearly pay in dollars.
+//             pay    Yearly pay in dollars. An adult year is 4 real
+//                    hours (data/lifeStages.js), so pay / 4 is dollars
+//                    per real hour. Targets (AGENTS.md): entry jobs
+//                    about $25/h ($100), the top job about $120/h
+//                    ($480); the rest sit in between, in their order.
 //             needs  Minimum stats to be hired at (level 1) or promoted
 //                    to this level, e.g. { smarts: 50, health: 40 }.
 // Entry jobs (no needs at level 1) mean anyone can get work.
@@ -73,9 +83,9 @@ export const JOBS = [
     goals: ['heart'],
     item: 'apron',
     levels: [
-      { title: 'Barista', pay: 40, needs: {} },
-      { title: 'Head Barista', pay: 70, needs: { smarts: 30 } },
-      { title: 'Cafe Owner', pay: 140, needs: { smarts: 45 } },
+      { title: 'Barista', pay: 100, needs: {} },
+      { title: 'Head Barista', pay: 130, needs: { smarts: 30 } },
+      { title: 'Cafe Owner', pay: 205, needs: { smarts: 45 } },
     ],
   },
   {
@@ -84,9 +94,9 @@ export const JOBS = [
     goals: ['fortune'],
     item: 'cap',
     levels: [
-      { title: 'Shop Clerk', pay: 45, needs: {} },
-      { title: 'Shift Lead', pay: 75, needs: { smarts: 30 } },
-      { title: 'Store Manager', pay: 150, needs: { smarts: 50 } },
+      { title: 'Shop Clerk', pay: 105, needs: {} },
+      { title: 'Shift Lead', pay: 135, needs: { smarts: 30 } },
+      { title: 'Store Manager', pay: 215, needs: { smarts: 50 } },
     ],
   },
   {
@@ -95,9 +105,9 @@ export const JOBS = [
     goals: ['healthy', 'free'],
     item: 'satchel',
     levels: [
-      { title: 'Courier', pay: 45, needs: {} },
-      { title: 'Senior Courier', pay: 70, needs: { health: 60 } },
-      { title: 'Route Boss', pay: 130, needs: { health: 60, smarts: 40 } },
+      { title: 'Courier', pay: 105, needs: {} },
+      { title: 'Senior Courier', pay: 130, needs: { health: 60 } },
+      { title: 'Route Boss', pay: 195, needs: { health: 60, smarts: 40 } },
     ],
   },
   {
@@ -106,9 +116,9 @@ export const JOBS = [
     goals: ['healthy', 'free'],
     item: 'strawHat',
     levels: [
-      { title: 'Farmhand', pay: 40, needs: {} },
-      { title: 'Grower', pay: 70, needs: { health: 55 } },
-      { title: 'Farm Owner', pay: 160, needs: { health: 60, smarts: 40 } },
+      { title: 'Farmhand', pay: 100, needs: {} },
+      { title: 'Grower', pay: 130, needs: { health: 55 } },
+      { title: 'Farm Owner', pay: 225, needs: { health: 60, smarts: 40 } },
     ],
   },
 
@@ -119,9 +129,9 @@ export const JOBS = [
     goals: ['free', 'heart'],
     item: 'beret',
     levels: [
-      { title: 'Street Artist', pay: 35, needs: { smarts: 30 } },
-      { title: 'Illustrator', pay: 90, needs: { smarts: 45 } },
-      { title: 'Gallery Star', pay: 220, needs: { smarts: 60 } },
+      { title: 'Street Artist', pay: 95, needs: { smarts: 30 } },
+      { title: 'Illustrator', pay: 155, needs: { smarts: 45 } },
+      { title: 'Gallery Star', pay: 290, needs: { smarts: 60 } },
     ],
   },
   {
@@ -130,9 +140,9 @@ export const JOBS = [
     goals: ['healthy', 'fortune'],
     item: 'hardHat',
     levels: [
-      { title: 'Site Helper', pay: 60, needs: { health: 60 } },
-      { title: 'Builder', pay: 110, needs: { health: 65, smarts: 35 } },
-      { title: 'Site Boss', pay: 210, needs: { health: 65, smarts: 50 } },
+      { title: 'Site Helper', pay: 120, needs: { health: 60 } },
+      { title: 'Builder', pay: 175, needs: { health: 65, smarts: 35 } },
+      { title: 'Site Boss', pay: 280, needs: { health: 65, smarts: 50 } },
     ],
   },
   {
@@ -141,9 +151,9 @@ export const JOBS = [
     goals: ['heart'],
     item: 'chefHat',
     levels: [
-      { title: 'Line Cook', pay: 55, needs: { health: 45, smarts: 30 } },
-      { title: 'Chef', pay: 110, needs: { health: 50, smarts: 45 } },
-      { title: 'Head Chef', pay: 200, needs: { health: 50, smarts: 60 } },
+      { title: 'Line Cook', pay: 115, needs: { health: 45, smarts: 30 } },
+      { title: 'Chef', pay: 175, needs: { health: 50, smarts: 45 } },
+      { title: 'Head Chef', pay: 270, needs: { health: 50, smarts: 60 } },
     ],
   },
   {
@@ -152,9 +162,9 @@ export const JOBS = [
     goals: ['fortune'],
     item: 'tie',
     levels: [
-      { title: 'Office Clerk', pay: 70, needs: { smarts: 40 } },
-      { title: 'Manager', pay: 140, needs: { smarts: 55 } },
-      { title: 'Director', pay: 280, needs: { smarts: 70 } },
+      { title: 'Office Clerk', pay: 130, needs: { smarts: 40 } },
+      { title: 'Manager', pay: 205, needs: { smarts: 55 } },
+      { title: 'Director', pay: 355, needs: { smarts: 70 } },
     ],
   },
   {
@@ -163,9 +173,9 @@ export const JOBS = [
     goals: ['scholar', 'heart'],
     item: 'glasses',
     levels: [
-      { title: 'Teaching Aide', pay: 70, needs: { smarts: 50 } },
-      { title: 'Teacher', pay: 120, needs: { smarts: 60 } },
-      { title: 'Principal', pay: 220, needs: { smarts: 75 } },
+      { title: 'Teaching Aide', pay: 130, needs: { smarts: 50 } },
+      { title: 'Teacher', pay: 185, needs: { smarts: 60 } },
+      { title: 'Principal', pay: 290, needs: { smarts: 75 } },
     ],
   },
 
@@ -176,9 +186,9 @@ export const JOBS = [
     goals: ['scholar', 'fortune'],
     item: 'headphones',
     levels: [
-      { title: 'Junior Developer', pay: 90, needs: { smarts: 60 } },
-      { title: 'Developer', pay: 170, needs: { smarts: 70 } },
-      { title: 'Lead Developer', pay: 320, needs: { smarts: 82 } },
+      { title: 'Junior Developer', pay: 155, needs: { smarts: 60 } },
+      { title: 'Developer', pay: 235, needs: { smarts: 70 } },
+      { title: 'Lead Developer', pay: 395, needs: { smarts: 82 } },
     ],
   },
   {
@@ -187,9 +197,9 @@ export const JOBS = [
     goals: ['scholar'],
     item: 'labCoat',
     levels: [
-      { title: 'Lab Assistant', pay: 85, needs: { smarts: 65 } },
-      { title: 'Scientist', pay: 160, needs: { smarts: 75 } },
-      { title: 'Lead Researcher', pay: 300, needs: { smarts: 88 } },
+      { title: 'Lab Assistant', pay: 150, needs: { smarts: 65 } },
+      { title: 'Scientist', pay: 225, needs: { smarts: 75 } },
+      { title: 'Lead Researcher', pay: 375, needs: { smarts: 88 } },
     ],
   },
   {
@@ -198,9 +208,9 @@ export const JOBS = [
     goals: ['healthy', 'scholar'],
     item: 'stethoscope',
     levels: [
-      { title: 'Med Intern', pay: 100, needs: { smarts: 72, health: 50 } },
-      { title: 'Doctor', pay: 220, needs: { smarts: 80, health: 50 } },
-      { title: 'Chief Surgeon', pay: 400, needs: { smarts: 90, health: 55 } },
+      { title: 'Med Intern', pay: 165, needs: { smarts: 72, health: 50 } },
+      { title: 'Doctor', pay: 290, needs: { smarts: 80, health: 50 } },
+      { title: 'Chief Surgeon', pay: 480, needs: { smarts: 90, health: 55 } },
     ],
   },
 ];

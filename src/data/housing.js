@@ -11,6 +11,9 @@ export const MOVE_OUT_AGE = 18;
 //   id           Unique and saved; don't rename one once it has shipped.
 //   name         Shown in menus and bubbles.
 //   price        Dollars to upgrade to it (the first tier is free).
+//                Targets (AGENTS.md) at an entry job's $25 a real hour:
+//                the tent after about a day of work (8 hours), the house
+//                after about a week (56 hours).
 //   prop         Its prop in My Yard (data/layout.js; also its sprite
 //                name, data/sprites.js). Only the current tier's prop
 //                shows.

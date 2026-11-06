@@ -154,7 +154,7 @@ test('a fishing plan walks there, starts at the Lake, counts once arrived and st
   assert.equal(game.autonomy.plan.leftMs, 10 * MIN);
   arriveAtStay(game);
   assert.equal(stayFreezesEvents(game), true, 'events are frozen while fishing, as always');
-  catchNow(game, game.activities.current.fishing, 'common', () => 0.5);
+  catchNow(game, game.activities.current.fishing, 'uncommon', () => 0.5);
   const money = game.character.stats.money;
   updateAutonomy(game, 9 * MIN);
   assert.ok(game.autonomy.plan);

@@ -569,6 +569,9 @@ Shift-Life/
 │                      and a short README
 └── test/              interaction.test.mjs (rules/poses), endOfLife.test.mjs
                        (ageing, endings, summary, Book, new life),
+                       economy.test.mjs (pacing and money against the
+                       AGENTS.md targets: year lengths, pay per hour,
+                       monthly paydays, prices, side income, event gaps),
                        lake.test.mjs (the Lake: routes, feet row, walking
                        limits, dock, work trips, shimmer),
                        lakeLife.test.mjs (wildlife: the click cooldown,
@@ -896,6 +899,14 @@ pure art (sky, props) may stay in the drawing file.
 `game/clock.js` stores in-game time as fractional years and
 advances it on a 250ms timer (not animation frames), so time passes while
 the window is minimized (`backgroundThrottling: false` in `main.js`).
+At normal speed a year lasts the life stage's `realMinutesPerYear`
+(`data/lifeStages.js`: 60 to 18, 240 as an adult, 180 as an elder);
+the renderer passes `startClock()` the rate for the current age
+(`realMinutesPerYear()` in `game/character.js`). The dev speeds in
+`SPEEDS` (`data/balance.js`) have a fixed `secondsPerYear` instead.
+Waits set in real minutes but kept in in-game years (event gaps, the
+auto-decide wait) convert at the age they're set
+(`yearsOfRealMinutes()`), so fast-forward shortens them too.
 Gaps over 2s, such as the PC sleeping, are capped. Time does not pass
 while the app is closed. Ages are whole years: `floor(years - bornAt)`.
 Once the life has ended the clock is `stopped` (not saved: it follows
@@ -915,7 +926,8 @@ or frown, with thresholds in `data/balance.js`. `character.traits` is
 
 `game/events.js` runs on its own 250ms timer in the renderer,
 so events keep coming (and get auto-decided) while minimized.
-- After each event, the next is due a random `EVENT_GAP_YEARS` later. It
+- After each event, the next is due a random `EVENT_GAP_MINUTES`
+  (15-30 real minutes, as in-game time at the current age) later. It
   picks an event whose `stages` (and optional `minAge`/`maxAge`) fit,
   favoring the least-seen and never the same one twice in a row. Babies
   have none.
@@ -979,11 +991,15 @@ and opens the goal menu, which shows the yearly boost and milestones.
   lists `OFFER_SIZE` jobs whose first level's `needs` are met, always
   including one that suits the active goal when one qualifies. The
   pending offer saves its job ids (`pending.offer`).
-- `updateJobs()` runs on the 250ms life timer. Every in-game year after
-  hiring it pays the level's pay plus `bonus` (never below
-  `MIN_PAY_SHARE` of the level's pay), then promotes if they've spent
+- `updateJobs()` runs on the 250ms life timer. Pay is yearly in the
+  data (the level's pay plus `bonus`, never below `MIN_PAY_SHARE` of
+  the level's pay) and comes in `PAYDAYS_PER_YEAR` (12) paydays from
+  hiring. Each payday pays the rounded running total's step
+  (`paydayAmount()`), so a year adds up to the yearly pay within a
+  dollar. Each payday then promotes if they've spent
   `PROMOTION_YEARS` at the level and meet the next level's `needs`.
-  Skipped years catch up, with one combined payday bubble.
+  Skipped paydays catch up, with one combined payday bubble. The
+  pension comes the same way.
 - At `RETIRE_AGE` (65) the job ends and a yearly pension starts:
   `PENSION_SHARE` of the last pay, at least `PENSION_MIN`.
 - Paydays, promotions and retirement show as text bubbles (promotions
@@ -1544,10 +1560,10 @@ resting keep their own code for now.
   to `SIZE_VALUE` (+-20%) by where the size falls in that range, so
   the average stays the same. They hold it up for `show` seconds and
   cast again. `RARITIES` (junk, common, uncommon, rare, legendary)
-  have weights tuned to about $4 a real minute when every bite is
+  have weights and `FISH` values tuned to about $12 a real hour when every bite is
   ignored (the sum is in `data/fishing.js`; a test checks it); `FISH`
   are the catches with their values (a number or a [min, max] range)
-  and sizes. Stopping sells the bucket: "Sold 3 for $65." While a
+  and sizes. Stopping sells the bucket: "Sold 3 for $2." A catch worth $0 (a perch, a small carp) says "Caught a perch!" with no dollar line; only junk gets the joke. While a
   bite's "!" is up it takes the spot over the head (text bubbles and
   the event "!" wait).
 - The catch reveal (`game/catchReveal.js` times it, `ui/catchReveal.js`
