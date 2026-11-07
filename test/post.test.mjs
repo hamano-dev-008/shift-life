@@ -12,7 +12,7 @@ import { computeLayout } from '../src/ui/scene.js';
 import {
   POST_PLACE, POST_ART, POST_DOOR, POST_DOOR_PROP, POST_COUNTER, POST_COUNTER_PROP, POST_WALK, POST_SIGN,
   POST_CARGO_BIKE, POST_DOG_BED, POST_HAND_IN_X, POST_PILE_X, POST_FEET_FROM_BOTTOM, POST_JOB,
-  POST_RIDER, POST_DOG, POST_DISPATCHER, POST_ITEMS, SEND_SECONDS, POST_BAR_TEXT, POST_NEWS,
+  POST_RIDER, POST_DOG, POST_DISPATCHER, POST_ITEMS, POST_BAR_TEXT, POST_NEWS,
 } from '../src/data/post.js';
 import { INDOOR_PLACES } from '../src/data/weather.js';
 import { SCENE_SCALE } from '../src/data/layout.js';
@@ -147,7 +147,7 @@ test('a postcard: paid at once, handed over at the counter, once an hour; a gift
   arriveAtStay(game);
   assert.equal(stayFreezesEvents(game), false);
   assert.equal(activityBarView(game).text, 'Sending the postcard...');
-  const [sent] = runPost(game, SEND_SECONDS);
+  const [sent] = runPost(game, POST_ITEMS.postcard.seconds);
   assert.equal(sent.heading, POST_NEWS.sent.heading);
   assert.equal(sent.text, 'The postcard is on its way.');
   assert.deepEqual(sent.deltas, POST_ITEMS.postcard.effects);
@@ -155,7 +155,7 @@ test('a postcard: paid at once, handed over at the counter, once an hour; a gift
   assert.equal(sendBlock(game, 'postcard'), 'wait');
   sendItem(game, 'gift');
   arriveAtStay(game);
-  assert.deepEqual(runPost(game, SEND_SECONDS)[0].deltas, POST_ITEMS.gift.effects);
+  assert.deepEqual(runPost(game, POST_ITEMS.gift.seconds)[0].deltas, POST_ITEMS.gift.effects);
   runPost(game, 60 * 60);
   assert.equal(sendBlock(game, 'postcard'), null);
   assert.equal(sendBlock(game, 'gift'), 'wait', 'a gift waits a day');

@@ -166,6 +166,13 @@ import {
   ALLEY_PLACE, ALLEY_PAINTER, ALLEY_PARROT, ALLEY_STALL_PROP, ALLEY_MENU_TEXT, ALLEY_EASEL, CLASS_EASEL, ALLEY_STALL,
 } from './data/alley.js';
 import { buyAtStall, updateAlley, alleyView, isAtStall } from './game/alley.js';
+import { createOfficeLife, updateOfficeLife, clickOfficeCritter, officeBoxes } from './ui/officeLife.js';
+import { drawOfficePeople, drawPlant, drawOfficeCritter, drawHeldPaper } from './ui/officeLifeArt.js';
+import {
+  OFFICE_PLACE, OFFICE_BOSS, OFFICE_PLANT_LIFE, VENDING_PROP, PRINTER_PROP, OFFICE_MENU_TEXT, OFFICE_ITEMS,
+  OFFICE_VENDING, OFFICE_PRINTER,
+} from './data/office.js';
+import { buyAtBreak, updateOffice, officeView, isOnBreak } from './game/office.js';
 import {
   STORE_PLACE, STORE_DOOR, STORE_CLERK, STORE_PIGEON, STORE_SHOPPERS, STORE_MENU_TEXT, STORE_COUNTER_PROP,
   STORE_PAY_X, STORE_EAT_X,
@@ -484,20 +491,24 @@ async function start() {
   // or a cake at the table (game/cafe.js), at the 6-Eleven a snack or a
   // scratch card (game/store.js), at Pedal Post a postcard or a gift
   // parcel (game/post.js), at Mural Alley's stall an art class or a print
-  // (game/alley.js), and for whoever works there a shift behind the
-  // counter, a delivery run or painting at the easel (game/shifts.js). Each starts once they're
+  // (game/alley.js), at Paperleaf Co.'s break corner a coffee or a resume
+  // (game/office.js), and for whoever works there a shift behind the
+  // counter, a delivery run, painting at the easel or typing at the desk
+  // (game/shifts.js). Each starts once they're
   // at the spot.
   const counterMenu = createCounterMenu(document.getElementById('counter-menu'), {
     order: (item) => {
       playerTookOver();
       const bought = game.place === CAFE_PLACE ? orderItem(game, item)
         : game.place === POST_PLACE ? sendItem(game, item)
-          : game.place === ALLEY_PLACE ? buyAtStall(game, item) : buyAtStore(game, item);
+          : game.place === ALLEY_PLACE ? buyAtStall(game, item)
+            : game.place === OFFICE_PLACE ? buyAtBreak(game, item) : buyAtStore(game, item);
       if (bought) saveGame(game);
     },
     shift: () => {
       playerTookOver();
-      if (startShift(game, isOrdering(game) || isBuying(game) || isSending(game) || isAtStall(game))) saveGame(game);
+      if (startShift(game, isOrdering(game) || isBuying(game) || isSending(game) || isAtStall(game)
+        || isOnBreak(game))) saveGame(game);
     },
     stopShift: () => {
       playerTookOver();
@@ -518,11 +529,15 @@ async function start() {
     }
     if (scene.place.id === POST_PLACE) {
       const view = postView(game);
-      return { ...view, text: POST_MENU_TEXT, busy: view.sending?.thing ?? null, shift: shiftView(game) };
+      return { ...view, text: POST_MENU_TEXT, busy: view.visit?.thing ?? null, shift: shiftView(game) };
     }
     if (scene.place.id === ALLEY_PLACE) {
       const view = alleyView(game);
       return { ...view, text: ALLEY_MENU_TEXT, busy: view.visit?.thing ?? null, shift: shiftView(game) };
+    }
+    if (scene.place.id === OFFICE_PLACE) {
+      const view = officeView(game);
+      return { ...view, text: OFFICE_MENU_TEXT, busy: view.visit?.thing ?? null, shift: shiftView(game) };
     }
     return null;
   }
@@ -608,6 +623,9 @@ async function start() {
   // Mural Alley's painter, visitors and Rio the parrot (ui/alleyLife.js),
   // the same way; the painter and the parrot are clickable.
   let alleyLife = null;
+  // Paperleaf Co.'s coworkers, boss and Gerald the plant
+  // (ui/officeLife.js), the same way; the boss and Gerald are clickable.
+  let officeLife = null;
   // The clickable critters where the character is now: the Lake's
   // wildlife, the town places' people and animals ({ boxes(), click(id)
   // }), or null.
@@ -617,6 +635,7 @@ async function start() {
     if (storeLife) return { boxes: () => storeBoxes(storeLife), click: (id) => clickStoreCritter(storeLife, id) };
     if (postLife) return { boxes: () => postBoxes(postLife), click: (id) => clickPostCritter(postLife, id) };
     if (alleyLife) return { boxes: () => alleyBoxes(alleyLife), click: (id) => clickAlleyCritter(alleyLife, id) };
+    if (officeLife) return { boxes: () => officeBoxes(officeLife), click: (id) => clickOfficeCritter(officeLife, id) };
     return null;
   }
   // The Farm's chickens, made each time the Farm is shown (purely visual,
@@ -732,6 +751,8 @@ async function start() {
     dog: POST_DOG.label,
     painter: ALLEY_PAINTER.label,
     parrot: ALLEY_PARROT.label,
+    boss: OFFICE_BOSS.label,
+    plant: OFFICE_PLANT_LIFE.label,
   };
   // One invisible button over each frog and butterfly (generous areas),
   // or the Cafe's master and cat, reused by id; none while travelling,
@@ -831,7 +852,7 @@ async function start() {
     // time; game/cafe.js, game/store.js, game/post.js, game/shifts.js).
     const cafeNews = [
       ...updateCafe(game, realMs), ...updateStore(game, realMs), ...updatePost(game, realMs), ...updateAlley(game, realMs),
-      ...updateShift(game, realMs),
+      ...updateOffice(game, realMs), ...updateShift(game, realMs),
     ];
     cafeNews.forEach(showNews);
     if (cafeNews.length) saveGame(game);
@@ -912,7 +933,8 @@ async function start() {
     } else if ((id === CAFE_COUNTER_PROP && scene.place.id === CAFE_PLACE)
       || (id === STORE_COUNTER_PROP && scene.place.id === STORE_PLACE)
       || (id === POST_COUNTER_PROP && scene.place.id === POST_PLACE)
-      || (id === ALLEY_STALL_PROP && scene.place.id === ALLEY_PLACE)) {
+      || (id === ALLEY_STALL_PROP && scene.place.id === ALLEY_PLACE)
+      || ((id === VENDING_PROP || id === PRINTER_PROP) && scene.place.id === OFFICE_PLACE)) {
       counterMenu.toggle();
     } else if (PADDY_IDS.has(id) && scene.place.id === FARM_PLACE) {
       farmMenu.toggle(id);
@@ -1126,7 +1148,7 @@ async function start() {
   function updateTrip(now) {
     if (!trip || !hasExited(animator)) return;
     const from = game.place;
-    const left = { scene, treeDecor, lakeLife, farmAnimals, cafeLife, storeLife, postLife, alleyLife };
+    const left = { scene, treeDecor, lakeLife, farmAnimals, cafeLife, storeLife, postLife, alleyLife, officeLife };
     const next = trip.route.shift();
     const way = exitBetween(game, from, next);
     const kind = transitionFor(from, next, way.via, settings.parallax);
@@ -1290,6 +1312,11 @@ async function start() {
       const x = atEasel ? CLASS_EASEL.standX : ALLEY_STALL.x;
       return { x: (x + 0.5) * layout.scale, mode: 'doing', activity: 'hold', facing: atEasel ? CLASS_EASEL.facing : 1 };
     }
+    // At Paperleaf Co. for a coffee or a resume: at its machine.
+    if (place.id === OFFICE_PLACE && isOnBreak(game)) {
+      const machine = OFFICE_ITEMS[game.office.visit.item].at === 'vending' ? OFFICE_VENDING : OFFICE_PRINTER;
+      return { x: (machine.x + 0.5) * layout.scale, mode: 'doing', activity: 'hold', facing: -1 };
+    }
     // Working at a workplace: behind its counter (on the floor further
     // back), holding something, whether on a shift or not; a delivery run
     // goes to the door with a parcel (and out of it, unseen, once there).
@@ -1298,8 +1325,9 @@ async function start() {
       return { x: (work.outX + 0.5) * layout.scale, mode: 'doing', activity: 'hold', facing: -1 };
     }
     if (work && place.id === work.place) {
-      const { x, lift, facing } = work.spot;
-      return { x: (x + 0.5) * layout.scale, mode: 'doing', activity: 'hold', lift: lift * layout.scale, facing };
+      const { x, lift, facing, sit } = work.spot;
+      const mode = sit ? 'sitting' : 'doing';
+      return { x: (x + 0.5) * layout.scale, mode, activity: 'hold', lift: lift * layout.scale, facing };
     }
     // Under the golden apple to poke it down, posed as pickLook() says.
     const under = place.id === FORTUNE_TREE_PLACE && isPicking(game) ? pickSpot(layout) : null;
@@ -1503,7 +1531,7 @@ async function start() {
       planNow: () => {
         if (game.endOfLife.ended || travelling() || currentPlan(game) || isPlaying(game) || isResting(game)
           || isDoingActivity(game) || currentFarmJob(game) || isPicking(game) || isOrdering(game) || isBuying(game)
-          || isSending(game) || isAtStall(game) || isOnShift(game)) {
+          || isSending(game) || isAtStall(game) || isOnBreak(game) || isOnShift(game)) {
           return AUTONOMY_TEXT.notNow;
         }
         restPreview = null;
@@ -1696,6 +1724,19 @@ async function start() {
     } else {
       deco.alleyLife = null;
     }
+    // Paperleaf Co.: Gerald, the coworkers and the boss.
+    if (place.id === OFFICE_PLACE) {
+      deco.officeLife ??= createOfficeLife();
+      updateOfficeLife(deco.officeLife, dt);
+      drawPlant(target, layout, deco.officeLife);
+      drawOfficePeople(target, layout, deco.officeLife);
+      if (hovered?.kind === 'critter'
+        && hoverOutline.draw(target, (maskCtx) => drawOfficeCritter(maskCtx, layout, deco.officeLife, hovered.id), seconds)) {
+        outlined = `critter:${hovered.id}`;
+      }
+    } else {
+      deco.officeLife = null;
+    }
     return outlined;
   }
 
@@ -1809,7 +1850,7 @@ async function start() {
     // showing, not away), now and then they choose something to do.
     const running = isPlaying(game) || isResting(game) || isDoingActivity(game)
       || Boolean(currentFarmJob(game)) || isPicking(game) || isOrdering(game) || isBuying(game)
-      || isSending(game) || isAtStall(game) || isOnShift(game);
+      || isSending(game) || isAtStall(game) || isOnBreak(game) || isOnShift(game);
     const idle = !busy && !running && !restPreview && !farewell && !isAtWork(animator);
     if (mayChoose(choosing, now, { enabled: settings.ownPlans, idle })) beginOwnPlan(now);
     // While the view pans they wait past the edge, then walk in.
@@ -1888,7 +1929,7 @@ async function start() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     const hovered = hoveredThing(ended);
     let outlined = '';
-    const here = { treeDecor, lakeLife, farmAnimals, cafeLife, storeLife, postLife, alleyLife };
+    const here = { treeDecor, lakeLife, farmAnimals, cafeLife, storeLife, postLife, alleyLife, officeLife };
     if (panning) {
       drawPan(panning, now, dt, here, weather);
     } else {
@@ -1905,6 +1946,7 @@ async function start() {
     storeLife = here.storeLife;
     postLife = here.postLife;
     alleyLife = here.alleyLife;
+    officeLife = here.officeLife;
     farmAnimals = here.farmAnimals;
     // The character waits past the edge while the view pans, and isn't
     // there while out on a delivery run.
@@ -1947,7 +1989,7 @@ async function start() {
       // over them again.
       if (place.id === POST_PLACE && postLife && pose.activity === 'hold') {
         const hand = carrying && !pose.lift ? heldHand(stage, pose, layout.feetY, layout.characterScale) : null;
-        if (hand) (game.post.sending?.item === 'postcard' ? drawHeldPostcard : drawHeldParcel)(ctx, hand);
+        if (hand) (game.post.visit?.item === 'postcard' ? drawHeldPostcard : drawHeldParcel)(ctx, hand);
         if (pose.lift > 0) {
           drawPostCounterFront(ctx, layout);
           drawPostLifeFront(ctx, layout, postLife);
@@ -1959,6 +2001,12 @@ async function start() {
         const hand = heldHand(stage, pose, layout.feetY, layout.characterScale);
         if (game.alley.visit?.item === 'print') drawHeldPrint(ctx, hand);
         else if (game.alley.visit || (isOnShift(game) && workplaceHere(game))) drawHeldBrush(ctx, hand, seconds);
+      }
+      // At Paperleaf Co.'s break corner: the coffee or the resume in hand.
+      if (place.id === OFFICE_PLACE && isOnBreak(game) && hasArrived(game) && pose.activity === 'hold') {
+        const hand = heldHand(stage, pose, layout.feetY, layout.characterScale);
+        if (game.office.visit.item === 'coffee') drawHeldCup(ctx, hand);
+        else drawHeldPaper(ctx, hand);
       }
       // Picking the apple: the branch held up, the apple falling or held
       // up, the fairies; once it's dropped the branch stays where it fell.

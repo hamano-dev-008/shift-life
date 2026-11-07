@@ -164,6 +164,17 @@ Early development. What works so far:
     Working the Artist job (Street Artist, Illustrator, Gallery Star),
     they stand at the easel and can paint a 30-minute shift ($6, $10 or
     $18), the canvas filling in. Its numbers are in `src/data/alley.js`.
+  - Paperleaf Co. is a cozy little office in town: striped wallpaper, a
+    window on the town, a vending machine, a printer, a water cooler, a
+    whiteboard and three desks. Two coworkers type away and now and then
+    chat by the cooler, the boss strolls about, and Gerald the office
+    plant sways in his pot. Click the boss for a line, or Gerald to make
+    him perk up. The vending machine or the printer (from age 6): a
+    coffee ($2, +2 happiness, once an hour) or a printed resume ($3, +1
+    smarts, +1 happiness, once a day). Working the Office job (Office
+    Clerk, Manager, Director), they sit at their desk and can work a
+    30-minute shift there ($8, $13 or $22). Its numbers are in
+    `src/data/office.js`.
   - Inside the Cafe, the old master polishes cups and brews at the siphons
     behind the counter, customers drop in for a coffee at the counter
     or the table and leave again, and Tama the cat naps on the window

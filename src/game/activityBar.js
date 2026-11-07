@@ -24,8 +24,10 @@ import { isBuying, stopPurchase, storeView } from './store.js';
 import { STORE_BAR_TEXT } from '../data/store.js';
 import { isSending, stopSending, postView } from './post.js';
 import { POST_BAR_TEXT } from '../data/post.js';
-import { isAtStall, stopVisit, alleyView } from './alley.js';
+import { isAtStall, stopAtStall, alleyView } from './alley.js';
 import { ALLEY_BAR_TEXT } from '../data/alley.js';
+import { isOnBreak, stopBreak, officeView } from './office.js';
+import { OFFICE_BAR_TEXT, OFFICE_ITEMS } from '../data/office.js';
 import { CAFE_BAR_TEXT } from '../data/cafe.js';
 import { restSpotOf } from './places.js';
 import { isOnTheWay } from './stay.js';
@@ -41,7 +43,7 @@ function clockTime(ms) {
 }
 
 // What the bar shows now: { kind ('activity', 'farm', 'picking', 'cafe',
-// 'store', 'post', 'alley', 'shift', 'busking' or 'resting'),
+// 'store', 'post', 'alley', 'office', 'shift', 'busking' or 'resting'),
 // text, stop (the button's label), onTheWay (still walking to the spot) },
 // or null when nothing is running (or the life has ended).
 export function activityBarView(game) {
@@ -60,6 +62,9 @@ function onTheWayText(game, kind) {
   if (kind === 'store') return game.store.purchase.step === 'pay' ? STORE_BAR_TEXT.toRegister : STORE_BAR_TEXT.toWindow;
   if (kind === 'post') return POST_BAR_TEXT.toCounter;
   if (kind === 'alley') return game.alley.visit.item === 'class' ? ALLEY_BAR_TEXT.toEasel : ALLEY_BAR_TEXT.toStall;
+  if (kind === 'office') {
+    return OFFICE_ITEMS[game.office.visit.item].at === 'vending' ? OFFICE_BAR_TEXT.toVending : OFFICE_BAR_TEXT.toPrinter;
+  }
   if (kind === 'farm') return FARM_TEXT.onTheWay;
   if (kind === 'resting') {
     const seat = REST_SPOT_NAMES[restSpotOf(game)] ?? REST_SPOT_NAMES['home.sofa'];
@@ -93,7 +98,7 @@ function runningView(game) {
     return { kind: 'store', text: fill(text, { item: purchase.name.toLowerCase() }), stop, onTheWay: false };
   }
   if (isSending(game)) {
-    return { kind: 'post', text: fill(POST_BAR_TEXT.sending, { item: postView(game).sending.thing }), stop, onTheWay: false };
+    return { kind: 'post', text: fill(POST_BAR_TEXT.sending, { item: postView(game).visit.thing }), stop, onTheWay: false };
   }
   if (isAtStall(game)) {
     const { visit } = alleyView(game);
@@ -101,6 +106,7 @@ function runningView(game) {
       ? fill(ALLEY_BAR_TEXT.class, { time: clockTime(visit.ms), total: clockTime(visit.totalMs) }) : ALLEY_BAR_TEXT.print;
     return { kind: 'alley', text, stop, onTheWay: false };
   }
+  if (isOnBreak(game)) return { kind: 'office', text: OFFICE_BAR_TEXT[officeView(game).visit.item], stop, onTheWay: false };
   if (isOnShift(game)) {
     const shift = shiftView(game);
     return {
@@ -137,7 +143,8 @@ export function stopFromBar(game) {
   if (isOrdering(game)) return { stopped: stopOrder(game), news: null };
   if (isBuying(game)) return { stopped: stopPurchase(game), news: null };
   if (isSending(game)) return { stopped: stopSending(game), news: null };
-  if (isAtStall(game)) return { stopped: stopVisit(game), news: null };
+  if (isAtStall(game)) return { stopped: stopAtStall(game), news: null };
+  if (isOnBreak(game)) return { stopped: stopBreak(game), news: null };
   if (isOnShift(game)) return { stopped: stopShift(game), news: null };
   if (stopPlaying(game)) return { stopped: true, news: null };
   if (stopResting(game)) return { stopped: true, news: null };

@@ -17,7 +17,7 @@ import { PLACE_ACTIVITIES } from '../data/activities.js';
 // (at the Cafe's table), 'store:pay' and 'store:have' (at the 6-Eleven's
 // register, then by its window), 'post:send' (at Pedal Post's counter),
 // 'alley:class' and 'alley:print' (at Mural Alley's class easel or its
-// stall),
+// stall), 'office:<item>' (at Paperleaf Co.'s vending machine or printer),
 // 'shift:<place>' (behind a workplace's counter, or out of its door), 'busking', 'resting', or null. An activity comes first, as in the activity bar.
 export function stayKey(game) {
   const activity = game.activities?.current;
@@ -26,8 +26,9 @@ export function stayKey(game) {
   if (game.fortuneTree?.picking) return 'picking';
   if (game.cafe?.order) return 'cafe:order';
   if (game.store?.purchase) return game.store.purchase.step === 'pay' ? 'store:pay' : 'store:have';
-  if (game.post?.sending) return 'post:send';
+  if (game.post?.visit) return 'post:send';
   if (game.alley?.visit) return `alley:${game.alley.visit.item}`;
+  if (game.office?.visit) return `office:${game.office.visit.item}`;
   if (game.work?.shift) return `shift:${game.work.shift.place}`;
   if (game.fortuneTree?.playing) return 'busking';
   if (game.home?.resting) return 'resting';
@@ -66,11 +67,13 @@ export function arriveAtStay(game) {
 // Whether new events wait now: busking, resting, or an activity with
 // `freezeEvents`, but only once they've arrived. Before that events come
 // as normal. Picking the apple, a cafe order, a 6-Eleven snack, sending
-// mail or the alley's class or print (short, like a farm job) don't.
+// mail, the alley's class or print or an office break (short, like a farm
+// job) don't.
 export function stayFreezesEvents(game) {
   const key = stayKey(game);
   if (!hasArrived(game) || key === 'picking' || key === 'cafe:order' || key.startsWith('store:')
-    || key === 'post:send' || key.startsWith('alley:')) return false;
+    || key === 'post:send' || key.startsWith('alley:')
+    || key.startsWith('office:')) return false;
   const activity = game.activities?.current;
   if (activity) return Boolean(PLACE_ACTIVITIES[activity.id]?.freezeEvents);
   return true;

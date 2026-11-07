@@ -20,6 +20,9 @@ import {
 import {
   ALLEY_PLACE, ALLEY_FEET_FROM_BOTTOM, ALLEY_WALK, ALLEY_MOUTH_PROP, ALLEY_STALL_PROP, ALLEY_TEXT,
 } from './alley.js';
+import {
+  OFFICE_PLACE, OFFICE_FEET_FROM_BOTTOM, OFFICE_WALK, OFFICE_DOOR_PROP, VENDING_PROP, PRINTER_PROP, OFFICE_TEXT,
+} from './office.js';
 
 // Each place has:
 //   id        Unique and saved; don't rename one once it has shipped.
@@ -185,6 +188,21 @@ export const PLACES = [
     door: ALLEY_MOUTH_PROP,
     exits: [],
     targets: { [ALLEY_MOUTH_PROP]: ALLEY_TEXT.mouth, [ALLEY_STALL_PROP]: ALLEY_TEXT.stall },
+  },
+  {
+    id: OFFICE_PLACE,
+    name: OFFICE_TEXT.name,
+    // The office (one picture), its door, and the break corner's vending
+    // machine and printer.
+    scenery: ['office', OFFICE_DOOR_PROP, VENDING_PROP, PRINTER_PROP],
+    feetFromBottom: OFFICE_FEET_FROM_BOTTOM,
+    walk: OFFICE_WALK,
+    town: true,
+    door: OFFICE_DOOR_PROP,
+    exits: [],
+    targets: {
+      [OFFICE_DOOR_PROP]: OFFICE_TEXT.door, [VENDING_PROP]: OFFICE_TEXT.vending, [PRINTER_PROP]: OFFICE_TEXT.printer,
+    },
   },
 ];
 

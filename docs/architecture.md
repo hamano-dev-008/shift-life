@@ -208,6 +208,10 @@ Shift-Life/
 │   │   ├── counter.js     What the town counters share: each item's wait
 │   │   │                  (once every so many real minutes) and the
 │   │   │                  menu's list of items
+│   │   ├── visits.js      A counter's items had at a spot there (paid at
+│   │   │                  once, taking their seconds once there, then
+│   │   │                  their effects; refunded if stopped first),
+│   │   │                  for Pedal Post, Mural Alley and the office
 │   │   ├── store.js       The 6-Eleven's register: snacks and scratch
 │   │   │                  cards (paid at once, paid for at the
 │   │   │                  register, had or scratched by the window,
@@ -218,6 +222,8 @@ Shift-Life/
 │   │   │                  class easel, a print picked out at the
 │   │   │                  stall, once a day or an hour, refunded if
 │   │   │                  stopped first)
+│   │   ├── office.js      Paperleaf Co.'s break corner: a vending coffee
+│   │   │                  (hourly) and printing a resume (daily)
 │   │   ├── post.js        Pedal Post's counter: postcards and gift
 │   │   │                  parcels (paid at once, handed over at the
 │   │   │                  counter, once an hour or a day, refunded if
@@ -334,6 +340,18 @@ Shift-Life/
 │   │   │                  (its front again over whoever's behind it),
 │   │   │                  and the cargo bike on its own
 │   │   ├── pixelFont.js   A 3 x 5 pixel font for the signs
+│   │   ├── office.js      Draws Paperleaf Co. in code: wallpaper and
+│   │   │                  panelling, carpet, the door, a window on the
+│   │   │                  town, the vending machine, the printer, the
+│   │   │                  water cooler, the sign over a whiteboard, three
+│   │   │                  desks with chairs and monitors
+│   │   ├── officeLife.js  Paperleaf Co.'s coworkers (typing, chatting by
+│   │   │                  the cooler), the boss strolling about, Gerald
+│   │   │                  the plant, visual only (no DOM, so tests run
+│   │   │                  it); clicks, boxes
+│   │   ├── officeLifeArt.js Draws them: the coworkers sitting at their
+│   │   │                  desks or standing, the boss, Gerald swaying or
+│   │   │                  perked up, a resume in hand
 │   │   ├── alley.js       Draws Mural Alley in code: sky and string
 │   │   │                  lights, the back wall with its archway out to
 │   │   │                  the street, the mural half painted, two
@@ -577,6 +595,12 @@ Shift-Life/
 │       │                  easels, the stall and the perch, its job, the
 │       │                  painter, visitors and Rio, the stall's items;
 │       │                  text
+│       ├── office.js      Paperleaf Co.: its place id, picture size, feet
+│       │                  row and walls, the door, the window, the
+│       │                  vending machine and printer, the cooler,
+│       │                  Gerald, the whiteboard and sign, the desks, its
+│       │                  job, the break corner's items, the coworkers,
+│       │                  the boss and Gerald; text
 │       ├── work.js        Workplaces in town (place, job, the spot
 │       │                  behind the counter, where delivery runs go
 │       │                  out, their text), a shift's length and rate
@@ -717,6 +741,10 @@ Shift-Life/
                        routes, the way back, the picture's numbers; the
                        painter, visitors, Rio repeating the painter;
                        art classes, prints, refunds, painting shifts),
+                       office.test.mjs (Paperleaf Co. in town: routes,
+                       the door back, the picture's numbers; coworkers
+                       to the cooler and back, the boss, Gerald perking
+                       up; coffee and resumes, refunds, desk shifts),
                        store.test.mjs (the 6-Eleven in town: routes,
                        the door back, walls and feet, the picture's
                        numbers, the Shop job working there; shoppers
@@ -1465,15 +1493,24 @@ Parents' Yard and then of My Yard (see **Farm**).
   The Courier job (`POST_JOB`) works here: see **Workplaces and
   shifts** (delivery runs). The signs here and at the 6-Eleven use
   `ui/pixelFont.js`.
+- Counters whose items are had at a spot there (`game/visits.js`):
+  Pedal Post's, Mural Alley's stall and Paperleaf Co.'s break corner.
+  Each place passes its spec (its state's key in `game`, place, minimum
+  age, items with `seconds`, and its bubble). The state is `{ waitMs,
+  visit: { item, ms } or null }`, saved. Buying pays at once and starts
+  the item's wait; once at the item's spot (`stayKey()`
+  `'<key>:<item>'`, or `'post:send'`) it takes `seconds`, then gives its
+  effects. Stop, or leaving the place, before then refunds it. Events
+  aren't frozen.
 - Pedal Post's counter (`game/post.js`, the same menu,
-  `ui/counterMenu.js`, with `POST_MENU_TEXT`; `game.post`: `{ waitMs,
-  sending }`, saved, `restorePostState()`). Clicking it opens its menu
+  `ui/counterMenu.js`, with `POST_MENU_TEXT`; `game.post`, through
+  `game/visits.js`, `restorePostState()`). Clicking it opens its menu
   (from `POST_MIN_AGE` 6). `POST_ITEMS`: "Send a postcard" $2 (+2
   happiness, once an hour) and "Send a gift parcel" $15 (+6 happiness,
   once every 1440 real minutes, a day). Sending (`sendItem()`) pays at
   once; they carry it (a postcard or a parcel in hand) to
   `POST_HAND_IN_X` (`stayKey()` `'post:send'`) and hand it over for
-  `SEND_SECONDS` while the dispatcher stamps (the renderer sets
+  its `seconds` while the dispatcher stamps (the renderer sets
   `playerSending`), then "Sent!" with its effects. Stop or leaving
   first refunds it. Events aren't frozen.
 - Mural Alley (`data/alley.js`, drawn by `ui/alley.js`; `alley` in
@@ -1504,7 +1541,7 @@ Parents' Yard and then of My Yard (see **Farm**).
     of `ALLEY_PARROT.lines`. `#wildlife` buttons (ids `painter`,
     `parrot`) like the Cafe's.
 - The print stall (`game/alley.js`, the same menu, `ui/counterMenu.js`,
-  with `ALLEY_MENU_TEXT`; `game.alley`: `{ waitMs, visit }`, saved,
+  with `ALLEY_MENU_TEXT`; `game.alley`, through `game/visits.js`,
   `restoreAlleyState()`). Clicking it opens its menu (from
   `ALLEY_MIN_AGE` 6). `ALLEY_ITEMS`: "Take an art class" $10 (+2 smarts,
   +2 happiness, once a day), painted at the class easel (`CLASS_EASEL`,
@@ -1513,6 +1550,36 @@ Parents' Yard and then of My Yard (see **Farm**).
   stall (`'alley:print'`) for 4 seconds, held up. Paid at once
   (`buyAtStall()`); Stop or leaving before it's done refunds it. Events
   aren't frozen.
+- Paperleaf Co. (`data/office.js`, drawn by `ui/office.js`; `office` in
+  `PLACES`, `town: true`), a cozy small-company office, is a fifth town
+  place, reached and left like the others, indoors. One picture (107 x
+  80, the `office` sprite, else code-drawn), feet on row 72, walls both
+  sides. The Office job (`OFFICE_JOB`) works here: its spot is sitting
+  at the middle desk (`OFFICE_MY_DESK`; the workplace's `sit`, stay mode
+  `'sitting'` raised to the seat, typing with the `hold` arms), and its
+  shifts are work at the desk (`TYPE_TEXT`, "Work at the desk - $X", $8,
+  $13 or $22).
+- Paperleaf Co.'s life (`ui/officeLife.js`, drawn by
+  `ui/officeLifeArt.js`; `OFFICE_COWORKERS`, `OFFICE_BOSS`,
+  `OFFICE_PLANT_LIFE`; made each time the office is shown, never
+  saved). Drawn back to front: Gerald, the coworkers, the boss.
+  - Two coworkers type at the other desks; now and then
+    (`breakChance`) one gets up for a chat by the water cooler and goes
+    back.
+  - The boss (an elder in a tie) strolls between `stops` and pauses.
+  - Gerald the plant (code-drawn at `SCENE_SCALE`, outlined) sways in
+    his pot.
+  - Clicking the boss gets one of `OFFICE_BOSS.lines`; Gerald perks up
+    (leaves lifted) for `perk` seconds with one of his lines.
+    `#wildlife` buttons (ids `boss`, `plant`) like the Cafe's.
+- The break corner (`game/office.js`, the same menu,
+  `ui/counterMenu.js`, with `OFFICE_MENU_TEXT`; `game.office`, through
+  `game/visits.js`, `restoreOfficeState()`). The vending machine and the
+  printer (`VENDING_PROP`, `PRINTER_PROP`) both open it (from
+  `OFFICE_MIN_AGE` 6). `OFFICE_ITEMS`: "Vending coffee" $2 (+2
+  happiness, once an hour), sipped at the vending machine for 6
+  seconds, cup in hand; "Print a resume" $3 (+1 smarts, +1 happiness,
+  once a day), printed at the printer for 5 seconds, held up.
 - Pedal Post's life (`ui/postLife.js`, drawn by `ui/postLifeArt.js`;
   `POST_DISPATCHER`, `POST_RIDER`, `POST_CUSTOMERS`, `POST_DOG`; made
   each time the hub is shown, never saved). Drawn back to front: Mochi,
@@ -1538,18 +1605,21 @@ Parents' Yard and then of My Yard (see **Farm**).
   `restoreWorkState()`, which also takes an older save's shift kept in
   `game.cafe`). `WORKPLACES` lists each workplace in town: its place,
   the job that works there (any level) and the spot behind its counter
-  (x, `lift` rows up to the floor there, facing). Whoever's job works
-  at the place they're in (`workplaceHere()`) stands at that spot when
-  there (stay mode `'doing'`, activity `hold`, raised by `lift`). Its
+  (x, `lift` rows up to the floor there, facing, and `sit` to sit
+  there). Whoever's job works at the place they're in
+  (`workplaceHere()`) stands at that spot when there (stay mode
+  `'doing'`, or `'sitting'` with `sit`; activity `hold`, raised by
+  `lift`). Its
   menu offers "Work a shift - $X" (`startShift()`): `SHIFT.minutes`
   (30) of real time once there (`stayKey()` `'shift:<place>'`, events
   frozen like busking), paying `shiftPay()`, `SHIFT.rate` (half) the
   job's hourly pay for that time (yearly pay / 16), with "Shift done!".
   The bar shows "Shift - 3:07 of 30:00"; Stop, leaving, or the job
   ending pays nothing for an unfinished shift. `shifts` counts them over
-  the life. Each workplace's `text` words its shifts (`SHIFT_TEXT`, or
-  `DELIVERY_TEXT` at Pedal Post; `shiftView()` passes it to the menu
-  and the bar). A workplace with `outX` (Pedal Post) sends its shifts
+  the life. Each workplace's `text` words its shifts (`SHIFT_TEXT`,
+  `DELIVERY_TEXT` at Pedal Post, `PAINT_TEXT` in Mural Alley,
+  `TYPE_TEXT` at Paperleaf Co.; `shiftView()` passes it to the menu and
+  the bar). A workplace with `outX` (Pedal Post) sends its shifts
   out of the door: delivery runs, "Do a delivery run - $X". They walk to
   `outX` carrying a parcel; once there they're out (`isDelivering()` in
   the renderer): not drawn or clickable, the cargo bike gone too, the

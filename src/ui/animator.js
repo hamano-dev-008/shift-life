@@ -78,7 +78,7 @@ export function createAnimator(layout) {
     stayMode: null, // 'busking' or 'resting' once at the stay spot
     stayX: null, // the stay spot being walked to or stayed at
     stayLift: 0, // canvas pixels the figure is raised while staying
-    stayActivity: null, // the pose's activity while 'doing' (e.g. 'fish')
+    stayActivity: null, // the pose's activity while 'doing' (e.g. 'fish') or 'sitting'
     stayFacing: 0, // which way to face while staying (0: as they arrive)
     stayBed: null, // what they lie on while resting ({ pillow, cover, headLift })
     lastVisited: null,
@@ -627,7 +627,7 @@ export function poseOf(anim, stage) {
     lying: resting,
     lift: resting || doingStay || seated ? anim.stayLift : 0,
     bed: resting ? anim.stayBed : null,
-    activity: busking ? 'busk' : resting ? 'rest' : doingStay ? anim.stayActivity : doing ? anim.activity : null,
+    activity: busking ? 'busk' : resting ? 'rest' : doingStay || seated ? anim.stayActivity : doing ? anim.activity : null,
     activityTime: doing || staying ? anim.activityTime : 0,
     time: anim.time,
   };

@@ -19,6 +19,7 @@ import { SHIFT, WORKPLACES } from '../src/data/work.js';
 import { STORE_ITEMS } from '../src/data/store.js';
 import { POST_ITEMS } from '../src/data/post.js';
 import { ALLEY_ITEMS } from '../src/data/alley.js';
+import { OFFICE_ITEMS } from '../src/data/office.js';
 
 const HOUR_MS = 3600 * 1000;
 const ADULT_HOURS_PER_YEAR = LIFE_STAGES.find((s) => s.id === 'adult').realMinutesPerYear / 60;
@@ -179,4 +180,12 @@ test("Mural Alley's stall is a small sink: a print a quarter hour of entry pay, 
   assert.ok(ALLEY_ITEMS.class.price / entryPerMinute <= 30);
   assert.equal(ALLEY_ITEMS.print.everyMinutes, 60);
   assert.equal(ALLEY_ITEMS.class.everyMinutes, 24 * 60);
+});
+
+test("Paperleaf Co.'s break corner is a small sink: a coffee a few minutes of entry pay hourly, a resume daily", () => {
+  const entryPerMinute = 100 / ADULT_HOURS_PER_YEAR / 60;
+  assert.ok(OFFICE_ITEMS.coffee.price / entryPerMinute <= 10);
+  assert.ok(OFFICE_ITEMS.resume.price / entryPerMinute <= 10);
+  assert.equal(OFFICE_ITEMS.coffee.everyMinutes, 60);
+  assert.equal(OFFICE_ITEMS.resume.everyMinutes, 24 * 60);
 });

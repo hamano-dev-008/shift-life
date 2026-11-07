@@ -13,8 +13,10 @@ import { stopOrder } from './cafe.js';
 import { stopPurchase } from './store.js';
 import { stopSending } from './post.js';
 import { POST_PLACE } from '../data/post.js';
-import { stopVisit } from './alley.js';
+import { stopAtStall } from './alley.js';
 import { ALLEY_PLACE } from '../data/alley.js';
+import { stopBreak } from './office.js';
+import { OFFICE_PLACE } from '../data/office.js';
 import { STORE_PLACE } from '../data/store.js';
 import { stopShift } from './shifts.js';
 import { CAFE_PLACE } from '../data/cafe.js';
@@ -130,7 +132,8 @@ export function leavePlace(game) {
   const stoppedJob = stopFarmJob(game);
   const stoppedPicking = isPicking(game);
   stopPicking(game);
-  const stoppedOrder = stopOrder(game) || stopPurchase(game) || stopSending(game) || stopVisit(game);
+  const stoppedOrder = stopOrder(game) || stopPurchase(game) || stopSending(game) || stopAtStall(game)
+    || stopBreak(game);
   const stoppedShift = stopShift(game);
   return stoppedPlaying || stoppedResting || stoppedActivity || stoppedJob || stoppedPicking || stoppedOrder
     || stoppedShift;
@@ -160,7 +163,8 @@ export function settlePlace(game) {
   if (game.place !== CAFE_PLACE) stopOrder(game);
   if (game.place !== STORE_PLACE) stopPurchase(game);
   if (game.place !== POST_PLACE) stopSending(game);
-  if (game.place !== ALLEY_PLACE) stopVisit(game);
+  if (game.place !== ALLEY_PLACE) stopAtStall(game);
+  if (game.place !== OFFICE_PLACE) stopBreak(game);
   if (game.work.shift && game.work.shift.place !== game.place) stopShift(game);
   return moved;
 }

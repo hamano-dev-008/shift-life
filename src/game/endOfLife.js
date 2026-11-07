@@ -27,6 +27,7 @@ import { createWorkState } from './shifts.js';
 import { createStoreState } from './store.js';
 import { createPostState } from './post.js';
 import { createAlleyState } from './alley.js';
+import { createOfficeState } from './office.js';
 import { collectionCount } from './fishing.js';
 import { createWeatherSeenState } from './weather.js';
 
@@ -331,6 +332,7 @@ export function startNewLife(game, options = {}) {
   game.store = createStoreState();
   game.post = createPostState();
   game.alley = createAlleyState();
+  game.office = createOfficeState();
   game.weatherSeen = createWeatherSeenState();
   return game;
 }

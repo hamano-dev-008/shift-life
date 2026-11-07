@@ -81,6 +81,10 @@
 //     alley   The whole alley, 107 x 80, like the Cafe's picture; without
 //             it the alley is code-drawn (ui/alley.js). The easels'
 //             canvases are always code-drawn over it (they fill in).
+//   Paperleaf Co. (data/office.js):
+//     office  The whole office, 107 x 80, like the Cafe's picture; without
+//             it the office is code-drawn (ui/office.js). Gerald the plant
+//             is always code-drawn over it (he perks up).
 //   The Farm (data/farm.js):
 //     farm.background  The whole background (sky, the three rice
 //             paddies, the path, the barn), 107 x 80, drawn from the
