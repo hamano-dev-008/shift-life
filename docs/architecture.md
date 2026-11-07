@@ -213,8 +213,14 @@ Shift-Life/
 │   │   │                  register, had or scratched by the window,
 │   │   │                  once an hour each, refunded if stopped
 │   │   │                  first)
+│   │   ├── post.js        Pedal Post's counter: postcards and gift
+│   │   │                  parcels (paid at once, handed over at the
+│   │   │                  counter, once an hour or a day, refunded if
+│   │   │                  stopped first)
 │   │   ├── shifts.js      Paid shifts at a workplace in town, for whoever
-│   │   │                  works there: start, stop, pay when done
+│   │   │                  works there (behind the counter, or delivery
+│   │   │                  runs out of the door): start, stop, pay when
+│   │   │                  done
 │   │   ├── farm.js        The Farm's rice paddies: owning and buying
 │   │   │                  them, the age to farm, planting ($5), real-time
 │   │   │                  growth (seedlings, young, ripe), weeds once,
@@ -547,10 +553,11 @@ Shift-Life/
 │       │                  row and walls, the door, the cargo bike, the
 │       │                  counter (and the row behind it), where to hand
 │       │                  parcels in, the pile, scale, stamp, the dog's
-│       │                  bed, the sign, its job; text
+│       │                  bed, the sign, its job, the people and Mochi,
+│       │                  the mail sent at the counter; text
 │       ├── work.js        Workplaces in town (place, job, the spot
-│       │                  behind the counter), a shift's length and
-│       │                  rate, its text
+│       │                  behind the counter, where delivery runs go
+│       │                  out, their text), a shift's length and rate
 │       ├── farm.js        The Farm: its place id, background and
 │       │                  fallback, feet row, walking limits, minimum
 │       │                  age, the paddies' water rows and columns and
@@ -1427,8 +1434,20 @@ Parents' Yard and then of My Yard (see **Farm**).
   reached and left like the others. One picture (107 x 80, the `post`
   sprite, else code-drawn), feet on row 72, walls both sides, indoors.
   The cargo bike by the door is drawn on its own (`drawCargoBike()`).
-  The Courier job (`POST_JOB`) works here. The signs here and at the
-  6-Eleven use `ui/pixelFont.js`.
+  The Courier job (`POST_JOB`) works here: see **Workplaces and
+  shifts** (delivery runs). The signs here and at the 6-Eleven use
+  `ui/pixelFont.js`.
+- Pedal Post's counter (`game/post.js`, the same menu,
+  `ui/counterMenu.js`, with `POST_MENU_TEXT`; `game.post`: `{ waitMs,
+  sending }`, saved, `restorePostState()`). Clicking it opens its menu
+  (from `POST_MIN_AGE` 6). `POST_ITEMS`: "Send a postcard" $2 (+2
+  happiness, once an hour) and "Send a gift parcel" $15 (+6 happiness,
+  once every 1440 real minutes, a day). Sending (`sendItem()`) pays at
+  once; they carry it (a postcard or a parcel in hand) to
+  `POST_HAND_IN_X` (`stayKey()` `'post:send'`) and hand it over for
+  `SEND_SECONDS` while the dispatcher stamps (the renderer sets
+  `playerSending`), then "Sent!" with its effects. Stop or leaving
+  first refunds it. Events aren't frozen.
 - Pedal Post's life (`ui/postLife.js`, drawn by `ui/postLifeArt.js`;
   `POST_DISPATCHER`, `POST_RIDER`, `POST_CUSTOMERS`, `POST_DOG`; made
   each time the hub is shown, never saved). Drawn back to front: Mochi,
@@ -1463,7 +1482,15 @@ Parents' Yard and then of My Yard (see **Farm**).
   job's hourly pay for that time (yearly pay / 16), with "Shift done!".
   The bar shows "Shift - 3:07 of 30:00"; Stop, leaving, or the job
   ending pays nothing for an unfinished shift. `shifts` counts them over
-  the life.
+  the life. Each workplace's `text` words its shifts (`SHIFT_TEXT`, or
+  `DELIVERY_TEXT` at Pedal Post; `shiftView()` passes it to the menu
+  and the bar). A workplace with `outX` (Pedal Post) sends its shifts
+  out of the door: delivery runs, "Do a delivery run - $X". They walk to
+  `outX` carrying a parcel; once there they're out (`isDelivering()` in
+  the renderer): not drawn or clickable, the cargo bike gone too, the
+  bar "Out on a delivery - 3:07 of 30:00", until "Delivered!" brings
+  them back in at the door. The pay is the same as a shift's (a Courier
+  $7, a Senior Courier $8, a Route Boss $12).
 - A new place needs an entry in `PLACES` (with exits both ways), any
   new scenery pieces in `SCENERY` (`ui/scene.js`, with code-drawn
   art) and props in `PROPS` (`data/layout.js`), and its sprite names

@@ -22,6 +22,7 @@ const BOX = '#c99b62';
 const BOX_DARK = '#a8794a';
 const TAPE = '#e8d29a';
 const STAMP = '#e2403a';
+const CARD = '#fbf3e6';
 
 // A parcel held at `hand` (heldHand()): a taped cardboard box.
 export function drawHeldParcel(ctx, hand) {
@@ -35,6 +36,18 @@ export function drawHeldParcel(ctx, hand) {
   ctx.fillRect(left, hand.y - 0.5 * u, 3 * u, u);
   ctx.fillStyle = TAPE;
   ctx.fillRect(left + u, hand.y - 2.5 * u, u, 3 * u);
+}
+
+// A postcard held at `hand`: a small card, a red stamp in its corner.
+export function drawHeldPostcard(ctx, hand) {
+  const u = hand.unit;
+  const left = hand.x - u / 2 + (hand.facing < 0 ? -2 * u : 0);
+  ctx.fillStyle = OUTLINE_COLOR;
+  ctx.fillRect(left - u, hand.y - 2.5 * u, 5 * u, 4 * u);
+  ctx.fillStyle = CARD;
+  ctx.fillRect(left, hand.y - 1.5 * u, 3 * u, 2 * u);
+  ctx.fillStyle = STAMP;
+  ctx.fillRect(left + (hand.facing < 0 ? 0 : 2 * u), hand.y - 1.5 * u, u, u);
 }
 
 // The dispatcher behind the counter (their legs hidden by the counter's

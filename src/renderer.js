@@ -152,9 +152,12 @@ import { drawStoreCounterFront, drawStoreShine } from './ui/store.js';
 import { drawCargoBike, drawPostCounterFront } from './ui/post.js';
 import { createPostLife, updatePostLife, clickPostCritter, postBoxes } from './ui/postLife.js';
 import {
-  drawDispatcher, drawPostLifeFront, drawDog, drawPostCritter,
+  drawDispatcher, drawPostLifeFront, drawDog, drawPostCritter, drawHeldParcel, drawHeldPostcard,
 } from './ui/postLifeArt.js';
-import { POST_PLACE, POST_DISPATCHER, POST_DOG } from './data/post.js';
+import {
+  POST_PLACE, POST_DISPATCHER, POST_DOG, POST_COUNTER_PROP, POST_MENU_TEXT, POST_HAND_IN_X,
+} from './data/post.js';
+import { sendItem, updatePost, postView, isSending } from './game/post.js';
 import {
   STORE_PLACE, STORE_DOOR, STORE_CLERK, STORE_PIGEON, STORE_SHOPPERS, STORE_MENU_TEXT, STORE_COUNTER_PROP,
   STORE_PAY_X, STORE_EAT_X,
@@ -471,18 +474,20 @@ async function start() {
   const PADDY_IDS = new Set(PADDIES.map((paddy) => paddy.id));
   // Clicking a town place's counter opens its menu: at the Cafe a coffee
   // or a cake at the table (game/cafe.js), at the 6-Eleven a snack or a
-  // scratch card (game/store.js), and for whoever works there a shift
-  // behind the counter (game/shifts.js). Each starts once they're at the
-  // spot.
+  // scratch card (game/store.js), at Pedal Post a postcard or a gift
+  // parcel (game/post.js), and for whoever works there a shift behind the
+  // counter or a delivery run (game/shifts.js). Each starts once they're
+  // at the spot.
   const counterMenu = createCounterMenu(document.getElementById('counter-menu'), {
     order: (item) => {
       playerTookOver();
-      const bought = game.place === CAFE_PLACE ? orderItem(game, item) : buyAtStore(game, item);
+      const bought = game.place === CAFE_PLACE ? orderItem(game, item)
+        : game.place === POST_PLACE ? sendItem(game, item) : buyAtStore(game, item);
       if (bought) saveGame(game);
     },
     shift: () => {
       playerTookOver();
-      if (startShift(game, isOrdering(game) || isBuying(game))) saveGame(game);
+      if (startShift(game, isOrdering(game) || isBuying(game) || isSending(game))) saveGame(game);
     },
     stopShift: () => {
       playerTookOver();
@@ -500,6 +505,10 @@ async function start() {
     if (scene.place.id === STORE_PLACE) {
       const view = storeView(game);
       return { ...view, text: STORE_MENU_TEXT, busy: view.purchase?.name ?? null, shift: shiftView(game) };
+    }
+    if (scene.place.id === POST_PLACE) {
+      const view = postView(game);
+      return { ...view, text: POST_MENU_TEXT, busy: view.sending?.thing ?? null, shift: shiftView(game) };
     }
     return null;
   }
@@ -798,8 +807,11 @@ async function start() {
     // counts once they're there (game/farm.js).
     const farmNews = updateFarm(game, realMs);
     farmNews.forEach(showNews);
-    // The Cafe's waits, order and shift (real time; game/cafe.js).
-    const cafeNews = [...updateCafe(game, realMs), ...updateStore(game, realMs), ...updateShift(game, realMs)];
+    // The town counters' waits, what's being had or sent, and shifts (real
+    // time; game/cafe.js, game/store.js, game/post.js, game/shifts.js).
+    const cafeNews = [
+      ...updateCafe(game, realMs), ...updateStore(game, realMs), ...updatePost(game, realMs), ...updateShift(game, realMs),
+    ];
     cafeNews.forEach(showNews);
     if (cafeNews.length) saveGame(game);
     const moved = updatePlaces(game);
@@ -877,7 +889,8 @@ async function start() {
     } else if (activity) {
       activityMenu.toggle(activity.id);
     } else if ((id === CAFE_COUNTER_PROP && scene.place.id === CAFE_PLACE)
-      || (id === STORE_COUNTER_PROP && scene.place.id === STORE_PLACE)) {
+      || (id === STORE_COUNTER_PROP && scene.place.id === STORE_PLACE)
+      || (id === POST_COUNTER_PROP && scene.place.id === POST_PLACE)) {
       counterMenu.toggle();
     } else if (PADDY_IDS.has(id) && scene.place.id === FARM_PLACE) {
       farmMenu.toggle(id);
@@ -1197,6 +1210,10 @@ async function start() {
   // while resting (asleep facing right, the head on the bed's pillow
   // end), at an activity's spot (the fishing spot) facing its way, or
   // where the dev menu's "Rest now" laid them down.
+  // Out on a delivery run: through Pedal Post's door with the cargo bike,
+  // not drawn until it's done.
+  const isDelivering = () => isOnShift(game) && hasArrived(game) && Boolean(workplaceHere(game)?.outX);
+
   function stayOf(stage) {
     const stay = stayFor(stage);
     if (stay) restPreview = null;
@@ -1240,9 +1257,17 @@ async function start() {
       const x = paying ? STORE_PAY_X : STORE_EAT_X;
       return { x: (x + 0.5) * layout.scale, mode: 'doing', activity: 'hold', facing: paying ? 1 : -1 };
     }
+    // At Pedal Post sending mail: at the counter, handing it over.
+    if (place.id === POST_PLACE && isSending(game)) {
+      return { x: (POST_HAND_IN_X + 0.5) * layout.scale, mode: 'doing', activity: 'hold', facing: 1 };
+    }
     // Working at a workplace: behind its counter (on the floor further
-    // back), holding something, whether on a shift or not.
+    // back), holding something, whether on a shift or not; a delivery run
+    // goes to the door with a parcel (and out of it, unseen, once there).
     const work = workplaceHere(game);
+    if (work?.outX && isOnShift(game)) {
+      return { x: (work.outX + 0.5) * layout.scale, mode: 'doing', activity: 'hold', facing: -1 };
+    }
     if (work && place.id === work.place) {
       const { x, lift, facing } = work.spot;
       return { x: (x + 0.5) * layout.scale, mode: 'doing', activity: 'hold', lift: lift * layout.scale, facing };
@@ -1449,7 +1474,7 @@ async function start() {
       planNow: () => {
         if (game.endOfLife.ended || travelling() || currentPlan(game) || isPlaying(game) || isResting(game)
           || isDoingActivity(game) || currentFarmJob(game) || isPicking(game) || isOrdering(game) || isBuying(game)
-          || isOnShift(game)) {
+          || isSending(game) || isOnShift(game)) {
           return AUTONOMY_TEXT.notNow;
         }
         restPreview = null;
@@ -1602,14 +1627,16 @@ async function start() {
     } else {
       deco.storeLife = null;
     }
-    // Pedal Post: Mochi and the cargo bike on the floor, the dispatcher
-    // behind the counter, the counter's front, then the rider and the
+    // Pedal Post: Mochi and the cargo bike on the floor (unless it's out
+    // on a delivery run), the dispatcher behind the counter (stamping
+    // what they hand in), the counter's front, then the rider and the
     // customer.
     if (place.id === POST_PLACE) {
       deco.postLife ??= createPostLife();
+      deco.postLife.playerSending = isSending(game) && hasArrived(game);
       updatePostLife(deco.postLife, dt);
       drawDog(target, layout, deco.postLife);
-      drawCargoBike(target, layout);
+      if (!isDelivering()) drawCargoBike(target, layout);
       drawDispatcher(target, layout, deco.postLife);
       drawPostCounterFront(target, layout);
       drawPostLifeFront(target, layout, deco.postLife);
@@ -1732,7 +1759,8 @@ async function start() {
     // Their own plans: left alone long enough (nothing running, nothing
     // showing, not away), now and then they choose something to do.
     const running = isPlaying(game) || isResting(game) || isDoingActivity(game)
-      || Boolean(currentFarmJob(game)) || isPicking(game) || isOrdering(game) || isBuying(game) || isOnShift(game);
+      || Boolean(currentFarmJob(game)) || isPicking(game) || isOrdering(game) || isBuying(game)
+      || isSending(game) || isOnShift(game);
     const idle = !busy && !running && !restPreview && !farewell && !isAtWork(animator);
     if (mayChoose(choosing, now, { enabled: settings.ownPlans, idle })) beginOwnPlan(now);
     // While the view pans they wait past the edge, then walk in.
@@ -1795,7 +1823,12 @@ async function start() {
     // dock (on the way there's no cast, rod or bite yet).
     const fishing = hasArrived(game) ? game.activities.current?.fishing ?? null : null;
     const look = fishing ? fishingLook(fishing) : null;
-    const pose = reaction.pose.activity === 'fish' ? { ...reaction.pose, fishing: look } : reaction.pose;
+    // At Pedal Post they carry what they send to the counter, and a
+    // delivery run's parcel to the door, in both hands.
+    const carrying = place.id === POST_PLACE && (isSending(game) || (isOnShift(game) && workplaceHere(game)?.outX));
+    const pose = reaction.pose.activity === 'fish' ? { ...reaction.pose, fishing: look }
+      : carrying && !reaction.pose.activity ? { ...reaction.pose, activity: 'hold' } : reaction.pose;
+    const delivering = isDelivering();
     const expression = reaction.expression ?? expressionOf(game.character);
     const seconds = now / 1000;
     // A bobber landing near a frog makes it dive.
@@ -1823,8 +1856,9 @@ async function start() {
     storeLife = here.storeLife;
     postLife = here.postLife;
     farmAnimals = here.farmAnimals;
-    // The character waits past the edge while the view pans.
-    if (!panning) {
+    // The character waits past the edge while the view pans, and isn't
+    // there while out on a delivery run.
+    if (!panning && !delivering) {
       drawCharacter(ctx, pose, stage, game.character.appearance,
         expression, layout.feetY, layout.characterScale, jobItem(game));
       if (pose.activity === 'fish' && look) {
@@ -1858,11 +1892,16 @@ async function start() {
           drawStoreLifeFront(ctx, layout, storeLife);
         }
       }
-      // Working behind Pedal Post's counter: its front and the people in
-      // front of it go over them again.
-      if (place.id === POST_PLACE && postLife && pose.activity === 'hold' && pose.lift > 0) {
-        drawPostCounterFront(ctx, layout);
-        drawPostLifeFront(ctx, layout, postLife);
+      // At Pedal Post: the postcard or parcel in their hands; working
+      // behind the counter, its front and the people in front of it go
+      // over them again.
+      if (place.id === POST_PLACE && postLife && pose.activity === 'hold') {
+        const hand = carrying && !pose.lift ? heldHand(stage, pose, layout.feetY, layout.characterScale) : null;
+        if (hand) (game.post.sending?.item === 'postcard' ? drawHeldPostcard : drawHeldParcel)(ctx, hand);
+        if (pose.lift > 0) {
+          drawPostCounterFront(ctx, layout);
+          drawPostLifeFront(ctx, layout, postLife);
+        }
       }
       // Picking the apple: the branch held up, the apple falling or held
       // up, the fairies; once it's dropped the branch stays where it fell.
@@ -1915,7 +1954,7 @@ async function start() {
     if (farewell) drawFarewellFade(ctx, canvas.width, canvas.height, (now - farewell.since) / 1000);
     // No pokes once the life has ended or while the view pans (nothing
     // drawn: no click target).
-    characterTarget.update((hitCtx) => ended || panning || drawCharacter(hitCtx, pose, stage, game.character.appearance,
+    characterTarget.update((hitCtx) => ended || panning || delivering || drawCharacter(hitCtx, pose, stage, game.character.appearance,
       expression, layout.feetY, layout.characterScale, jobItem(game), true));
     // The top bar's weather icon, its name on hover.
     const shown = weatherView(game.weather);

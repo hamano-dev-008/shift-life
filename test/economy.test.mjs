@@ -17,6 +17,7 @@ import { RICE } from '../src/data/farm.js';
 import { CAFE_ORDERS } from '../src/data/cafe.js';
 import { SHIFT, WORKPLACES } from '../src/data/work.js';
 import { STORE_ITEMS } from '../src/data/store.js';
+import { POST_ITEMS } from '../src/data/post.js';
 
 const HOUR_MS = 3600 * 1000;
 const ADULT_HOURS_PER_YEAR = LIFE_STAGES.find((s) => s.id === 'adult').realMinutesPerYear / 60;
@@ -161,4 +162,12 @@ test('the 6-Eleven sells small treats (a few minutes of entry pay) and a scratch
   const { price, prizes } = STORE_ITEMS.scratch;
   const back = prizes.reduce((sum, prize) => sum + prize.chance * prize.pay, 0);
   assert.ok(back < price * 0.75, `a $${price} card pays back $${back} on average`);
+});
+
+test("Pedal Post's mail is a small sink: a postcard a few minutes of entry pay, a gift parcel about half an hour's, once a day", () => {
+  const entryPerMinute = 100 / ADULT_HOURS_PER_YEAR / 60;
+  assert.ok(POST_ITEMS.postcard.price / entryPerMinute <= 10);
+  assert.ok(POST_ITEMS.gift.price / entryPerMinute <= 45);
+  assert.equal(POST_ITEMS.postcard.everyMinutes, 60);
+  assert.equal(POST_ITEMS.gift.everyMinutes, 24 * 60);
 });

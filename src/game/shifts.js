@@ -5,7 +5,7 @@
 // the renderer. game.work holds { shift ({ place, ms } or null), shifts
 // (finished this life) }.
 
-import { WORKPLACES, SHIFT, SHIFT_TEXT } from '../data/work.js';
+import { WORKPLACES, SHIFT } from '../data/work.js';
 import { LIFE_STAGES } from '../data/lifeStages.js';
 import { changeStats } from './character.js';
 import { careerView } from './jobs.js';
@@ -76,7 +76,8 @@ export function stopShift(game) {
 export function updateShift(game, realMs) {
   const { shift } = game.work;
   if (!shift) return [];
-  if (shift.place !== game.place || !workplaceHere(game)) {
+  const work = workplaceHere(game);
+  if (shift.place !== game.place || !work) {
     stopShift(game);
     return [];
   }
@@ -85,14 +86,15 @@ export function updateShift(game, realMs) {
   if (shift.ms < SHIFT_MS) return [];
   game.work.shift = null;
   game.work.shifts += 1;
-  const { heading, text } = SHIFT_TEXT.done;
+  const { heading, text } = work.text.done;
   return [{ heading, text, deltas: changeStats(game.character, { money: shiftPay(game) }), celebrate: false }];
 }
 
 // The shift as a workplace's menu shows it: { job (title), pay, ms (into
-// the one under way, or null), totalMs }, or null if they don't work
-// here.
+// the one under way, or null), totalMs, text (the workplace's) }, or null
+// if they don't work here.
 export function shiftView(game) {
-  if (!workplaceHere(game)) return null;
-  return { job: careerView(game).title, pay: shiftPay(game), ms: game.work.shift?.ms ?? null, totalMs: SHIFT_MS };
+  const work = workplaceHere(game);
+  if (!work) return null;
+  return { job: careerView(game).title, pay: shiftPay(game), ms: game.work.shift?.ms ?? null, totalMs: SHIFT_MS, text: work.text };
 }

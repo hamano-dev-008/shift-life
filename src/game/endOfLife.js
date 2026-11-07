@@ -25,6 +25,7 @@ import { createFarmState } from './farm.js';
 import { createCafeState } from './cafe.js';
 import { createWorkState } from './shifts.js';
 import { createStoreState } from './store.js';
+import { createPostState } from './post.js';
 import { collectionCount } from './fishing.js';
 import { createWeatherSeenState } from './weather.js';
 
@@ -327,6 +328,7 @@ export function startNewLife(game, options = {}) {
   game.cafe = createCafeState();
   game.work = createWorkState();
   game.store = createStoreState();
+  game.post = createPostState();
   game.weatherSeen = createWeatherSeenState();
   return game;
 }

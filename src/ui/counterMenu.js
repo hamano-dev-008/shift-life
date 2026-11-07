@@ -1,14 +1,15 @@
 // counterMenu.js — A town place's counter menu (the Cafe's counter, the
-// 6-Eleven's register): a compact panel opened by clicking the counter
+// 6-Eleven's register, Pedal Post's counter): a compact panel opened by clicking the counter
 // (the renderer calls toggle()). Offers the place's items (each with its
 // price; greyed out while too dear, already had this hour, or something
 // else is going on) and, for whoever works there, a shift (or stopping
 // it), with the shift's progress and the waits. It only calls the actions
-// it's given; the logic is in game/cafe.js, game/store.js and
-// game/shifts.js. The place's own words come in the view; the items' and
-// the shift's are COUNTER_TEXT and SHIFT_TEXT in data/work.js.
+// it's given; the logic is in game/cafe.js, game/store.js, game/post.js
+// and game/shifts.js. The place's own words come in the view, the shift's
+// with it (its workplace's text in data/work.js); the items' are
+// COUNTER_TEXT in data/work.js.
 
-import { COUNTER_TEXT, SHIFT_TEXT } from '../data/work.js';
+import { COUNTER_TEXT } from '../data/work.js';
 import { clockTime, longTime } from './timeText.js';
 
 function element(tag, className, text = '') {
@@ -39,8 +40,8 @@ function renderOptions(menu, view, actions) {
   if (view.shift) {
     const working = view.shift.ms !== null;
     const shift = working
-      ? element('button', 'active', SHIFT_TEXT.stop)
-      : element('button', 'golden', fill(SHIFT_TEXT.start, { pay: view.shift.pay }));
+      ? element('button', 'active', view.shift.text.stop)
+      : element('button', 'golden', fill(view.shift.text.start, { pay: view.shift.pay }));
     shift.disabled = !working && Boolean(view.busy);
     shift.addEventListener('click', working ? actions.stopShift : actions.shift);
     buttons.push(shift);
@@ -53,9 +54,9 @@ function statusLines(view) {
   const { text } = view;
   if (view.tooYoung) return [fill(text.tooYoung, { age: view.minAge })];
   const lines = [];
-  if (view.shift) lines.push(fill(SHIFT_TEXT.staff, { job: view.shift.job }));
+  if (view.shift) lines.push(fill(view.shift.text.staff, { job: view.shift.job }));
   if (view.shift?.ms != null) {
-    lines.push(fill(SHIFT_TEXT.working, { time: clockTime(view.shift.ms), total: clockTime(view.shift.totalMs) }));
+    lines.push(fill(view.shift.text.working, { time: clockTime(view.shift.ms), total: clockTime(view.shift.totalMs) }));
   } else if (view.busy) {
     lines.push(fill(text.busy, { item: view.busy.toLowerCase() }));
   } else {
@@ -104,7 +105,7 @@ export function createCounterMenu(menu, actions) {
       if (menu.hidden) return;
       const titleNode = menu.querySelector('.menu-title');
       if (titleNode.textContent !== view.text.title) titleNode.textContent = view.text.title;
-      const optionsKey = JSON.stringify([view.text.title, view.tooYoung, view.items.map((item) => item.block),
+      const optionsKey = JSON.stringify([view.text.title, view.shift?.text.start, view.tooYoung, view.items.map((item) => item.block),
         view.busy, view.shift?.ms != null, view.shift?.pay]);
       if (optionsKey !== shownOptions) {
         shownOptions = optionsKey;

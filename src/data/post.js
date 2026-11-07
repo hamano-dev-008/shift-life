@@ -60,6 +60,36 @@ export const POST_TEXT = {
   counter: 'Counter',
 };
 
+// Sending mail at the counter (from POST_MIN_AGE): each item's price, what
+// sending it gives, and how often it can be sent (real minutes; game
+// speed doesn't change it, and it waits while the app is closed). Paid at
+// once; they hand it over at POST_HAND_IN_X for SEND_SECONDS while the
+// dispatcher stamps it. `thing` names it in the bar and the bubble. Money
+// sinks (AGENTS.md): a postcard is a few minutes of an entry job's pay, a
+// gift parcel (once a real day) about half an hour's.
+export const POST_MIN_AGE = 6;
+export const POST_ITEMS = {
+  postcard: { name: 'Send a postcard', thing: 'postcard', price: 2, effects: { happiness: 2 }, everyMinutes: 60 },
+  gift: { name: 'Send a gift parcel', thing: 'gift parcel', price: 15, effects: { happiness: 6 }, everyMinutes: 1440 },
+};
+export const SEND_SECONDS = 3;
+
+// The counter's menu, the bar and the bubble. {item} is an item's
+// `thing`, {age} an age.
+export const POST_MENU_TEXT = {
+  title: 'Counter',
+  tooYoung: 'Come back at age {age} to send mail.',
+  busy: 'Sending the {item}...',
+  idle: 'Send a little something to someone.',
+};
+export const POST_BAR_TEXT = {
+  toCounter: 'Heading to the counter...',
+  sending: 'Sending the {item}...',
+};
+export const POST_NEWS = {
+  sent: { heading: 'Sent!', text: 'The {item} is on its way.' },
+};
+
 // The dispatcher behind the counter (feet on POST_COUNTER.behindRow, at
 // dispatcherX): an adult in a courier's satchel. Standing `idle`, they
 // stamp a parcel now and then (and whenever one is handed in), for

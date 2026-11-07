@@ -147,6 +147,13 @@ Early development. What works so far:
     and Mochi the shiba naps on its bed, sitting up to wag or trotting
     over to sniff at the door. Click the dispatcher for a word, or Mochi
     for a woof.
+  - Click Pedal Post's counter (from age 6) to send a postcard ($2, +2
+    happiness, once an hour) or a gift parcel ($15, +6 happiness, once a
+    day): the character hands it over and the dispatcher stamps it.
+    Working the Courier job (Courier, Senior Courier, Route Boss), they
+    stand behind the counter when there and can do a 30-minute delivery
+    run ($7, $8 or $12): they carry a parcel out of the door and ride off
+    on the cargo bike, back when it's done.
   - Inside the Cafe, the old master polishes cups and brews at the siphons
     behind the counter, customers drop in for a coffee at the counter
     or the table and leave again, and Tama the cat naps on the window

@@ -11,6 +11,8 @@ import { REST_SEATS } from '../data/home.js';
 import { stopPlaying, stopPicking, isPicking } from './fortuneTree.js';
 import { stopOrder } from './cafe.js';
 import { stopPurchase } from './store.js';
+import { stopSending } from './post.js';
+import { POST_PLACE } from '../data/post.js';
 import { STORE_PLACE } from '../data/store.js';
 import { stopShift } from './shifts.js';
 import { CAFE_PLACE } from '../data/cafe.js';
@@ -126,7 +128,7 @@ export function leavePlace(game) {
   const stoppedJob = stopFarmJob(game);
   const stoppedPicking = isPicking(game);
   stopPicking(game);
-  const stoppedOrder = stopOrder(game) || stopPurchase(game);
+  const stoppedOrder = stopOrder(game) || stopPurchase(game) || stopSending(game);
   const stoppedShift = stopShift(game);
   return stoppedPlaying || stoppedResting || stoppedActivity || stoppedJob || stoppedPicking || stoppedOrder
     || stoppedShift;
@@ -155,6 +157,7 @@ export function settlePlace(game) {
   if (game.place !== FARM_PLACE) stopFarmJob(game);
   if (game.place !== CAFE_PLACE) stopOrder(game);
   if (game.place !== STORE_PLACE) stopPurchase(game);
+  if (game.place !== POST_PLACE) stopSending(game);
   if (game.work.shift && game.work.shift.place !== game.place) stopShift(game);
   return moved;
 }

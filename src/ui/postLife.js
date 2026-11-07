@@ -16,7 +16,9 @@ import { randomAppearance } from '../game/character.js';
 import { toScene, between, pick, walkToward } from './people.js';
 
 // Pedal Post's life now: { time (seconds), dispatcher, rider, customer
-// (one at a time, or null), dog, nextId, spawnIn }.
+// (one at a time, or null), dog, nextId, spawnIn, playerSending (the
+// character is handing mail over: the dispatcher stamps it; set by the
+// renderer) }.
 //   dispatcher: { x, facing, state ('idle', 'stamp'), t, left }
 //   rider:      { x, facing, step ('out' gone delivering, 'in' walking to
 //               the pile, 'pick', 'leave' walking to the door with a
@@ -37,6 +39,7 @@ export function createPostLife(random = Math.random) {
     },
     nextId: 1,
     spawnIn: between(POST_CUSTOMERS.firstIn, random),
+    playerSending: false,
   };
 }
 
@@ -49,6 +52,7 @@ function stamp(dispatcher) {
 
 function updateDispatcher(life, dt, random) {
   const { dispatcher } = life;
+  if (life.playerSending && dispatcher.state !== 'stamp') stamp(dispatcher);
   dispatcher.t += dt;
   dispatcher.left -= dt;
   if (dispatcher.left > 0) return;
