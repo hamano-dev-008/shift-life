@@ -48,21 +48,10 @@ Electron show an error dialog and hang instead of failing.
 2. Before committing: `node --check` edited files, `npm.cmd test`, and
    `npm.cmd run test:smoke` if anything visible or clickable changed.
    All must pass. Never commit failing or skipped tests.
-3. Commit with a clear message saying what changed and why, then
-   `git push` straight away. Branch `main`. The repo is public: never
-   commit secrets or personal data.
-4. Restart the game after each change so the player can try it. Never let
-   a new copy open on top of an old one. From the project folder:
-   ```powershell
-   $exe = (Resolve-Path 'node_modules\electron\dist\electron.exe').Path
-   $running = { Get-Process electron -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq $exe } }
-   & $running | ForEach-Object { $null = $_.CloseMainWindow() }
-   $until = (Get-Date).AddSeconds(5)
-   while ((& $running) -and (Get-Date) -lt $until) { Start-Sleep -Milliseconds 250 }
-   & $running | Stop-Process -Force
-   npm.cmd start   # in the background
-   ```
-   Don't do this while the smoke test is running (same `electron.exe`).
+3. Commit with a clear message saying what changed and why, then push
+   it to `main` straight away after every update, without asking. The
+   repo is public: never commit secrets or personal data.
+4. Don't restart the game; the player restarts it themselves.
 5. Update `docs/architecture.md` (and this file only if a rule or the map
    changed) in the same change.
 
@@ -128,7 +117,7 @@ Electron show an error dialog and hang instead of failing.
   with `elementFromPoint`.
 - If something is unfinished, broken, or a workaround, say so plainly in
   the final message. No "should work" without evidence.
-- Work isn't done until it's committed, pushed and the game restarted.
+- Work isn't done until it's committed and pushed to `main`.
 
 ## Game design rules
 
