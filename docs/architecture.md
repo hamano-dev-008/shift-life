@@ -205,6 +205,9 @@ Shift-Life/
 │   │   │                  cake (paid at once, served at the table once
 │   │   │                  seated, once an hour each, refunded if
 │   │   │                  stopped first)
+│   │   ├── counter.js     What the town counters share: each item's wait
+│   │   │                  (once every so many real minutes) and the
+│   │   │                  menu's list of items
 │   │   ├── store.js       The 6-Eleven's register: snacks and scratch
 │   │   │                  cards (paid at once, paid for at the
 │   │   │                  register, had or scratched by the window,

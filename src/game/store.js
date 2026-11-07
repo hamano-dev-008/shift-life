@@ -13,8 +13,9 @@ import {
 import { ageOf, changeStats } from './character.js';
 import { hasArrived } from './stay.js';
 import { isOnShift } from './shifts.js';
-
-const MINUTE_MS = 60 * 1000;
+import {
+  isAmount, createWaits, restoreWaits, startWait, tickWaits, itemsView,
+} from './counter.js';
 
 function fill(text, values) {
   return Object.entries(values).reduce((out, [key, value]) => out.replaceAll(`{${key}}`, value), text);
@@ -24,17 +25,13 @@ function fill(text, values) {
 // step ('pay', then 'enjoy' or 'scratch'), ms (real time into the step) }
 // or null. scratchWins: dollars won on scratch cards this life.
 export function createStoreState() {
-  return { waitMs: Object.fromEntries(Object.keys(STORE_ITEMS).map((id) => [id, 0])), purchase: null, scratchWins: 0 };
+  return { waitMs: createWaits(STORE_ITEMS), purchase: null, scratchWins: 0 };
 }
-
-const isAmount = (value) => Number.isFinite(value) && value >= 0;
 
 // Rebuilds the store state from save data, dropping anything unusable.
 export function restoreStoreState(data) {
   const state = createStoreState();
-  for (const [id, item] of Object.entries(STORE_ITEMS)) {
-    if (isAmount(data?.waitMs?.[id])) state.waitMs[id] = Math.min(data.waitMs[id], item.everyMinutes * MINUTE_MS);
-  }
+  state.waitMs = restoreWaits(data?.waitMs, STORE_ITEMS);
   const purchase = data?.purchase;
   if (STORE_ITEMS[purchase?.item] && ['pay', 'enjoy', 'scratch'].includes(purchase.step) && isAmount(purchase.ms)) {
     state.purchase = { item: purchase.item, step: purchase.step, ms: purchase.ms };
@@ -60,7 +57,7 @@ export function buyBlock(game, item) {
 export function buyAtStore(game, item) {
   if (game.place !== STORE_PLACE || !STORE_ITEMS[item] || buyBlock(game, item)) return false;
   changeStats(game.character, { money: -STORE_ITEMS[item].price });
-  game.store.waitMs[item] = STORE_ITEMS[item].everyMinutes * MINUTE_MS;
+  startWait(game.store.waitMs, STORE_ITEMS, item);
   game.store.purchase = { item, step: 'pay', ms: 0 };
   return true;
 }
@@ -110,7 +107,7 @@ function finish(game, item, random) {
 // scratched). Returns bubbles to show.
 export function updateStore(game, realMs, random = Math.random) {
   const { store } = game;
-  for (const item of Object.keys(store.waitMs)) store.waitMs[item] = Math.max(0, store.waitMs[item] - realMs);
+  tickWaits(store.waitMs, realMs);
   if (game.place !== STORE_PLACE) {
     stopPurchase(game);
     return [];
@@ -140,14 +137,7 @@ export function storeView(game) {
   return {
     minAge: STORE_MIN_AGE,
     tooYoung: ageOf(game.character, game.clock.years) < STORE_MIN_AGE,
-    items: Object.entries(STORE_ITEMS).map(([id, item]) => ({
-      id,
-      name: item.name,
-      price: item.price,
-      block: buyBlock(game, id),
-      waitMs: store.waitMs[id],
-      need: Math.max(0, item.price - game.character.stats.money),
-    })),
+    items: itemsView(game, STORE_ITEMS, store.waitMs, (id) => buyBlock(game, id)),
     purchase: store.purchase ? { ...store.purchase, name: STORE_ITEMS[store.purchase.item].name } : null,
   };
 }

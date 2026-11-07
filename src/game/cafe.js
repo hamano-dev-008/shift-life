@@ -9,8 +9,9 @@ import { CAFE_PLACE, CAFE_MIN_AGE, CAFE_ORDERS, ORDER_TIMES, CAFE_NEWS } from '.
 import { ageOf, changeStats } from './character.js';
 import { hasArrived } from './stay.js';
 import { isOnShift } from './shifts.js';
-
-const MINUTE_MS = 60 * 1000;
+import {
+  isAmount, createWaits, restoreWaits, startWait, tickWaits, itemsView,
+} from './counter.js';
 
 function fill(text, values) {
   return Object.entries(values).reduce((out, [key, value]) => out.replaceAll(`{${key}}`, value), text);
@@ -19,17 +20,13 @@ function fill(text, values) {
 // waitMs: real ms until each item can be ordered again. order: { item,
 // step ('serve', then 'enjoy'), ms (real time into the step) } or null.
 export function createCafeState() {
-  return { waitMs: { coffee: 0, cake: 0 }, order: null };
+  return { waitMs: createWaits(CAFE_ORDERS), order: null };
 }
-
-const isAmount = (value) => Number.isFinite(value) && value >= 0;
 
 // Rebuilds the cafe state from save data, dropping anything unusable.
 export function restoreCafeState(data) {
   const state = createCafeState();
-  for (const item of Object.keys(CAFE_ORDERS)) {
-    if (isAmount(data?.waitMs?.[item])) state.waitMs[item] = Math.min(data.waitMs[item], CAFE_ORDERS[item].everyMinutes * MINUTE_MS);
-  }
+  state.waitMs = restoreWaits(data?.waitMs, CAFE_ORDERS);
   const order = data?.order;
   if (CAFE_ORDERS[order?.item] && ['serve', 'enjoy'].includes(order.step) && isAmount(order.ms)) {
     state.order = { item: order.item, step: order.step, ms: order.ms };
@@ -54,7 +51,7 @@ export function orderBlock(game, item) {
 export function orderItem(game, item) {
   if (game.place !== CAFE_PLACE || !CAFE_ORDERS[item] || orderBlock(game, item)) return false;
   changeStats(game.character, { money: -CAFE_ORDERS[item].price });
-  game.cafe.waitMs[item] = CAFE_ORDERS[item].everyMinutes * MINUTE_MS;
+  startWait(game.cafe.waitMs, CAFE_ORDERS, item);
   game.cafe.order = { item, step: 'serve', ms: 0 };
   return true;
 }
@@ -77,7 +74,7 @@ export function stopOrder(game) {
 // Returns bubbles to show: the order served (with what it gave).
 export function updateCafe(game, realMs) {
   const { cafe } = game;
-  for (const item of Object.keys(cafe.waitMs)) cafe.waitMs[item] = Math.max(0, cafe.waitMs[item] - realMs);
+  tickWaits(cafe.waitMs, realMs);
   if (game.place !== CAFE_PLACE) {
     stopOrder(game);
     return [];
@@ -108,14 +105,7 @@ export function cafeView(game) {
   return {
     minAge: CAFE_MIN_AGE,
     tooYoung: ageOf(game.character, game.clock.years) < CAFE_MIN_AGE,
-    items: Object.entries(CAFE_ORDERS).map(([id, item]) => ({
-      id,
-      name: item.name,
-      price: item.price,
-      block: orderBlock(game, id),
-      waitMs: cafe.waitMs[id],
-      need: Math.max(0, item.price - game.character.stats.money),
-    })),
+    items: itemsView(game, CAFE_ORDERS, cafe.waitMs, (id) => orderBlock(game, id)),
     order: cafe.order ? { ...cafe.order, name: CAFE_ORDERS[cafe.order.item].name } : null,
   };
 }
