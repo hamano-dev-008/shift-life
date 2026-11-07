@@ -323,6 +323,14 @@ app.whenReady().then(async () => {
     assert.match(answered, said, `${label} said nothing`);
     await wait(1300);
   }
+  // In the open Go to menu, turns to the town page and picks town place
+  // `name` (real clicks).
+  async function pressTownPlace(name) {
+    await press(inPanel('#go-menu', 'Town...'));
+    await wait(100);
+    assert.equal(await js('document.querySelector("#go-menu .menu-title").textContent'), 'Go to: Town');
+    await press(inPanel('#go-menu', name));
+  }
   async function arrive(name) {
     for (let i = 0; i < 600; i++) {
       const done = await js(`!document.querySelector("#go-btn").disabled
@@ -1119,7 +1127,7 @@ app.whenReady().then(async () => {
     // the Farm with a fade.
     await press('document.querySelector("#go-btn")');
     await watchTransitions();
-    await press(inPanel('#go-menu', 'Cafe'));
+    await pressTownPlace('Cafe');
     await arrive('Cafe');
     assert.equal(saved.place, 'cafe');
     assert.equal(saved.townFrom, 'farm');
@@ -1160,7 +1168,7 @@ app.whenReady().then(async () => {
     // door, the door on top, and back out to the Farm.
     await press('document.querySelector("#go-btn")');
     await watchTransitions();
-    await press(inPanel('#go-menu', '6-Eleven'));
+    await pressTownPlace('6-Eleven');
     await arrive('6-Eleven');
     assert.equal(saved.place, 'store');
     assert.deepEqual((await transitionsSeen()).kinds, ['fade'], 'into the 6-Eleven should fade');
@@ -1191,7 +1199,7 @@ app.whenReady().then(async () => {
     // Pedal Post, the same way.
     await press('document.querySelector("#go-btn")');
     await watchTransitions();
-    await press(inPanel('#go-menu', 'Pedal Post'));
+    await pressTownPlace('Pedal Post');
     await arrive('Pedal Post');
     assert.equal(saved.place, 'post');
     assert.deepEqual((await transitionsSeen()).kinds, ['fade'], 'into Pedal Post should fade');
@@ -1223,7 +1231,7 @@ app.whenReady().then(async () => {
     // stall's menu, a print and Stop refunding it.
     await press('document.querySelector("#go-btn")');
     await watchTransitions();
-    await press(inPanel('#go-menu', 'Mural Alley'));
+    await pressTownPlace('Mural Alley');
     await arrive('Mural Alley');
     assert.equal(saved.place, 'alley');
     assert.deepEqual((await transitionsSeen()).kinds, ['fade'], 'into Mural Alley should fade');
@@ -1253,7 +1261,7 @@ app.whenReady().then(async () => {
     // machine's menu, a coffee and Stop refunding it.
     await press('document.querySelector("#go-btn")');
     await watchTransitions();
-    await press(inPanel('#go-menu', 'Paperleaf Co.'));
+    await pressTownPlace('Paperleaf Co.');
     await arrive('Paperleaf Co.');
     assert.equal(saved.place, 'office');
     assert.deepEqual((await transitionsSeen()).kinds, ['fade'], 'into Paperleaf Co. should fade');

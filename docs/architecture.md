@@ -477,9 +477,9 @@ Shift-Life/
 │   │   │                  rest/get up, rest progress, health, the next
 │   │   │                  housing upgrade
 │   │   ├── goMenu.js      The Go to menu (place button): the other
-│   │   │                  places that exist now, in two columns (around
-│   │   │                  home, and the town's); disabled while
-│   │   │                  travelling
+│   │   │                  places that exist now, two to a row, the
+│   │   │                  town's on their own page ("Town..."); disabled
+│   │   │                  while travelling
 │   │   ├── activityMenu.js The activity menu (the dock): buy the item,
 │   │   │                  start/stop, status (the bucket), and the fish
 │   │   │                  collection view (icons, who caught each first,
@@ -1285,9 +1285,10 @@ Parents' Yard and then of My Yard (see **Farm**).
   plop), and starts from wherever they are (even away at work). Only
   the place reached is saved; closing mid-trip ends it there.
 - The place button (map pin, top bar) opens Go to (`ui/goMenu.js`),
-  listing the other places that exist now in two columns, those around
-  home and, under "Town" (`PLACE_TEXT.town`), the town places (`town`),
-  so it fits the window; it's disabled, and the prop click areas
+  listing the other places that exist now, two to a row: those around
+  home and a "Town..." button (`PLACE_TEXT.town`) that turns to the
+  town places' page ("Go to: Town", with "Back"), so it fits the window
+  however many there are; it's disabled, and the prop click areas
   hidden, while travelling.
 - Click areas: the renderer puts an invisible button in
   `#targets` over each of the place's `targets` (the prop's visible

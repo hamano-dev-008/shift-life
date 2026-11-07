@@ -192,7 +192,7 @@ Early development. What works so far:
     of the salary ($6, $8 or $13 by level). Stopping early pays
     nothing.
   - The place button (the map pin in the top bar) opens "Go to", listing
-    the other places (those in town in their own column). Pick one and the character walks there, through
+    the other places ("Town..." turns to the places in town). Pick one and the character walks there, through
     any places in between (the Lake to the living room goes past the
     Fortune Tree, through the yard and in the front door). Babies crawl the whole way.
     The button is disabled while they're on the way, and travelling

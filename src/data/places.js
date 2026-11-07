@@ -219,12 +219,14 @@ export const DEFAULT_PLACE = 'fortuneTree';
 // edge's wander limit (WANDER_MARGIN in data/layout.js).
 export const TRAVEL = { exitPast: 10, entryWalk: 20 };
 
-// Text for the Go to menu (`town` heads its column of town places) and the
-// place name while travelling. {place} is a place's name, {to} the trip's
-// destination.
+// Text for the Go to menu (`town` turns it to the town places' page,
+// `back` turns it back) and the place name while travelling. {place} is a
+// place's name, {to} the trip's destination.
 export const PLACE_TEXT = {
   goTitle: 'Go to',
-  town: 'Town',
+  townTitle: 'Go to: Town',
+  town: 'Town...',
+  back: 'Back',
   here: 'Now at: {place}',
   travelling: '{place} > {to}',
 };

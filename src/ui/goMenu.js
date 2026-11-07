@@ -1,7 +1,8 @@
 // goMenu.js — The "Go to" menu: a compact panel opened from the place
 // button in the top bar, listing the other places that exist now (not
 // the parents' house after moving out) in two columns: the places around
-// home, and under "Town" the town places. Picking one starts the
+// home and a "Town..." button, which turns the page to the town places
+// (and "Back"). Picking one starts the
 // trip (the renderer walks the character there). The button is disabled
 // while a trip is under way. Text comes from PLACE_TEXT in
 // data/places.js.
@@ -19,15 +20,16 @@ function element(tag, className, text = '') {
 // `actions` is { go(placeId), onOpen } (onOpen closes other panels).
 export function createGoMenu(menu, button, actions) {
   let shown = '';
+  let page = 'home';
   const close = () => { menu.hidden = true; };
 
-  menu.querySelector('.menu-title').textContent = PLACE_TEXT.goTitle;
   button.addEventListener('click', () => {
     if (!menu.hidden) {
       close();
       return;
     }
     shown = '';
+    page = 'home';
     menu.hidden = false;
     actions.onOpen();
   });
@@ -40,23 +42,25 @@ export function createGoMenu(menu, button, actions) {
     update(place, places, travelling) {
       button.disabled = travelling;
       if (travelling) close();
-      const key = [place.id, ...places.map((other) => other.id)].join('|');
+      const key = [page, place.id, ...places.map((other) => other.id)].join('|');
       if (menu.hidden || shown === key) return;
       shown = key;
-      const choice = (other) => {
-        const button = element('button', '', other.name);
-        button.addEventListener('click', () => {
-          close();
-          actions.go(other.id);
-        });
-        return button;
+      const choice = (text, onClick) => {
+        const choiceButton = element('button', '', text);
+        choiceButton.addEventListener('click', onClick);
+        return choiceButton;
       };
+      const goTo = (other) => choice(other.name, () => {
+        close();
+        actions.go(other.id);
+      });
+      // Turning the page rebuilds it on the next update.
+      const turn = (to) => () => { page = to; };
       const others = places.filter((other) => other.id !== place.id);
-      const home = element('div', 'go-column');
-      home.replaceChildren(...others.filter((other) => !other.town).map(choice));
-      const town = element('div', 'go-column');
-      town.replaceChildren(element('span', 'go-heading', PLACE_TEXT.town), ...others.filter((other) => other.town).map(choice));
-      menu.querySelector('.menu-options').replaceChildren(home, town);
+      const inTown = page === 'town';
+      menu.querySelector('.menu-title').textContent = inTown ? PLACE_TEXT.townTitle : PLACE_TEXT.goTitle;
+      menu.querySelector('.menu-options').replaceChildren(...others.filter((other) => Boolean(other.town) === inTown).map(goTo),
+        inTown ? choice(PLACE_TEXT.back, turn('home')) : choice(PLACE_TEXT.town, turn('town')));
       menu.querySelector('.menu-status').replaceChildren(
         element('span', '', PLACE_TEXT.here.replaceAll('{place}', place.name)),
       );
