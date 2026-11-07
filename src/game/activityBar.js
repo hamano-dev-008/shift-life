@@ -18,6 +18,8 @@ import {
 } from './fortuneTree.js';
 import { isResting, stopResting, restView } from './home.js';
 import { currentFarmJob, stopFarmJob } from './farm.js';
+import { isOrdering, isOnShift, isAtCafeCounter, stopCafe, cafeView } from './cafe.js';
+import { CAFE_BAR_TEXT } from '../data/cafe.js';
 import { restSpotOf } from './places.js';
 import { isOnTheWay } from './stay.js';
 
@@ -31,8 +33,8 @@ function clockTime(ms) {
   return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
 }
 
-// What the bar shows now: { kind ('activity', 'farm', 'picking', 'busking'
-// or 'resting'),
+// What the bar shows now: { kind ('activity', 'farm', 'picking', 'cafe',
+// 'busking' or 'resting'),
 // text, stop (the button's label), onTheWay (still walking to the spot) },
 // or null when nothing is running (or the life has ended).
 export function activityBarView(game) {
@@ -46,6 +48,7 @@ export function activityBarView(game) {
 function onTheWayText(game, kind) {
   if (kind === 'busking') return TREE_TEXT.onTheWay;
   if (kind === 'picking') return TREE_TEXT.pickOnTheWay;
+  if (kind === 'cafe') return isOrdering(game) ? CAFE_BAR_TEXT.toSeat : CAFE_BAR_TEXT.toCounter;
   if (kind === 'farm') return FARM_TEXT.onTheWay;
   if (kind === 'resting') {
     const seat = REST_SPOT_NAMES[restSpotOf(game)] ?? REST_SPOT_NAMES['home.sofa'];
@@ -67,6 +70,20 @@ function runningView(game) {
   const job = currentFarmJob(game);
   if (job) return { kind: 'farm', text: FARM_TEXT.bar[job.action], stop, onTheWay: false };
   if (isPicking(game)) return { kind: 'picking', text: TREE_TEXT.pickBar, stop, onTheWay: false };
+  if (isOrdering(game)) {
+    const { order } = cafeView(game);
+    const text = order.step === 'serve' ? CAFE_BAR_TEXT.waiting : CAFE_BAR_TEXT.enjoying;
+    return { kind: 'cafe', text: fill(text, { item: order.name.toLowerCase() }), stop, onTheWay: false };
+  }
+  if (isOnShift(game)) {
+    const { shift } = cafeView(game);
+    return {
+      kind: 'cafe',
+      text: fill(CAFE_BAR_TEXT.shift, { time: clockTime(shift.ms), total: clockTime(shift.totalMs) }),
+      stop,
+      onTheWay: false,
+    };
+  }
   if (isPlaying(game)) {
     const tree = treeView(game);
     return {
@@ -91,6 +108,7 @@ export function stopFromBar(game) {
   if (currentActivity(game)) return { stopped: true, news: stopActivity(game) };
   if (stopFarmJob(game)) return { stopped: true, news: null };
   if (isPicking(game)) return { stopped: true, news: stopPicking(game) };
+  if (isAtCafeCounter(game)) return { stopped: stopCafe(game), news: null };
   if (stopPlaying(game)) return { stopped: true, news: null };
   if (stopResting(game)) return { stopped: true, news: null };
   return { stopped: false, news: null };

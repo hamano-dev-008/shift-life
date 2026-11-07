@@ -9,10 +9,14 @@
 // draws it. No DOM here, so tests can run it.
 
 import {
-  CAFE_COUNTER, CAFE_DOOR, CAFE_SEATS, CAFE_SILL, CAFE_MASTER, CAFE_CUSTOMERS, CAFE_CAT,
+  CAFE_COUNTER, CAFE_DOOR, CAFE_SEATS, CAFE_SILL, CAFE_MASTER, CAFE_CUSTOMERS, CAFE_CAT, CAFE_ART,
+  CAFE_FEET_FROM_BOTTOM,
 } from '../data/cafe.js';
 import { CHARACTER_SCALE, SCENE_SCALE } from '../data/layout.js';
 import { randomAppearance } from '../game/character.js';
+
+// The row everyone in front of the counter walks on.
+const CAFE_FLOOR_ROW = CAFE_ART.height - CAFE_FEET_FROM_BOTTOM;
 
 // Character pixels a second to the picture's pixels a second.
 const toScene = (speed) => (speed * CHARACTER_SCALE) / SCENE_SCALE;
@@ -21,11 +25,13 @@ const pick = (list, random) => list[Math.floor(random() * list.length)];
 const seatById = (id) => CAFE_SEATS.find((seat) => seat.id === id);
 
 // The Cafe's life now: { time (seconds), master, customers, cat, nextId,
-// spawnIn }.
-//   master:   { x, facing, state ('idle', 'walk', 'polish', 'brew'), t,
-//             left (seconds of it left), target (x walking to), next (the
-//             state once there), walked (character pixels, for the walk
-//             cycle) }
+// spawnIn, orderServed (the character's order is on the table) }.
+//   master:   { x, facing, state ('idle', 'walk', 'polish', 'brew',
+//             'serve'), t, left (seconds of it left), target (x walking
+//             to), next (the state once there), walked (character pixels,
+//             for the walk cycle), floor (out in front of the counter,
+//             serving), serving ({ phase ('out', 'table', 'place',
+//             'back'), x (where they set it down) } or null) }
 //   customer: { id, look, stage, seat (CAFE_SEATS entry), x, facing, state
 //             ('walk' in, 'sit', 'out' walking to the door), t, left,
 //             walked, served (a cup in front of them) }
@@ -36,8 +42,9 @@ export function createCafeLife(random = Math.random) {
     time: 0,
     master: {
       x: CAFE_MASTER.spots.polish, facing: -1, state: 'polish', t: 0, left: between(CAFE_MASTER.polish, random),
-      target: null, next: null, walked: 0,
+      target: null, next: null, walked: 0, floor: false, serving: null,
     },
+    orderServed: false,
     customers: [],
     cat: {
       x: between([CAFE_SILL.left + CAFE_CAT.margin, CAFE_SILL.right - CAFE_CAT.margin], random),
@@ -134,8 +141,60 @@ function settleMaster(master, state, random) {
   master.facing = -1;
 }
 
-function updateMaster(master, dt, random) {
+// The master brings the character's order to table spot `x`: out
+// through the counter's flap, over to the table, sets it down, and back.
+// Does nothing if it's already on its way or there.
+export function serveOrder(life, x) {
+  const { master } = life;
+  if (master.serving || life.orderServed) return;
+  master.state = 'serve';
+  master.t = 0;
+  master.serving = { phase: 'out', x };
+}
+
+// The order's over (eaten, or called off): the table is cleared, and a
+// master on the way with it turns back.
+export function clearOrder(life) {
+  life.orderServed = false;
+  if (life.master.serving && life.master.serving.phase !== 'back') life.master.serving.phase = 'back';
+}
+
+function updateServing(life, master, dt, random) {
+  const { serving } = master;
+  const speed = toScene(CAFE_MASTER.serveSpeed);
+  if (serving.phase === 'out') {
+    if (walkToward(master, CAFE_COUNTER.flap, speed, dt)) {
+      master.floor = true;
+      serving.phase = 'table';
+    }
+  } else if (serving.phase === 'table') {
+    if (walkToward(master, serving.x, speed, dt)) {
+      serving.phase = 'place';
+      master.t = 0;
+    }
+  } else if (serving.phase === 'place') {
+    if (master.t >= CAFE_MASTER.place) {
+      life.orderServed = true;
+      serving.phase = 'back';
+    }
+  } else if (walkToward(master, CAFE_COUNTER.flap, speed, dt)) {
+    // Back behind the counter.
+    if (master.floor) {
+      master.floor = false;
+      return;
+    }
+    master.serving = null;
+    nextForMaster(master, random);
+  }
+}
+
+function updateMaster(life, dt, random) {
+  const { master } = life;
   master.t += dt;
+  if (master.state === 'serve') {
+    updateServing(life, master, dt, random);
+    return;
+  }
   if (master.state === 'walk') {
     if (walkToward(master, master.target, toScene(CAFE_MASTER.speed), dt)) settleMaster(master, master.next, random);
     return;
@@ -209,7 +268,7 @@ function updateCat(cat, dt, random) {
 // Moves everything on by `dt` seconds.
 export function updateCafeLife(life, dt, random = Math.random) {
   life.time += dt;
-  updateMaster(life.master, dt, random);
+  updateMaster(life, dt, random);
   for (const customer of life.customers) updateCustomer(customer, dt, random);
   life.customers = life.customers.filter((customer) => !customer.gone);
   updateCat(life.cat, dt, random);
@@ -226,7 +285,7 @@ export function updateCafeLife(life, dt, random = Math.random) {
 export function clickCafeCritter(life, id, random = Math.random) {
   if (id === 'master') {
     const { master } = life;
-    return { kind: 'master', text: pick(CAFE_MASTER.lines, random), x: master.x, row: CAFE_COUNTER.behindRow - 15 };
+    return { kind: 'master', text: pick(CAFE_MASTER.lines, random), x: master.x, row: masterTop(master) };
   }
   if (id === 'cat') {
     const { cat } = life;
@@ -241,13 +300,22 @@ export function clickCafeCritter(life, id, random = Math.random) {
   return null;
 }
 
+// The row the master stands on: behind the counter, or out on the floor.
+export function masterRow(master) {
+  return master.floor ? CAFE_FLOOR_ROW : CAFE_COUNTER.behindRow;
+}
+const masterTop = (master) => masterRow(master) - 15;
+
 // Where the master and the cat can be clicked, in the picture's pixels
 // (right and bottom exclusive): the master's head and shoulders above the
-// counter, and the cat on the sill.
+// counter (all of them out on the floor), and the cat on the sill.
 export function cafeBoxes(life) {
   const { master, cat } = life;
   return [
-    { id: 'master', kind: 'master', left: master.x - 4, right: master.x + 4, top: CAFE_COUNTER.behindRow - 15, bottom: CAFE_COUNTER.top },
+    {
+      id: 'master', kind: 'master', left: master.x - 4, right: master.x + 4, top: masterTop(master),
+      bottom: master.floor ? CAFE_FLOOR_ROW : CAFE_COUNTER.top,
+    },
     { id: 'cat', kind: 'cat', left: cat.x - 6, right: cat.x + 6, top: CAFE_SILL.row - 7, bottom: CAFE_SILL.row + 1 },
   ];
 }

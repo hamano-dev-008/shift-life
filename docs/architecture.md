@@ -201,6 +201,11 @@ Shift-Life/
 │   │   │                  hold, fade, a click fading it sooner, the
 │   │   │                  legendary flash and turning rays) and its text
 │   │   │                  (banner, name, size and value, badges, junk)
+│   │   ├── cafe.js        The Cafe's counter: ordering a coffee or a
+│   │   │                  cake (paid at once, served at the table once
+│   │   │                  seated, once an hour each, refunded if
+│   │   │                  stopped first) and paid shifts behind the
+│   │   │                  counter for whoever works there
 │   │   ├── farm.js        The Farm's rice paddies: owning and buying
 │   │   │                  them, the age to farm, planting ($5), real-time
 │   │   │                  growth (seedlings, young, ripe), weeds once,
@@ -382,6 +387,9 @@ Shift-Life/
 │   │   ├── treeDecorArt.js Draws the leaves (code or fortuneTree.leaf),
 │   │   │                  the apple's glow and its sparkles; the
 │   │   │                  leaves' area from the tree's drawn box
+│   │   ├── cafeMenu.js    The Cafe counter's menu: coffee, cake, a
+│   │   │                  shift (or stopping it), the waits
+│   │   ├── timeText.js    "7:05" and "1h 25m" for menus
 │   │   ├── treeMenu.js    The Fortune Tree menu: play/stop, pick the
 │   │   │                  apple, progress and pick chance
 │   │   ├── restMenu.js    The rest menu (sofa, sleeping bag, tent):
@@ -602,7 +610,8 @@ Shift-Life/
                        (ageing, endings, summary, Book, new life),
                        economy.test.mjs (pacing and money against the
                        AGENTS.md targets: year lengths, pay per hour,
-                       monthly paydays, prices, side income, event gaps),
+                       monthly paydays, prices, side income, event gaps,
+                       cafe shifts and orders),
                        lake.test.mjs (the Lake: routes, feet row, walking
                        limits, dock, work trips, shimmer),
                        lakeLife.test.mjs (wildlife: the click cooldown,
@@ -622,7 +631,10 @@ Shift-Life/
                        walls and feet, the picture's numbers; the
                        master's spots and states, customers on their
                        own seats coming and going with their cups, the
-                       cat on the sill, the clicks and boxes),
+                       cat on the sill, the clicks and boxes; ordering
+                       (paid, served once seated, once an hour,
+                       refunded if stopped), shifts (staff only, paid
+                       when done, nothing early), saving),
                        activities.test.mjs (activities and fishing:
                        rod, bites, odds, earnings, sizes, selling,
                        collection and records, saving, a data-only
@@ -1272,6 +1284,32 @@ Parents' Yard and then of My Yard (see **Farm**).
     (ids `master` and `cat`), with the same bubble, hover outline (the
     master's only above the counter) and the shared +1 happiness
     cooldown.
+- The counter (`game/cafe.js`, menu `ui/cafeMenu.js`; `game.cafe`:
+  `{ waitMs, order, shift, shifts }`, saved, `restoreCafeState()`).
+  Clicking it opens its menu.
+  - Orders (`CAFE_ORDERS`, from `CAFE_MIN_AGE` 6): "Coffee - $3" (+2
+    happiness) and "Cake - $8" (+5 happiness, +1 health), each once
+    every `everyMinutes` (60) of real time (`waitMs`). Ordering pays at
+    once and sends them to the table's chair (`ORDER_SEAT`, stay mode
+    `'sitting'`, raised to the seat); once seated (`stayKey()`
+    `'cafe:order'`) the master brings it (`serveOrder()`: out through
+    the flap, to the table, setting it down, back) and after
+    `ORDER_TIMES.serve` (16 s) it's served: its effects and a bubble.
+    They enjoy it `ORDER_TIMES.enjoy` (60 s) at the table (a steaming
+    cup, or a slice of strawberry cake), then get up. Stop (the bar) or
+    leaving before it's served refunds it. Events aren't frozen.
+  - Working there (`worksAtCafe()`: the job is `CAFE_JOB`, any level):
+    at the Cafe they stand behind the counter at its flap, holding a
+    cup (stay mode `'doing'`, activity `hold`, raised to `behindRow`),
+    the counter's front and everything in front of it drawn again over
+    them. The menu adds "Work a shift - $6": `SHIFT.minutes` (30) of
+    real time once there (`'cafe:shift'`, events frozen like busking),
+    paying `shiftPay()`, `SHIFT.rate` (half) the job's hourly pay for
+    that time (yearly pay / 16: $6, $8, $13), with "Shift done!". The
+    bar shows "Shift - 3:07 of 30:00"; Stop or leaving pays nothing for
+    an unfinished shift. `shifts` counts them over the life.
+  - No ordering or shift while the other's on; neither during the
+    character's own plans, which don't start while either is.
 - A new place needs an entry in `PLACES` (with exits both ways), any
   new scenery pieces in `SCENERY` (`ui/scene.js`, with code-drawn
   art) and props in `PROPS` (`data/layout.js`), and its sprite names
@@ -2256,7 +2294,7 @@ all five files live in `%APPDATA%\shift-life\`.
   would put the window off every connected screen.
 - `save.json` holds the life: `{ version, clock: { years }, character,
   events, goals, jobs, place, townFrom, fortuneTree, home, housing, endOfLife,
-  activities, autonomy, farm, weather, weatherSeen }`.
+  activities, autonomy, farm, cafe, weather, weatherSeen }`.
   `character` includes
   `stats` and `traits`; `events`
   holds `nextAt`, the `pending` event, how often each was `seen`,

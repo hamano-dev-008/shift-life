@@ -1,17 +1,26 @@
 // cafe.test.mjs — The Cafe in town: reached from Go to (from every place
 // with an edge, never a shortcut between others), left through its door,
 // walls on both sides, its door and counter click areas, and its
-// picture's numbers; the master, customers and cat.
+// picture's numbers; the master, customers and cat; ordering at the
+// counter and shifts.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createClock } from '../src/game/clock.js';
 import { startNewLife } from '../src/game/endOfLife.js';
 import { placeView, routeBetween, existingPlaces, exitBetween, enterPlace } from '../src/game/places.js';
 import { computeLayout } from '../src/ui/scene.js';
+import {
+  orderItem, orderBlock, startShift, updateCafe, cafeView, worksAtCafe, shiftPay, isOrdering, isOnShift,
+  createCafeState, restoreCafeState,
+} from '../src/game/cafe.js';
+import { applyJobChange } from '../src/game/jobs.js';
+import { arriveAtStay, stayKey } from '../src/game/stay.js';
+import { activityBarView, stopFromBar } from '../src/game/activityBar.js';
 import { transitionFor } from '../src/ui/parallax.js';
 import {
   CAFE_PLACE, CAFE_ART, CAFE_DOOR, CAFE_DOOR_PROP, CAFE_COUNTER, CAFE_COUNTER_PROP, CAFE_WALK, CAFE_SEATS,
-  CAFE_SILL, CAFE_FEET_FROM_BOTTOM, CAFE_MASTER, CAFE_CUSTOMERS, CAFE_CAT,
+  CAFE_SILL, CAFE_FEET_FROM_BOTTOM, CAFE_MASTER, CAFE_CUSTOMERS, CAFE_CAT, CAFE_ORDERS, ORDER_TIMES, CAFE_JOB,
+  SHIFT, CAFE_BAR_TEXT,
 } from '../src/data/cafe.js';
 import { INDOOR_PLACES } from '../src/data/weather.js';
 import {
@@ -62,7 +71,7 @@ test('into town by walking off a side, out through the Cafe door, both shown wit
   assert.equal(transitionFor(CAFE_PLACE, 'fortuneTree', CAFE_DOOR_PROP, false), null);
   const cafe = placeView(game, CAFE_PLACE);
   assert.ok(cafe.exits.every((exit) => exit.via === CAFE_DOOR_PROP));
-  assert.deepEqual(Object.keys(cafe.targets), [CAFE_DOOR_PROP]);
+  assert.deepEqual(Object.keys(cafe.targets), [CAFE_DOOR_PROP, CAFE_COUNTER_PROP]);
   assert.ok(INDOOR_PLACES.includes(CAFE_PLACE), 'no rain inside');
 });
 
@@ -184,4 +193,101 @@ test('clicking the master gets a line; the cat wakes with a mrrp, or meows; both
   assert.ok(master.bottom <= CAFE_COUNTER.top + 1 && master.top < master.bottom);
   const cat = boxes.find((box) => box.id === 'cat');
   assert.ok(cat.bottom >= CAFE_SILL.row && cat.top < CAFE_SILL.row);
+});
+
+// Runs the life tick's cafe update for `seconds` in 250ms steps; returns
+// the bubbles.
+function runCafe(game, seconds) {
+  const bubbles = [];
+  for (let ms = 0; ms < seconds * 1000; ms += 250) bubbles.push(...updateCafe(game, 250));
+  return bubbles;
+}
+
+function atCafe(age = 30, money = 100) {
+  const game = lifeAt(age, CAFE_PLACE);
+  game.character.stats.money = money;
+  game.character.stats.happiness = 50;
+  game.character.stats.health = 50;
+  return game;
+}
+
+test('ordering: paid at once, brought to the table once seated, enjoyed a while, once an hour', () => {
+  const game = atCafe();
+  assert.equal(orderBlock(atCafe(4), 'coffee'), 'tooYoung');
+  assert.equal(orderItem(game, 'coffee'), true);
+  assert.equal(game.character.stats.money, 100 - CAFE_ORDERS.coffee.price);
+  assert.equal(stayKey(game), 'cafe:order');
+  assert.equal(orderItem(game, 'cake'), false, 'one thing at a time');
+  assert.equal(activityBarView(game).text, CAFE_BAR_TEXT.toSeat);
+  // Nothing comes until they're sitting there.
+  assert.deepEqual(runCafe(game, 60), []);
+  arriveAtStay(game);
+  assert.equal(activityBarView(game).text, 'Waiting for the coffee...');
+  const served = runCafe(game, ORDER_TIMES.serve);
+  assert.equal(served.length, 1);
+  assert.deepEqual(served[0].deltas, CAFE_ORDERS.coffee.effects);
+  assert.equal(game.character.stats.happiness, 52);
+  assert.equal(activityBarView(game).text, 'Enjoying the coffee...');
+  runCafe(game, ORDER_TIMES.enjoy);
+  assert.equal(isOrdering(game), false);
+  assert.equal(orderBlock(game, 'coffee'), 'wait');
+  assert.equal(orderBlock(game, 'cake'), null, 'each has its own wait');
+  runCafe(game, CAFE_ORDERS.coffee.everyMinutes * 60);
+  assert.equal(orderBlock(game, 'coffee'), null, 'again after an hour');
+  const broke = atCafe(30, 2);
+  assert.equal(orderBlock(broke, 'coffee'), 'money');
+  assert.equal(cafeView(broke).items[0].need, 1);
+});
+
+test('stopping before it comes refunds the order; leaving the Cafe calls it off', () => {
+  const game = atCafe();
+  orderItem(game, 'cake');
+  arriveAtStay(game);
+  runCafe(game, 5);
+  assert.deepEqual(stopFromBar(game), { stopped: true, news: null });
+  assert.equal(game.character.stats.money, 100);
+  assert.equal(orderBlock(game, 'cake'), null, 'can be had again at once');
+  orderItem(game, 'cake');
+  enterPlace(game, 'lake');
+  assert.equal(isOrdering(game), false);
+  assert.equal(game.character.stats.money, 100);
+});
+
+test('shifts: only for whoever works at the cafe, behind the counter, paid when done, nothing if stopped early', () => {
+  const visitor = atCafe();
+  assert.equal(startShift(visitor), false);
+  assert.equal(cafeView(visitor).shift, null);
+  const game = atCafe(30, 0);
+  applyJobChange(game, { hire: CAFE_JOB });
+  assert.equal(worksAtCafe(game), true);
+  assert.equal(shiftPay(game), 6, 'a Barista: yearly $100 / 16');
+  assert.equal(startShift(game), true);
+  assert.equal(stayKey(game), 'cafe:shift');
+  assert.equal(orderItem(game, 'coffee'), false, 'busy');
+  runCafe(game, 60);
+  assert.equal(game.cafe.shift.ms, 0, 'only counts behind the counter');
+  arriveAtStay(game);
+  assert.match(activityBarView(game).text, /^Shift - 0:00 of 30:00$/);
+  runCafe(game, SHIFT.minutes * 60 - 1);
+  assert.equal(game.character.stats.money, 0);
+  const done = runCafe(game, 1);
+  assert.equal(done.length, 1);
+  assert.equal(done[0].deltas.money, 6);
+  assert.equal(game.cafe.shifts, 1);
+  assert.equal(isOnShift(game), false);
+  startShift(game);
+  arriveAtStay(game);
+  runCafe(game, 600);
+  stopFromBar(game);
+  assert.equal(game.character.stats.money, 6, 'an unfinished shift pays nothing');
+});
+
+test('the cafe state saves and restores, dropping anything unusable', () => {
+  const game = atCafe();
+  orderItem(game, 'coffee');
+  const restored = restoreCafeState(JSON.parse(JSON.stringify(game.cafe)));
+  assert.deepEqual(restored, game.cafe);
+  assert.deepEqual(restoreCafeState(null), createCafeState());
+  assert.equal(restoreCafeState({ order: { item: 'pie', step: 'serve', ms: 0 } }).order, null);
+  assert.equal(restoreCafeState({ waitMs: { coffee: 1e12 } }).waitMs.coffee, CAFE_ORDERS.coffee.everyMinutes * 60000);
 });

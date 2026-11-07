@@ -16,6 +16,7 @@ import { restoreEndOfLifeState, restoreBook, bookSaveData } from './endOfLife.js
 import { restoreActivityState } from './activities.js';
 import { restoreAutonomyState } from './autonomy.js';
 import { restoreFarmState } from './farm.js';
+import { restoreCafeState } from './cafe.js';
 import { restoreCollection, collectionSaveData } from './fishing.js';
 import { restoreSettings, settingsSaveData } from './settings.js';
 import { restoreWeatherState, restoreWeatherSeenState } from './weather.js';
@@ -41,14 +42,16 @@ function toSaveData(game) {
     activities: game.activities,
     autonomy: game.autonomy,
     farm: game.farm,
+    cafe: game.cafe,
     weather: game.weather,
     weatherSeen: game.weatherSeen,
   };
 }
 
 // Returns the saved { clock, character, events, goals, jobs, place,
-// townFrom (where they came into town from, or null), fortuneTree, home, housing, endOfLife, activities, autonomy, farm,
-// weather, weatherSeen }, or null if there's no usable save. Saves from before events,
+// townFrom (where they came into town from, or null), fortuneTree, home,
+// housing, endOfLife, activities, autonomy, farm, cafe, weather,
+// weatherSeen }, or null if there's no usable save. Saves from before events,
 // goals, jobs, places, the Fortune Tree, Home, housing, the end of life,
 // activities, the character's own plans, the Farm or the weather existed
 // get
@@ -76,6 +79,7 @@ export async function loadGame() {
     activities: restoreActivityState(data.activities),
     autonomy: restoreAutonomyState(data.autonomy),
     farm: restoreFarmState(data.farm),
+    cafe: restoreCafeState(data.cafe),
     weather: restoreWeatherState(data.weather),
     weatherSeen: restoreWeatherSeenState(data.weatherSeen),
   };

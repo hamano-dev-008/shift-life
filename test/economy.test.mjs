@@ -14,6 +14,7 @@ import { JOBS } from '../src/data/jobs.js';
 import { HOUSING_TIERS } from '../src/data/housing.js';
 import { SESSION_MINUTES, SESSION_PAY, APPLE_EVERY_HOURS } from '../src/data/fortuneTree.js';
 import { RICE } from '../src/data/farm.js';
+import { CAFE_JOB, SHIFT, CAFE_ORDERS } from '../src/data/cafe.js';
 
 const HOUR_MS = 3600 * 1000;
 const ADULT_HOURS_PER_YEAR = LIFE_STAGES.find((s) => s.id === 'adult').realMinutesPerYear / 60;
@@ -131,4 +132,19 @@ test('an unanswered event is decided after a real minute at any age', () => {
     game.clock.years += 0.2 / minutesPerYear;
     assert.ok(updateEvents(game)?.auto, `age ${age}: decided`);
   }
+});
+
+test('cafe shifts pay half the job hourly rate on top (below a career); coffee and cake are sinks to match', () => {
+  const cafe = JOBS.find((job) => job.id === CAFE_JOB);
+  for (const level of cafe.levels) {
+    const hourly = level.pay / ADULT_HOURS_PER_YEAR;
+    const shiftsPerHour = 60 / SHIFT.minutes;
+    const extra = Math.round((hourly * SHIFT.rate * SHIFT.minutes) / 60) * shiftsPerHour;
+    assert.ok(Math.abs(extra - hourly * SHIFT.rate) <= 1, `${level.title}: $${extra}/h on top of $${hourly}/h`);
+    assert.ok(extra < hourly, `${level.title}: extra $${extra}/h is not below the career's $${hourly}/h`);
+  }
+  // A coffee is a few minutes of entry pay, a cake under half an hour.
+  const entryPerMinute = 100 / ADULT_HOURS_PER_YEAR / 60;
+  assert.ok(CAFE_ORDERS.coffee.price / entryPerMinute < 15);
+  assert.ok(CAFE_ORDERS.cake.price / entryPerMinute < 30);
 });

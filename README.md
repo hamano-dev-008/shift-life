@@ -127,6 +127,16 @@ Early development. What works so far:
     sill, waking now and then to stretch or pad along it. Click the
     master for a friendly word, or Tama for a meow (a little happiness,
     like the Lake's wildlife).
+  - Click the counter for its menu (from age 6): "Coffee - $3" (+2
+    happiness) or "Cake - $8" (+5 happiness, +1 health), each once an
+    hour. The character sits at the table, the master brings it over,
+    and they enjoy it for a minute. Stop before it comes and you get
+    your money back.
+  - Working at the cafe (Barista, Head Barista or Cafe Owner), the
+    character stands behind the counter whenever they're there, and the
+    menu offers "Work a shift": 30 real minutes that pay extra on top
+    of the salary ($6, $8 or $13 by level). Stopping early pays
+    nothing.
   - The place button (the map pin in the top bar) opens "Go to", listing
     the other places. Pick one and the character walks there, through
     any places in between (the Lake to the living room goes past the

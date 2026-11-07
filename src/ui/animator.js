@@ -30,8 +30,9 @@ const INFANT_GAITS = { crawl: CRAWL, toddle: TODDLE };
 
 // Modes for staying put somewhere (see updateStay()): 'farewell' is
 // sitting down at the end of a life; 'doing' is doing a place activity
-// such as fishing (standing at its spot, facing its way).
-const STAY_MODES = ['busking', 'resting', 'farewell', 'doing'];
+// such as fishing (standing at its spot, facing its way); 'sitting' is
+// sitting on a seat (the Cafe's chair).
+const STAY_MODES = ['busking', 'resting', 'farewell', 'doing', 'sitting'];
 
 // A wobble shifts the sitting baby's upper body through these columns.
 const WOBBLE_STEPS = [1, 0, -1, 0];
@@ -494,9 +495,10 @@ export function placeIn(anim, layout) {
 // `needed`: something wants them on screen (an event, a bubble), so they
 // don't leave, and come back if they're out. `stay`: while busking or
 // resting, { x, mode, lift, activity, facing, bed }: they go to canvas x `x`
-// and stay in `mode` ('busking', 'resting', 'farewell' or 'doing'), with
-// no wandering, activities or work trips; `lift` raises the figure that
-// many canvas pixels (lying on the sofa); while 'doing', `activity` is
+// and stay in `mode` ('busking', 'resting', 'farewell', 'doing' or
+// 'sitting'), with no wandering, activities or work trips; `lift` raises
+// the figure that many canvas pixels (lying on the sofa, sitting on a
+// chair, standing behind the Cafe's counter); while 'doing', `activity` is
 // the pose's activity (e.g. 'fish') and `facing` (-1 or 1) the way they
 // face once there.
 // Null otherwise. Travelling (travelTo()) comes before all of this.
@@ -603,10 +605,12 @@ export function poseOf(anim, stage) {
   const resting = anim.mode === 'resting';
   const farewell = anim.mode === 'farewell';
   const doingStay = anim.mode === 'doing';
-  const staying = busking || resting || farewell || doingStay;
+  // Sitting on a seat (the Cafe's chair), raised to its height.
+  const seated = anim.mode === 'sitting';
+  const staying = busking || resting || farewell || doingStay || seated;
   const doing = anim.mode === 'activity';
   const walking = anim.mode === 'walking' || (doing && anim.jogging);
-  const sit = busking || farewell || anim.mode === 'plopped'
+  const sit = busking || farewell || seated || anim.mode === 'plopped'
     || (anim.gait === 'crawl' && !walking && !doing && !resting);
   const stride = gaitStride(anim, stage);
   const wobbleStep = Math.floor((BABY_WOBBLE_DURATION - anim.wobbleLeft) * 8) % WOBBLE_STEPS.length;
@@ -621,7 +625,7 @@ export function poseOf(anim, stage) {
     breath: !walking && anim.time % BREATH_CYCLE > BREATH_CYCLE * 0.6 ? 1 : 0,
     walk: walking ? walkPose(anim.steps % (4 * stride), stride) : null,
     lying: resting,
-    lift: resting ? anim.stayLift : 0,
+    lift: resting || doingStay || seated ? anim.stayLift : 0,
     bed: resting ? anim.stayBed : null,
     activity: busking ? 'busk' : resting ? 'rest' : doingStay ? anim.stayActivity : doing ? anim.activity : null,
     activityTime: doing || staying ? anim.activityTime : 0,

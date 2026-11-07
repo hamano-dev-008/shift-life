@@ -6,6 +6,7 @@
 
 import { TREE_TEXT } from '../data/fortuneTree.js';
 import { WEATHER_EFFECTS_TEXT } from '../data/weather.js';
+import { clockTime, longTime } from './timeText.js';
 
 function element(tag, className, text = '') {
   const node = document.createElement(tag);
@@ -16,20 +17,6 @@ function element(tag, className, text = '') {
 
 function fill(text, values) {
   return Object.entries(values).reduce((out, [key, value]) => out.replaceAll(`{${key}}`, value), text);
-}
-
-// "7:05" (minutes and seconds).
-function clockTime(ms) {
-  const seconds = Math.floor(ms / 1000);
-  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
-}
-
-// "1h 25m", "25m", or "<1m"; rounded up so it never says 0 too early.
-function longTime(ms) {
-  const minutes = Math.ceil(ms / 60000);
-  if (minutes < 1) return '<1m';
-  const hours = Math.floor(minutes / 60);
-  return hours ? `${hours}h ${minutes % 60}m` : `${minutes}m`;
 }
 
 // The buttons; rebuilt only when they change, so a click is never lost to

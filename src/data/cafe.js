@@ -73,6 +73,10 @@ export const CAFE_MASTER = {
   item: 'apron',
   spots: { polish: 98, siphons: CAFE_SIPHONS.map((x) => x + 4) },
   speed: 6,
+  // Bringing an order: out through the flap at `serveSpeed`, a moment
+  // `place` seconds at the table setting it down, and back.
+  serveSpeed: 9,
+  place: 1.2,
   polish: [6, 12],
   brew: [5, 9],
   idle: [3, 6],
@@ -130,3 +134,56 @@ export const CAFE_CAT = {
 // table, toward the chair) and its steam, a wisp rising `steamRise`
 // pixels every `steamEvery` seconds.
 export const CAFE_CUP = { steamEvery: 1.2, steamRise: 4, colors: { cup: '#f4efe6', coffee: '#5a2e1a', steam: '#ffffff' } };
+
+// Ordering at the counter (from CAFE_MIN_AGE): each item's price, what it
+// gives once served, and how often it can be had (real minutes; game
+// speed doesn't change it, and it waits while the app is closed). The
+// character sits at the table (chairL); the master brings it over within
+// ORDER_TIMES.serve seconds, and they enjoy it for ORDER_TIMES.enjoy.
+// A money sink to go with the shifts' pay (AGENTS.md): a coffee is about
+// 7 minutes of an entry job's pay, a cake about 20.
+export const CAFE_MIN_AGE = 6;
+export const CAFE_ORDERS = {
+  coffee: { name: 'Coffee', price: 3, effects: { happiness: 2 }, everyMinutes: 60 },
+  cake: { name: 'Cake', price: 8, effects: { happiness: 5, health: 1 }, everyMinutes: 60 },
+};
+export const ORDER_TIMES = { serve: 16, enjoy: 60 };
+export const ORDER_SEAT = 'chairL';
+
+// Working at the Cafe: while the character's job is CAFE_JOB (any level),
+// at the Cafe they stand behind the counter, and the counter's menu offers
+// a shift: `minutes` of real time (only once behind the counter), paying
+// `rate` of the job's hourly pay for that time when done (an adult year
+// is 4 real hours, data/lifeStages.js), so yearly pay / 16: Barista $6,
+// Head Barista $8, Cafe Owner $13. Extra income below a career's
+// (AGENTS.md: about $12-26 an hour on top). Stopping early pays nothing.
+export const CAFE_JOB = 'cafe';
+export const SHIFT = { minutes: 30, rate: 0.5 };
+
+// The counter's menu, the bar and the bubbles. {item} is an item's name,
+// {price} and {pay} dollars, {need} the dollars short, {time} "42m" or
+// "3:07", {total} "30:00", {age} an age, {job} a job title.
+export const CAFE_MENU_TEXT = {
+  title: 'Counter',
+  tooYoung: 'Come back at age {age} for a coffee.',
+  order: '{item} - ${price}',
+  need: 'Need ${need} more',
+  again: '{item} again in {time}',
+  ordering: 'Enjoying the {item}...',
+  shift: 'Work a shift - ${pay}',
+  stopShift: 'Stop the shift',
+  working: 'Shift: {time} of {total}',
+  staff: 'You work here: {job}',
+  idle: 'Sit down for a coffee or a cake.',
+};
+export const CAFE_BAR_TEXT = {
+  toSeat: 'Heading to a table...',
+  waiting: 'Waiting for the {item}...',
+  enjoying: 'Enjoying the {item}...',
+  toCounter: 'Going behind the counter...',
+  shift: 'Shift - {time} of {total}',
+};
+export const CAFE_NEWS = {
+  served: { heading: 'Cafe', text: 'The {item} is served. Lovely!' },
+  shiftDone: { heading: 'Shift done!', text: 'Thanks for the help today.' },
+};

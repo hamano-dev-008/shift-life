@@ -7,8 +7,10 @@
 // (ui/cafe.js), then the rest (drawCafeLifeFront()).
 
 import {
-  CAFE_ART, CAFE_COUNTER, CAFE_SILL, CAFE_TABLE, CAFE_MASTER, CAFE_CAT, CAFE_CUP, CAFE_SIPHONS,
+  CAFE_ART, CAFE_COUNTER, CAFE_SILL, CAFE_TABLE, CAFE_MASTER, CAFE_CAT, CAFE_CUP, CAFE_SIPHONS, CAFE_SEATS,
+  ORDER_SEAT,
 } from '../data/cafe.js';
+import { masterRow } from './cafeLife.js';
 import { STRIDE } from '../data/animation.js';
 import { OUTLINE_COLOR } from '../data/appearance.js';
 import { drawCharacter, heldHand } from './sprite.js';
@@ -32,9 +34,9 @@ const blinking = (time, seed) => (time + seed * 1.7) % 4.3 < 0.15;
 // A person's pose for drawCharacter(): standing, walking (`walked`
 // character pixels so far) or sitting, holding something out
 // (`activity` 'hold') or not.
-function personPose(layout, who, { stage, sit = false, activity = null, time, seed }) {
+function personPose(layout, who, { stage, sit = false, activity = null, time, seed, walking = null }) {
   const stride = STRIDE[stage];
-  const walking = who.state === 'walk' || who.state === 'out';
+  walking ??= who.state === 'walk' || who.state === 'out';
   return {
     x: personX(layout, who.x),
     facing: who.facing,
@@ -54,26 +56,41 @@ function personPose(layout, who, { stage, sit = false, activity = null, time, se
   };
 }
 
-// The master, behind the counter (their legs hidden by its front, drawn
-// next), with the cup they're polishing.
-export function drawMaster(ctx, layout, life) {
-  const { master } = life;
-  const holding = master.state === 'polish' || master.state === 'brew';
-  const pose = personPose(layout, master, {
-    stage: CAFE_MASTER.stage, activity: holding ? 'hold' : null, time: life.time, seed: 0,
-  });
-  const groundY = rowY(layout, CAFE_COUNTER.behindRow);
-  drawCharacter(ctx, pose, CAFE_MASTER.stage, CAFE_MASTER.look, 'smile', groundY, layout.characterScale, CAFE_MASTER.item);
-  if (master.state !== 'polish') return;
-  const hand = heldHand(CAFE_MASTER.stage, pose, groundY, layout.characterScale);
+// A cup held at `hand` (heldHand()), with a cloth going round it while
+// polished (`polishing` seconds in, or null).
+export function drawHeldCup(ctx, hand, polishing = null) {
   const u = hand.unit;
   const left = hand.x - u / 2 + hand.facing * u;
   ctx.fillStyle = CAFE_CUP.colors.cup;
   ctx.fillRect(left - (hand.facing < 0 ? u : 0), hand.y - u * 1.5, u * 2, u * 2);
-  // The cloth going round it.
+  if (polishing === null) return;
   ctx.fillStyle = '#7fa6c9';
-  const round = Math.floor(master.t * 4) % 2;
+  const round = Math.floor(polishing * 4) % 2;
   ctx.fillRect(left + (round ? u : -u) * hand.facing, hand.y - u * (round ? 1.5 : 0.5), u, u);
+}
+
+// The master: behind the counter (their legs hidden by its front, drawn
+// next) polishing a cup or brewing, or (with `front`) out on the floor
+// bringing an order, the cup in hand. Each call draws them only where
+// they are now.
+export function drawMaster(ctx, layout, life, front = false) {
+  const { master } = life;
+  if (master.floor !== front) return;
+  const serving = master.state === 'serve';
+  const carrying = serving && master.serving && master.serving.phase !== 'back';
+  const holding = master.state === 'polish' || master.state === 'brew' || carrying;
+  const pose = personPose(layout, master, {
+    stage: CAFE_MASTER.stage,
+    activity: holding ? 'hold' : null,
+    time: life.time,
+    seed: 0,
+    walking: master.state === 'walk' || (serving && master.serving?.phase !== 'place'),
+  });
+  const groundY = rowY(layout, masterRow(master));
+  drawCharacter(ctx, pose, CAFE_MASTER.stage, CAFE_MASTER.look, 'smile', groundY, layout.characterScale, CAFE_MASTER.item);
+  if (master.state === 'polish' || carrying) {
+    drawHeldCup(ctx, heldHand(CAFE_MASTER.stage, pose, groundY, layout.characterScale), master.state === 'polish' ? master.t : null);
+  }
 }
 
 // A customer: walking, or sitting on their seat.
@@ -117,8 +134,23 @@ function drawBrewing(ctx, layout, life) {
   dot(ctx, layout, siphon - 1 + (rise % 2), CAFE_COUNTER.top - 2 - rise, CAFE_CUP.colors.steam);
 }
 
-// The customers, their cups, the siphon brewing (all in front of the
-// counter's front), in the order they go back to front.
+// The character's order on the table, in front of their chair: a cup of
+// coffee, or a slice of strawberry cake on a plate.
+export function drawOrder(ctx, layout, item, time) {
+  const spot = cupSpot(CAFE_SEATS.find((seat) => seat.id === ORDER_SEAT));
+  if (item !== 'cake') {
+    drawCup(ctx, layout, spot.x, spot.row, time);
+    return;
+  }
+  dot(ctx, layout, spot.x - 2, spot.row, OUTLINE_COLOR, 5);
+  dot(ctx, layout, spot.x - 2, spot.row - 1, CAFE_CUP.colors.cup, 5);
+  dot(ctx, layout, spot.x - 1, spot.row - 2, '#fbe7c6', 3);
+  dot(ctx, layout, spot.x - 1, spot.row - 3, '#f4c6c6', 2);
+  dot(ctx, layout, spot.x, spot.row - 4, '#d9534f');
+}
+
+// The customers, their cups, the siphon brewing and the master out
+// serving (all in front of the counter's front), back to front.
 export function drawCafeLifeFront(ctx, layout, life) {
   drawBrewing(ctx, layout, life);
   for (const customer of life.customers) {
@@ -128,6 +160,7 @@ export function drawCafeLifeFront(ctx, layout, life) {
       drawCup(ctx, layout, spot.x, spot.row, life.time);
     }
   }
+  drawMaster(ctx, layout, life, true);
 }
 
 // Tama, facing right (flipped to face left): o fur, d stripes and tail, w
@@ -166,13 +199,15 @@ function catFrame(cat) {
 }
 
 // Draws only the master or the cat (`id`), for the hover outline's
-// silhouette: the master only above the counter (their legs are hidden).
+// silhouette: the master only above the counter while behind it.
 // Returns the screen pixels per pixel of its art.
 export function drawCafeCritter(ctx, layout, life, id) {
   if (id === 'master') {
-    drawMaster(ctx, layout, life);
-    const top = rowY(layout, CAFE_COUNTER.top);
-    ctx.clearRect(0, top, layout.width, layout.height - top);
+    drawMaster(ctx, layout, life, life.master.floor);
+    if (!life.master.floor) {
+      const top = rowY(layout, CAFE_COUNTER.top);
+      ctx.clearRect(0, top, layout.width, layout.height - top);
+    }
     return layout.characterScale;
   }
   drawCat(ctx, layout, life);

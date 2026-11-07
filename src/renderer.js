@@ -137,12 +137,17 @@ import {
 } from './ui/lakeLife.js';
 import { toLandNow, huntNow } from './ui/lakeFrogs.js';
 import { drawLakeLife, boxToRect, drawCritter } from './ui/lakeLifeArt.js';
-import { createCafeLife, updateCafeLife, clickCafeCritter, cafeBoxes } from './ui/cafeLife.js';
 import {
-  drawMaster, drawCafeLifeFront, drawCat, drawCafeCritter,
+  createCafeLife, updateCafeLife, clickCafeCritter, cafeBoxes, serveOrder, clearOrder,
+} from './ui/cafeLife.js';
+import {
+  drawMaster, drawCafeLifeFront, drawCat, drawCafeCritter, drawOrder, drawHeldCup,
 } from './ui/cafeLifeArt.js';
 import { drawCafeCounterFront } from './ui/cafe.js';
-import { CAFE_PLACE, CAFE_MASTER, CAFE_CAT } from './data/cafe.js';
+import {
+  CAFE_PLACE, CAFE_MASTER, CAFE_CAT, CAFE_COUNTER_PROP, CAFE_COUNTER, CAFE_SEATS, CAFE_TABLE, ORDER_SEAT,
+  CAFE_ART, CAFE_FEET_FROM_BOTTOM,
+} from './data/cafe.js';
 import { LAKE_PLACE, BOBBER_SPOT, DOCK_PROP } from './data/lake.js';
 import { WILDLIFE_CLICK, LAKE_LIFE_TEXT } from './data/lakeLife.js';
 import { createGoMenu } from './ui/goMenu.js';
@@ -156,13 +161,17 @@ import { drawFarmCrops } from './ui/farm.js';
 import { createFarmAnimals, updateFarmAnimals } from './ui/farmAnimals.js';
 import { drawFarmAnimals } from './ui/farmAnimalsArt.js';
 import { createFarmMenu } from './ui/farmMenu.js';
+import { createCafeMenu } from './ui/cafeMenu.js';
+import {
+  orderItem, startShift, stopCafe, updateCafe, cafeView, isAtCafeCounter, worksAtCafe, isOrdering, isOnShift,
+} from './game/cafe.js';
 import {
   createAnimator, updateAnimator, poseOf, startActivityNow, goToWorkNow, gaitOf,
   travelTo, hasExited, enterScene, placeIn, setLayout, stopTravelling, hasSettled,
   takeLeftForWork, isAtWork, callBackFromWork,
 } from './ui/animator.js';
 import {
-  drawCharacter, figureHeight, fishingHand, raisedHand, headX, lyingXForHead,
+  drawCharacter, figureHeight, fishingHand, raisedHand, heldHand, headX, lyingXForHead,
 } from './ui/sprite.js';
 import {
   bubbleBottomY, drawEventBubble, placeOver, placeSpeech, formatDeltas, formatRaise,
@@ -330,7 +339,7 @@ async function start() {
     if (except !== 'event') closeEventCard();
     for (const [id, panel] of [['goal', goalMenu], ['tree', treeMenu], ['rest', restMenu],
       ['activity', activityMenu], ['go', goMenu], ['summary', summaryCard], ['book', bookMenu],
-      ['farm', farmMenu], ['dev', devMenu]]) {
+      ['farm', farmMenu], ['cafe', cafeMenu], ['dev', devMenu]]) {
       if (id !== except) panel?.close();
     }
   }
@@ -439,6 +448,24 @@ async function start() {
     onOpen: () => closePanels('farm'),
   });
   const PADDY_IDS = new Set(PADDIES.map((paddy) => paddy.id));
+  // Clicking the Cafe's counter opens its menu: a coffee or a cake at the
+  // table, or (working at the cafe) a shift behind the counter
+  // (game/cafe.js). Either starts once they're at the spot.
+  const cafeMenu = createCafeMenu(document.getElementById('cafe-menu'), {
+    order: (item) => {
+      playerTookOver();
+      if (orderItem(game, item)) saveGame(game);
+    },
+    shift: () => {
+      playerTookOver();
+      if (startShift(game)) saveGame(game);
+    },
+    stopShift: () => {
+      playerTookOver();
+      if (stopCafe(game)) saveGame(game);
+    },
+    onOpen: () => closePanels('cafe'),
+  });
   // Stops an activity before leaving the place (travelling, the dev
   // menu's Go to), showing the sale if there was one.
   function stopActivityToLeave() {
@@ -712,6 +739,10 @@ async function start() {
     // counts once they're there (game/farm.js).
     const farmNews = updateFarm(game, realMs);
     farmNews.forEach(showNews);
+    // The Cafe's waits, order and shift (real time; game/cafe.js).
+    const cafeNews = updateCafe(game, realMs);
+    cafeNews.forEach(showNews);
+    if (cafeNews.length) saveGame(game);
     const moved = updatePlaces(game);
     if (moved) showNews(moved);
     // Their own plan: started once they're in its place, stopped by
@@ -786,6 +817,8 @@ async function start() {
       restMenu.toggle();
     } else if (activity) {
       activityMenu.toggle(activity.id);
+    } else if (id === CAFE_COUNTER_PROP && scene.place.id === CAFE_PLACE) {
+      cafeMenu.toggle();
     } else if (PADDY_IDS.has(id) && scene.place.id === FARM_PLACE) {
       farmMenu.toggle(id);
     } else if (id === WELL_PROP) {
@@ -1133,6 +1166,23 @@ async function start() {
         facing: 1,
       };
     }
+    // At the Cafe: sitting at the table with an order (on the chair's
+    // seat); working there, behind the counter at its flap (on the floor
+    // further back), holding a cup.
+    if (place.id === CAFE_PLACE && (isOrdering(game) || isOnShift(game) || worksAtCafe(game))) {
+      const feetRow = CAFE_ART.height - CAFE_FEET_FROM_BOTTOM;
+      if (isOrdering(game)) {
+        const seat = CAFE_SEATS.find((candidate) => candidate.id === ORDER_SEAT);
+        return { x: (seat.x + 0.5) * layout.scale, mode: 'sitting', lift: (feetRow - seat.row) * layout.scale, facing: seat.facing };
+      }
+      return {
+        x: (CAFE_COUNTER.flap + 0.5) * layout.scale,
+        mode: 'doing',
+        activity: 'hold',
+        lift: (feetRow - CAFE_COUNTER.behindRow) * layout.scale,
+        facing: -1,
+      };
+    }
     // Under the golden apple to poke it down, posed as pickLook() says.
     const under = place.id === FORTUNE_TREE_PLACE && isPicking(game) ? pickSpot(layout) : null;
     if (under) return { x: under.x, mode: 'doing', activity: pickShown?.look.activity ?? null, facing: under.facing };
@@ -1334,7 +1384,7 @@ async function start() {
       // They choose something to do now, skipping the wait.
       planNow: () => {
         if (game.endOfLife.ended || travelling() || currentPlan(game) || isPlaying(game) || isResting(game)
-          || isDoingActivity(game) || currentFarmJob(game) || isPicking(game)) {
+          || isDoingActivity(game) || currentFarmJob(game) || isPicking(game) || isAtCafeCounter(game)) {
           return AUTONOMY_TEXT.notNow;
         }
         restPreview = null;
@@ -1577,7 +1627,7 @@ async function start() {
     // Their own plans: left alone long enough (nothing running, nothing
     // showing, not away), now and then they choose something to do.
     const running = isPlaying(game) || isResting(game) || isDoingActivity(game)
-      || Boolean(currentFarmJob(game)) || isPicking(game);
+      || Boolean(currentFarmJob(game)) || isPicking(game) || isAtCafeCounter(game);
     const idle = !busy && !running && !restPreview && !farewell && !isAtWork(animator);
     if (mayChoose(choosing, now, { enabled: settings.ownPlans, idle })) beginOwnPlan(now);
     // While the view pans they wait past the edge, then walk in.
@@ -1675,6 +1725,20 @@ async function start() {
       }
       // Picking the apple: the branch held up, the apple falling or held
       // up, the fairies; once it's dropped the branch stays where it fell.
+      // At the Cafe: once they're seated with an order the master brings
+      // it to the table; working behind the counter, its front (and
+      // everything in front of it) goes over them again, cup in hand.
+      if (place.id === CAFE_PLACE && cafeLife) {
+        const { order } = game.cafe;
+        if (order?.step === 'serve' && hasArrived(game)) serveOrder(cafeLife, CAFE_TABLE.x);
+        if (!order && (cafeLife.orderServed || cafeLife.master.serving)) clearOrder(cafeLife);
+        if (order && (cafeLife.orderServed || order.step === 'enjoy')) drawOrder(ctx, layout, order.item, seconds);
+        if (pose.activity === 'hold' && pose.lift > 0) {
+          drawCafeCounterFront(ctx, layout);
+          drawCafeLifeFront(ctx, layout, cafeLife);
+          drawHeldCup(ctx, heldHand(stage, pose, layout.feetY - pose.lift, layout.characterScale));
+        }
+      }
       if (pickShown && place.id === FORTUNE_TREE_PLACE) {
         const { look: pickLooks, t } = pickShown;
         const hand = pose.activity === 'reachUp' ? raisedHand(stage, pose, layout.feetY, layout.characterScale) : null;
@@ -1783,6 +1847,7 @@ async function start() {
     const goals = goalView(game);
     goalMenu.update(ended ? { ...goals, unlocked: false } : goals);
     treeMenu.update(place.name, place.id === FORTUNE_TREE_PLACE ? treeView(game) : null);
+    cafeMenu.update(place.id === CAFE_PLACE ? cafeView(game) : null);
     restMenu.update(restMenuView());
     activityMenu.update((id) => {
       const activity = activityById(id);
