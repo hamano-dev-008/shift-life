@@ -17,6 +17,8 @@ import { stopAtStall } from './alley.js';
 import { ALLEY_PLACE } from '../data/alley.js';
 import { stopBreak } from './office.js';
 import { OFFICE_PLACE } from '../data/office.js';
+import { stopRamen } from './ramen.js';
+import { RAMEN_PLACE } from '../data/ramen.js';
 import { STORE_PLACE } from '../data/store.js';
 import { stopShift } from './shifts.js';
 import { CAFE_PLACE } from '../data/cafe.js';
@@ -133,7 +135,7 @@ export function leavePlace(game) {
   const stoppedPicking = isPicking(game);
   stopPicking(game);
   const stoppedOrder = stopOrder(game) || stopPurchase(game) || stopSending(game) || stopAtStall(game)
-    || stopBreak(game);
+    || stopBreak(game) || stopRamen(game);
   const stoppedShift = stopShift(game);
   return stoppedPlaying || stoppedResting || stoppedActivity || stoppedJob || stoppedPicking || stoppedOrder
     || stoppedShift;
@@ -165,6 +167,7 @@ export function settlePlace(game) {
   if (game.place !== POST_PLACE) stopSending(game);
   if (game.place !== ALLEY_PLACE) stopAtStall(game);
   if (game.place !== OFFICE_PLACE) stopBreak(game);
+  if (game.place !== RAMEN_PLACE) stopRamen(game);
   if (game.work.shift && game.work.shift.place !== game.place) stopShift(game);
   return moved;
 }

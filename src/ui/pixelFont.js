@@ -1,10 +1,12 @@
 // pixelFont.js — A tiny 3 x 5 pixel font for signs painted in the town
-// places' pictures (the 6-Eleven's, Pedal Post's, Paperleaf Co.'s): the letters they use,
+// places' pictures (the 6-Eleven's, Pedal Post's, Paperleaf Co.'s,
+// Ramen Hinata's): the letters they use,
 // and writing a word onto a layer.
 
 import { fill } from './pixel.js';
 
-// Each letter's rows ('#' is a pixel); most are 3 wide, N 4, a space 2.
+// Each letter's rows ('#' is a pixel); most are 3 wide, N and M 4, a
+// space 2.
 const LETTERS = {
   6: ['###', '#..', '###', '#.#', '###'],
   '-': ['...', '...', '###', '...', '...'],
@@ -14,6 +16,7 @@ const LETTERS = {
   E: ['###', '#..', '##.', '#..', '###'],
   F: ['###', '#..', '##.', '#..', '#..'],
   L: ['#..', '#..', '#..', '#..', '###'],
+  M: ['#..#', '####', '#..#', '#..#', '#..#'],
   N: ['#..#', '##.#', '#.##', '#..#', '#..#'],
   O: ['###', '#.#', '#.#', '#.#', '###'],
   P: ['##.', '#.#', '##.', '#..', '#..'],

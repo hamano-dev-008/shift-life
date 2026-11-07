@@ -175,6 +175,16 @@ Early development. What works so far:
     Clerk, Manager, Director), they sit at their desk and can work a
     30-minute shift there ($8, $13 or $22). Its numbers are in
     `src/data/office.js`.
+  - Ramen Hinata is a cozy ramen shop in town: a noren at the door, menu
+    tags, a paper lantern, steaming pots behind a wooden counter and four
+    stools. The old cook stirs the pots and brings each diner a bowl;
+    click them for a word. At the counter (from age 6): shoyu ramen ($4,
+    +2 happiness, +2 health, once an hour) or the chef's special ($12, +5
+    happiness, +4 health, once a day), eaten sitting at the counter.
+    Working the Chef job (Line Cook, Chef, Head Chef), they cook at the
+    stove and can work a 30-minute shift ($7, $11 or $17), now and then
+    carrying a bowl out to a diner. Its numbers are in
+    `src/data/ramen.js`.
   - Inside the Cafe, the old master polishes cups and brews at the siphons
     behind the counter, customers drop in for a coffee at the counter
     or the table and leave again, and Tama the cat naps on the window

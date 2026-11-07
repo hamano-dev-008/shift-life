@@ -22,6 +22,9 @@ import {
 import {
   OFFICE_ART, OFFICE_DOOR, OFFICE_DOOR_PROP, OFFICE_VENDING, VENDING_PROP, OFFICE_PRINTER, PRINTER_PROP,
 } from './office.js';
+import {
+  RAMEN_ART, RAMEN_DOOR, RAMEN_DOOR_PROP, RAMEN_COUNTER, RAMEN_COUNTER_PROP,
+} from './ramen.js';
 
 // Overall scene scale: screen pixels per scene pixel. Whole numbers only,
 // so pixels stay crisp. Sizes everything except the character.
@@ -92,7 +95,7 @@ export const PROPS = {
   }])),
   // The town places' doors and counters are part of their pictures too
   // (data/cafe.js, data/store.js, data/post.js, data/alley.js,
-  // data/office.js): click areas, and the spots at the door and at the
+  // data/office.js, data/ramen.js): click areas, and the spots at the door and at the
   // counter's flap.
   [CAFE_DOOR_PROP]: inPicture(CAFE_ART, CAFE_DOOR, CAFE_DOOR.x),
   [CAFE_COUNTER_PROP]: { ...inPicture(CAFE_ART, CAFE_COUNTER, CAFE_COUNTER.flap), visit: false },
@@ -105,6 +108,8 @@ export const PROPS = {
   [OFFICE_DOOR_PROP]: inPicture(OFFICE_ART, OFFICE_DOOR, OFFICE_DOOR.x),
   [VENDING_PROP]: { ...inPicture(OFFICE_ART, OFFICE_VENDING, OFFICE_VENDING.x), visit: false },
   [PRINTER_PROP]: { ...inPicture(OFFICE_ART, OFFICE_PRINTER, OFFICE_PRINTER.x), visit: false },
+  [RAMEN_DOOR_PROP]: inPicture(RAMEN_ART, RAMEN_DOOR, RAMEN_DOOR.x),
+  [RAMEN_COUNTER_PROP]: { ...inPicture(RAMEN_ART, RAMEN_COUNTER, RAMEN_COUNTER.flap), visit: false },
 };
 
 // A prop that's part of a town place's picture (`art`): its click area

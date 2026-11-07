@@ -85,6 +85,10 @@
 //     office  The whole office, 107 x 80, like the Cafe's picture; without
 //             it the office is code-drawn (ui/office.js). Gerald the plant
 //             is always code-drawn over it (he perks up).
+//   Ramen Hinata (data/ramen.js):
+//     ramen   The whole shop, 107 x 80, like the Cafe's picture; without it
+//             the shop is code-drawn (ui/ramen.js), its counter drawn
+//             again over whoever stands behind it.
 //   The Farm (data/farm.js):
 //     farm.background  The whole background (sky, the three rice
 //             paddies, the path, the barn), 107 x 80, drawn from the

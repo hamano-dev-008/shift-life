@@ -99,7 +99,7 @@ export const WEATHER_NEXT = {
 export const WEATHER_FADE_SECONDS = 60;
 
 // Where it's indoors: no weather but through the window (HOME_GLASS).
-export const INDOOR_PLACES = ['home', 'myHome', 'cafe', 'store', 'post', 'office'];
+export const INDOOR_PLACES = ['home', 'myHome', 'cafe', 'store', 'post', 'office', 'ramen'];
 
 // The glass of Home's window (the code-drawn home.window prop): insets in
 // scene pixels from the prop's art edges. Rain, the sky's tint, fog and

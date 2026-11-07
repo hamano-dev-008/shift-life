@@ -211,7 +211,8 @@ Shift-Life/
 │   │   ├── visits.js      A counter's items had at a spot there (paid at
 │   │   │                  once, taking their seconds once there, then
 │   │   │                  their effects; refunded if stopped first),
-│   │   │                  for Pedal Post, Mural Alley and the office
+│   │   │                  for Pedal Post, Mural Alley, the office and
+│   │   │                  the ramen shop
 │   │   ├── store.js       The 6-Eleven's register: snacks and scratch
 │   │   │                  cards (paid at once, paid for at the
 │   │   │                  register, had or scratched by the window,
@@ -224,6 +225,9 @@ Shift-Life/
 │   │   │                  stopped first)
 │   │   ├── office.js      Paperleaf Co.'s break corner: a vending coffee
 │   │   │                  (hourly) and printing a resume (daily)
+│   │   ├── ramen.js       Ramen Hinata's counter: shoyu ramen (hourly)
+│   │   │                  and the chef's special (daily), eaten on a
+│   │   │                  stool
 │   │   ├── post.js        Pedal Post's counter: postcards and gift
 │   │   │                  parcels (paid at once, handed over at the
 │   │   │                  counter, once an hour or a day, refunded if
@@ -352,6 +356,19 @@ Shift-Life/
 │   │   ├── officeLifeArt.js Draws them: the coworkers sitting at their
 │   │   │                  desks or standing, the boss, Gerald swaying or
 │   │   │                  perked up, a resume in hand
+│   │   ├── ramen.js       Draws Ramen Hinata in code: wooden walls, the
+│   │   │                  door's noren, the sign and menu tags, a
+│   │   │                  lantern, the kitchen (bowls, stove, pots), the
+│   │   │                  counter (its front again over whoever's behind
+│   │   │                  it), four stools
+│   │   ├── ramenLife.js   Ramen Hinata's cook (stirring, bringing bowls)
+│   │   │                  and diners (sitting, eating, leaving), visual
+│   │   │                  only (no DOM, so tests run it); the
+│   │   │                  character's bowl, bowls carried out on a
+│   │   │                  shift; clicks, boxes
+│   │   ├── ramenLifeArt.js Draws them: the cook and diners, steam off the
+│   │   │                  pots and bowls, bowls on the counter or in
+│   │   │                  hand
 │   │   ├── alley.js       Draws Mural Alley in code: sky and string
 │   │   │                  lights, the back wall with its archway out to
 │   │   │                  the street, the mural half painted, two
@@ -601,6 +618,11 @@ Shift-Life/
 │       │                  Gerald, the whiteboard and sign, the desks, its
 │       │                  job, the break corner's items, the coworkers,
 │       │                  the boss and Gerald; text
+│       ├── ramen.js       Ramen Hinata: its place id, picture size, feet
+│       │                  row and walls, the door, the sign, the lantern,
+│       │                  the counter (and the row behind it), the pots,
+│       │                  the stools, its job, the dishes, serving on a
+│       │                  shift, the cook and diners; text
 │       ├── work.js        Workplaces in town (place, job, the spot
 │       │                  behind the counter, where delivery runs go
 │       │                  out, their text), a shift's length and rate
@@ -745,6 +767,10 @@ Shift-Life/
                        the door back, the picture's numbers; coworkers
                        to the cooler and back, the boss, Gerald perking
                        up; coffee and resumes, refunds, desk shifts),
+                       ramen.test.mjs (Ramen Hinata in town: routes, the
+                       door back, the picture's numbers; diners and the
+                       cook's bowls, the character's bowl, serving on a
+                       shift; dishes, refunds, cooking shifts),
                        store.test.mjs (the 6-Eleven in town: routes,
                        the door back, walls and feet, the picture's
                        numbers, the Shop job working there; shoppers
@@ -1495,7 +1521,8 @@ Parents' Yard and then of My Yard (see **Farm**).
   shifts** (delivery runs). The signs here and at the 6-Eleven use
   `ui/pixelFont.js`.
 - Counters whose items are had at a spot there (`game/visits.js`):
-  Pedal Post's, Mural Alley's stall and Paperleaf Co.'s break corner.
+  Pedal Post's, Mural Alley's stall, Paperleaf Co.'s break corner and
+  Ramen Hinata's counter.
   Each place passes its spec (its state's key in `game`, place, minimum
   age, items with `seconds`, and its bubble). The state is `{ waitMs,
   visit: { item, ms } or null }`, saved. Buying pays at once and starts
@@ -1560,6 +1587,38 @@ Parents' Yard and then of My Yard (see **Farm**).
   `'sitting'` raised to the seat, typing with the `hold` arms), and its
   shifts are work at the desk (`TYPE_TEXT`, "Work at the desk - $X", $8,
   $13 or $22).
+- Ramen Hinata (`data/ramen.js`, drawn by `ui/ramen.js`; `ramen` in
+  `PLACES`, `town: true`), a cozy ramen shop, is a sixth town place,
+  reached and left like the others, indoors. One picture (107 x 80, the
+  `ramen` sprite, else code-drawn), feet on row 72, walls both sides.
+  The counter's front (`drawRamenCounterFront()`) is drawn again over
+  whoever stands behind it. The Chef job (`RAMEN_JOB`) works here: its
+  spot is at the stove behind the counter (`stoveX`), and its shifts are
+  cooking (`COOK_TEXT`, "Cook a shift - $X", $7, $11 or $17). In the
+  last `serve` seconds of every `every` of a shift (`RAMEN_SERVING`),
+  the renderer (`ramenServing()`) sends them out from behind the
+  counter with a bowl to the diner waiting longest, `gap` pixels beside
+  their stool; once there the diner is served (`serveDinerAt()`) and
+  they go back to the stove.
+- Ramen Hinata's life (`ui/ramenLife.js`, drawn by `ui/ramenLifeArt.js`;
+  `RAMEN_COOK`, `RAMEN_DINERS`; made each time the shop is shown, never
+  saved). Drawn back to front: steam and the cook, the counter's front,
+  the bowls on the counter, the diners.
+  - The cook (an elder in a chef's hat) stirs at one of `cookSpots`,
+    moves to the other, and carries a bowl along the counter to each
+    diner seated `serveAfter` seconds, and to the character on their
+    stool (`playerWaiting`, set by the renderer; `playerServed`).
+  - Diners: up to `max` (3), one every `spawnEvery`, sit on a free stool
+    (never `RAMEN_MY_STOOL`), eat `eat` seconds once served, and leave.
+  - Clicking the cook gets one of `RAMEN_COOK.lines`. A `#wildlife`
+    button (id `cook`) like the Cafe's.
+- Ramen Hinata's counter (`game/ramen.js`, the same menu,
+  `ui/counterMenu.js`, with `RAMEN_MENU_TEXT`; `game.ramen`, through
+  `game/visits.js`, `restoreRamenState()`), from `RAMEN_MIN_AGE` 6.
+  `RAMEN_ITEMS`: "Shoyu ramen" $4 (+2 happiness, +2 health, once an
+  hour) and "Chef's special" $12 (+5 happiness, +4 health, once a day),
+  each eaten for 60 seconds sitting on `RAMEN_MY_STOOL` (stay mode
+  `'sitting'`), the cook bringing the bowl.
 - Paperleaf Co.'s life (`ui/officeLife.js`, drawn by
   `ui/officeLifeArt.js`; `OFFICE_COWORKERS`, `OFFICE_BOSS`,
   `OFFICE_PLANT_LIFE`; made each time the office is shown, never
@@ -1619,7 +1678,7 @@ Parents' Yard and then of My Yard (see **Farm**).
   ending pays nothing for an unfinished shift. `shifts` counts them over
   the life. Each workplace's `text` words its shifts (`SHIFT_TEXT`,
   `DELIVERY_TEXT` at Pedal Post, `PAINT_TEXT` in Mural Alley,
-  `TYPE_TEXT` at Paperleaf Co.; `shiftView()` passes it to the menu and
+  `TYPE_TEXT` at Paperleaf Co., `COOK_TEXT` at Ramen Hinata; `shiftView()` passes it to the menu and
   the bar). A workplace with `outX` (Pedal Post) sends its shifts
   out of the door: delivery runs, "Do a delivery run - $X". They walk to
   `outX` carrying a parcel; once there they're out (`isDelivering()` in

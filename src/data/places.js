@@ -23,6 +23,9 @@ import {
 import {
   OFFICE_PLACE, OFFICE_FEET_FROM_BOTTOM, OFFICE_WALK, OFFICE_DOOR_PROP, VENDING_PROP, PRINTER_PROP, OFFICE_TEXT,
 } from './office.js';
+import {
+  RAMEN_PLACE, RAMEN_FEET_FROM_BOTTOM, RAMEN_WALK, RAMEN_DOOR_PROP, RAMEN_COUNTER_PROP, RAMEN_TEXT,
+} from './ramen.js';
 
 // Each place has:
 //   id        Unique and saved; don't rename one once it has shipped.
@@ -203,6 +206,18 @@ export const PLACES = [
     targets: {
       [OFFICE_DOOR_PROP]: OFFICE_TEXT.door, [VENDING_PROP]: OFFICE_TEXT.vending, [PRINTER_PROP]: OFFICE_TEXT.printer,
     },
+  },
+  {
+    id: RAMEN_PLACE,
+    name: RAMEN_TEXT.name,
+    // The shop (one picture), and its door and counter.
+    scenery: ['ramen', RAMEN_DOOR_PROP, RAMEN_COUNTER_PROP],
+    feetFromBottom: RAMEN_FEET_FROM_BOTTOM,
+    walk: RAMEN_WALK,
+    town: true,
+    door: RAMEN_DOOR_PROP,
+    exits: [],
+    targets: { [RAMEN_DOOR_PROP]: RAMEN_TEXT.door, [RAMEN_COUNTER_PROP]: RAMEN_TEXT.counter },
   },
 ];
 

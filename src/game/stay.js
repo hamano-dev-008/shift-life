@@ -18,6 +18,7 @@ import { PLACE_ACTIVITIES } from '../data/activities.js';
 // register, then by its window), 'post:send' (at Pedal Post's counter),
 // 'alley:class' and 'alley:print' (at Mural Alley's class easel or its
 // stall), 'office:<item>' (at Paperleaf Co.'s vending machine or printer),
+// 'ramen:<item>' (on Ramen Hinata's stool),
 // 'shift:<place>' (behind a workplace's counter, or out of its door), 'busking', 'resting', or null. An activity comes first, as in the activity bar.
 export function stayKey(game) {
   const activity = game.activities?.current;
@@ -29,6 +30,7 @@ export function stayKey(game) {
   if (game.post?.visit) return 'post:send';
   if (game.alley?.visit) return `alley:${game.alley.visit.item}`;
   if (game.office?.visit) return `office:${game.office.visit.item}`;
+  if (game.ramen?.visit) return `ramen:${game.ramen.visit.item}`;
   if (game.work?.shift) return `shift:${game.work.shift.place}`;
   if (game.fortuneTree?.playing) return 'busking';
   if (game.home?.resting) return 'resting';
@@ -67,13 +69,13 @@ export function arriveAtStay(game) {
 // Whether new events wait now: busking, resting, or an activity with
 // `freezeEvents`, but only once they've arrived. Before that events come
 // as normal. Picking the apple, a cafe order, a 6-Eleven snack, sending
-// mail, the alley's class or print or an office break (short, like a farm
-// job) don't.
+// mail, the alley's class or print, an office break or a bowl of ramen
+// (short, like a farm job) don't.
 export function stayFreezesEvents(game) {
   const key = stayKey(game);
   if (!hasArrived(game) || key === 'picking' || key === 'cafe:order' || key.startsWith('store:')
     || key === 'post:send' || key.startsWith('alley:')
-    || key.startsWith('office:')) return false;
+    || key.startsWith('office:') || key.startsWith('ramen:')) return false;
   const activity = game.activities?.current;
   if (activity) return Boolean(PLACE_ACTIVITIES[activity.id]?.freezeEvents);
   return true;

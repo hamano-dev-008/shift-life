@@ -22,6 +22,7 @@ import { restoreStoreState } from './store.js';
 import { restorePostState } from './post.js';
 import { restoreAlleyState } from './alley.js';
 import { restoreOfficeState } from './office.js';
+import { restoreRamenState } from './ramen.js';
 import { restoreCollection, collectionSaveData } from './fishing.js';
 import { restoreSettings, settingsSaveData } from './settings.js';
 import { restoreWeatherState, restoreWeatherSeenState } from './weather.js';
@@ -53,6 +54,7 @@ function toSaveData(game) {
     post: game.post,
     alley: game.alley,
     office: game.office,
+    ramen: game.ramen,
     weather: game.weather,
     weatherSeen: game.weatherSeen,
   };
@@ -61,7 +63,7 @@ function toSaveData(game) {
 // Returns the saved { clock, character, events, goals, jobs, place,
 // townFrom (where they came into town from, or null), fortuneTree, home,
 // housing, endOfLife, activities, autonomy, farm, cafe, work, store,
-// post, alley, office, weather, weatherSeen }, or null if there's no usable save. Saves from before events,
+// post, alley, office, ramen, weather, weatherSeen }, or null if there's no usable save. Saves from before events,
 // goals, jobs, places, the Fortune Tree, Home, housing, the end of life,
 // activities, the character's own plans, the Farm or the weather existed
 // get
@@ -95,6 +97,7 @@ export async function loadGame() {
     post: restorePostState(data.post),
     alley: restoreAlleyState(data.alley),
     office: restoreOfficeState(data.office),
+    ramen: restoreRamenState(data.ramen),
     weather: restoreWeatherState(data.weather),
     weatherSeen: restoreWeatherSeenState(data.weatherSeen),
   };

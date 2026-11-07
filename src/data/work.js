@@ -11,6 +11,7 @@ import { ALLEY_PLACE, ALLEY_JOB, ALLEY_EASEL } from './alley.js';
 import {
   OFFICE_PLACE, OFFICE_JOB, OFFICE_DESKS, OFFICE_MY_DESK, OFFICE_ART, OFFICE_FEET_FROM_BOTTOM,
 } from './office.js';
+import { RAMEN_PLACE, RAMEN_JOB, RAMEN_COUNTER, RAMEN_ART, RAMEN_FEET_FROM_BOTTOM } from './ramen.js';
 
 // The workplace menus' shift lines, the bar and the bubble. {pay} is
 // dollars, {time} "3:07", {total} "30:00", {job} a job title.
@@ -53,6 +54,16 @@ export const TYPE_TEXT = {
   bar: 'At the desk - {time} of {total}',
   done: { heading: 'Work done!', text: 'Inbox zero. Almost.' },
 };
+// Ramen Hinata's shifts are cooking (and carrying bowls out).
+export const COOK_TEXT = {
+  ...SHIFT_TEXT,
+  start: 'Cook a shift - ${pay}',
+  stop: 'Stop cooking',
+  working: 'Cooking: {time} of {total}',
+  toCounter: 'Off to the stove...',
+  bar: 'Cooking - {time} of {total}',
+  done: { heading: 'Shift done!', text: 'Every bowl came back empty.' },
+};
 
 const MY_DESK = OFFICE_DESKS[OFFICE_MY_DESK];
 
@@ -62,8 +73,8 @@ const MY_DESK = OFFICE_DESKS[OFFICE_MY_DESK];
 // the floor behind the counter) and the way they face, holding something
 // in front of them (pose activity 'hold'; `lift` 0 where there's no
 // counter; `sit` sitting there, `lift` up to the seat), and the text of
-// its shifts (`text`: SHIFT_TEXT, DELIVERY_TEXT, PAINT_TEXT or
-// TYPE_TEXT). A workplace with `outX` sends its
+// its shifts (`text`: SHIFT_TEXT, DELIVERY_TEXT, PAINT_TEXT, TYPE_TEXT or
+// COOK_TEXT). A workplace with `outX` sends its
 // shifts out of the door instead: they walk to x `outX` with a parcel
 // and are out (not shown) until the shift is done.
 export const WORKPLACES = [
@@ -99,6 +110,12 @@ export const WORKPLACES = [
       x: MY_DESK.seatX, lift: OFFICE_ART.height - OFFICE_FEET_FROM_BOTTOM - MY_DESK.seatRow, facing: 1, sit: true,
     },
     text: TYPE_TEXT,
+  },
+  {
+    place: RAMEN_PLACE,
+    job: RAMEN_JOB,
+    spot: { x: RAMEN_COUNTER.stoveX, lift: RAMEN_ART.height - RAMEN_FEET_FROM_BOTTOM - RAMEN_COUNTER.behindRow, facing: -1 },
+    text: COOK_TEXT,
   },
 ];
 

@@ -174,6 +174,18 @@ import {
 } from './data/office.js';
 import { buyAtBreak, updateOffice, officeView, isOnBreak } from './game/office.js';
 import {
+  createRamenLife, updateRamenLife, clickRamenCritter, ramenBoxes, serveDinerAt, waitingDiner,
+} from './ui/ramenLife.js';
+import {
+  drawCook, drawRamenFront, drawRamenCritter, drawHeldBowl,
+} from './ui/ramenLifeArt.js';
+import { drawRamenCounterFront } from './ui/ramen.js';
+import {
+  RAMEN_PLACE, RAMEN_COOK, RAMEN_COUNTER_PROP, RAMEN_MENU_TEXT, RAMEN_STOOLS, RAMEN_MY_STOOL, RAMEN_SERVING,
+  RAMEN_ART, RAMEN_FEET_FROM_BOTTOM,
+} from './data/ramen.js';
+import { orderRamen, updateRamen, ramenView, isEatingRamen } from './game/ramen.js';
+import {
   STORE_PLACE, STORE_DOOR, STORE_CLERK, STORE_PIGEON, STORE_SHOPPERS, STORE_MENU_TEXT, STORE_COUNTER_PROP,
   STORE_PAY_X, STORE_EAT_X,
 } from './data/store.js';
@@ -492,9 +504,10 @@ async function start() {
   // scratch card (game/store.js), at Pedal Post a postcard or a gift
   // parcel (game/post.js), at Mural Alley's stall an art class or a print
   // (game/alley.js), at Paperleaf Co.'s break corner a coffee or a resume
-  // (game/office.js), and for whoever works there a shift behind the
-  // counter, a delivery run, painting at the easel or typing at the desk
-  // (game/shifts.js). Each starts once they're
+  // (game/office.js), at Ramen Hinata a bowl at the counter
+  // (game/ramen.js), and for whoever works there a shift behind the
+  // counter, a delivery run, painting at the easel, typing at the desk or
+  // cooking (game/shifts.js). Each starts once they're
   // at the spot.
   const counterMenu = createCounterMenu(document.getElementById('counter-menu'), {
     order: (item) => {
@@ -502,13 +515,14 @@ async function start() {
       const bought = game.place === CAFE_PLACE ? orderItem(game, item)
         : game.place === POST_PLACE ? sendItem(game, item)
           : game.place === ALLEY_PLACE ? buyAtStall(game, item)
-            : game.place === OFFICE_PLACE ? buyAtBreak(game, item) : buyAtStore(game, item);
+            : game.place === OFFICE_PLACE ? buyAtBreak(game, item)
+              : game.place === RAMEN_PLACE ? orderRamen(game, item) : buyAtStore(game, item);
       if (bought) saveGame(game);
     },
     shift: () => {
       playerTookOver();
       if (startShift(game, isOrdering(game) || isBuying(game) || isSending(game) || isAtStall(game)
-        || isOnBreak(game))) saveGame(game);
+        || isOnBreak(game) || isEatingRamen(game))) saveGame(game);
     },
     stopShift: () => {
       playerTookOver();
@@ -538,6 +552,10 @@ async function start() {
     if (scene.place.id === OFFICE_PLACE) {
       const view = officeView(game);
       return { ...view, text: OFFICE_MENU_TEXT, busy: view.visit?.thing ?? null, shift: shiftView(game) };
+    }
+    if (scene.place.id === RAMEN_PLACE) {
+      const view = ramenView(game);
+      return { ...view, text: RAMEN_MENU_TEXT, busy: view.visit?.thing ?? null, shift: shiftView(game) };
     }
     return null;
   }
@@ -626,6 +644,9 @@ async function start() {
   // Paperleaf Co.'s coworkers, boss and Gerald the plant
   // (ui/officeLife.js), the same way; the boss and Gerald are clickable.
   let officeLife = null;
+  // Ramen Hinata's cook and diners (ui/ramenLife.js), the same way; the
+  // cook is clickable.
+  let ramenLife = null;
   // The clickable critters where the character is now: the Lake's
   // wildlife, the town places' people and animals ({ boxes(), click(id)
   // }), or null.
@@ -636,6 +657,7 @@ async function start() {
     if (postLife) return { boxes: () => postBoxes(postLife), click: (id) => clickPostCritter(postLife, id) };
     if (alleyLife) return { boxes: () => alleyBoxes(alleyLife), click: (id) => clickAlleyCritter(alleyLife, id) };
     if (officeLife) return { boxes: () => officeBoxes(officeLife), click: (id) => clickOfficeCritter(officeLife, id) };
+    if (ramenLife) return { boxes: () => ramenBoxes(ramenLife), click: (id) => clickRamenCritter(ramenLife, id) };
     return null;
   }
   // The Farm's chickens, made each time the Farm is shown (purely visual,
@@ -753,6 +775,7 @@ async function start() {
     parrot: ALLEY_PARROT.label,
     boss: OFFICE_BOSS.label,
     plant: OFFICE_PLANT_LIFE.label,
+    cook: RAMEN_COOK.label,
   };
   // One invisible button over each frog and butterfly (generous areas),
   // or the Cafe's master and cat, reused by id; none while travelling,
@@ -852,7 +875,7 @@ async function start() {
     // time; game/cafe.js, game/store.js, game/post.js, game/shifts.js).
     const cafeNews = [
       ...updateCafe(game, realMs), ...updateStore(game, realMs), ...updatePost(game, realMs), ...updateAlley(game, realMs),
-      ...updateOffice(game, realMs), ...updateShift(game, realMs),
+      ...updateOffice(game, realMs), ...updateRamen(game, realMs), ...updateShift(game, realMs),
     ];
     cafeNews.forEach(showNews);
     if (cafeNews.length) saveGame(game);
@@ -934,7 +957,8 @@ async function start() {
       || (id === STORE_COUNTER_PROP && scene.place.id === STORE_PLACE)
       || (id === POST_COUNTER_PROP && scene.place.id === POST_PLACE)
       || (id === ALLEY_STALL_PROP && scene.place.id === ALLEY_PLACE)
-      || ((id === VENDING_PROP || id === PRINTER_PROP) && scene.place.id === OFFICE_PLACE)) {
+      || ((id === VENDING_PROP || id === PRINTER_PROP) && scene.place.id === OFFICE_PLACE)
+      || (id === RAMEN_COUNTER_PROP && scene.place.id === RAMEN_PLACE)) {
       counterMenu.toggle();
     } else if (PADDY_IDS.has(id) && scene.place.id === FARM_PLACE) {
       farmMenu.toggle(id);
@@ -1148,7 +1172,7 @@ async function start() {
   function updateTrip(now) {
     if (!trip || !hasExited(animator)) return;
     const from = game.place;
-    const left = { scene, treeDecor, lakeLife, farmAnimals, cafeLife, storeLife, postLife, alleyLife, officeLife };
+    const left = { scene, treeDecor, lakeLife, farmAnimals, cafeLife, storeLife, postLife, alleyLife, officeLife, ramenLife };
     const next = trip.route.shift();
     const way = exitBetween(game, from, next);
     const kind = transitionFor(from, next, way.via, settings.parallax);
@@ -1254,6 +1278,27 @@ async function start() {
   // while resting (asleep facing right, the head on the bed's pillow
   // end), at an activity's spot (the fishing spot) facing its way, or
   // where the dev menu's "Rest now" laid them down.
+  // On a cooking shift at Ramen Hinata, the stool a bowl is being carried
+  // to now, or null: in the last `serve` seconds of every `every` of the
+  // shift, the diner waiting longest then (one each round), until they
+  // have it.
+  let servingRound = null;
+  let servingTo = null;
+  function ramenServing() {
+    const shift = game.work.shift;
+    if (scene.place.id !== RAMEN_PLACE || shift?.place !== RAMEN_PLACE || !ramenLife) return null;
+    const { every, serve } = RAMEN_SERVING;
+    const seconds = shift.ms / 1000;
+    if (seconds % every < every - serve) return null;
+    const round = Math.floor(seconds / every);
+    if (round !== servingRound) {
+      servingRound = round;
+      servingTo = waitingDiner(ramenLife)?.stool ?? null;
+    }
+    const waiting = ramenLife.diners.some((diner) => diner.stool === servingTo && diner.state === 'sit' && !diner.served);
+    return waiting ? servingTo : null;
+  }
+
   // Out on a delivery run: through Pedal Post's door with the cargo bike,
   // not drawn until it's done.
   const isDelivering = () => isOnShift(game) && hasArrived(game) && Boolean(workplaceHere(game)?.outX);
@@ -1316,6 +1361,19 @@ async function start() {
     if (place.id === OFFICE_PLACE && isOnBreak(game)) {
       const machine = OFFICE_ITEMS[game.office.visit.item].at === 'vending' ? OFFICE_VENDING : OFFICE_PRINTER;
       return { x: (machine.x + 0.5) * layout.scale, mode: 'doing', activity: 'hold', facing: -1 };
+    }
+    // At Ramen Hinata for a bowl: on their stool at the counter.
+    if (place.id === RAMEN_PLACE && isEatingRamen(game)) {
+      const stool = RAMEN_STOOLS.find((candidate) => candidate.id === RAMEN_MY_STOOL);
+      const feetRow = RAMEN_ART.height - RAMEN_FEET_FROM_BOTTOM;
+      const lift = (feetRow - stool.row) * layout.scale;
+      return { x: (stool.x + 0.5) * layout.scale, mode: 'sitting', lift, facing: stool.facing };
+    }
+    // Cooking at Ramen Hinata, now and then carrying a bowl out to a
+    // waiting diner, beside their stool.
+    const serving = ramenServing();
+    if (serving) {
+      return { x: (serving.x - RAMEN_SERVING.gap + 0.5) * layout.scale, mode: 'doing', activity: 'hold', facing: 1 };
     }
     // Working at a workplace: behind its counter (on the floor further
     // back), holding something, whether on a shift or not; a delivery run
@@ -1531,7 +1589,8 @@ async function start() {
       planNow: () => {
         if (game.endOfLife.ended || travelling() || currentPlan(game) || isPlaying(game) || isResting(game)
           || isDoingActivity(game) || currentFarmJob(game) || isPicking(game) || isOrdering(game) || isBuying(game)
-          || isSending(game) || isAtStall(game) || isOnBreak(game) || isOnShift(game)) {
+          || isSending(game) || isAtStall(game) || isOnBreak(game) || isEatingRamen(game)
+          || isOnShift(game)) {
           return AUTONOMY_TEXT.notNow;
         }
         restPreview = null;
@@ -1737,6 +1796,23 @@ async function start() {
     } else {
       deco.officeLife = null;
     }
+    // Ramen Hinata: the cook behind the counter (steam off the pots), the
+    // counter's front, then the bowls and the diners. The cook brings the
+    // character's bowl once they're on their stool.
+    if (place.id === RAMEN_PLACE) {
+      deco.ramenLife ??= createRamenLife();
+      deco.ramenLife.playerWaiting = place.id === game.place && isEatingRamen(game) && hasArrived(game);
+      updateRamenLife(deco.ramenLife, dt);
+      drawCook(target, layout, deco.ramenLife);
+      drawRamenCounterFront(target, layout);
+      drawRamenFront(target, layout, deco.ramenLife);
+      if (hovered?.kind === 'critter'
+        && hoverOutline.draw(target, (maskCtx) => drawRamenCritter(maskCtx, layout, deco.ramenLife), seconds)) {
+        outlined = `critter:${hovered.id}`;
+      }
+    } else {
+      deco.ramenLife = null;
+    }
     return outlined;
   }
 
@@ -1850,7 +1926,8 @@ async function start() {
     // showing, not away), now and then they choose something to do.
     const running = isPlaying(game) || isResting(game) || isDoingActivity(game)
       || Boolean(currentFarmJob(game)) || isPicking(game) || isOrdering(game) || isBuying(game)
-      || isSending(game) || isAtStall(game) || isOnBreak(game) || isOnShift(game);
+      || isSending(game) || isAtStall(game) || isOnBreak(game) || isEatingRamen(game)
+      || isOnShift(game);
     const idle = !busy && !running && !restPreview && !farewell && !isAtWork(animator);
     if (mayChoose(choosing, now, { enabled: settings.ownPlans, idle })) beginOwnPlan(now);
     // While the view pans they wait past the edge, then walk in.
@@ -1914,8 +1991,11 @@ async function start() {
     const fishing = hasArrived(game) ? game.activities.current?.fishing ?? null : null;
     const look = fishing ? fishingLook(fishing) : null;
     // At Pedal Post they carry what they send to the counter, and a
-    // delivery run's parcel to the door, in both hands.
-    const carrying = place.id === POST_PLACE && (isSending(game) || (isOnShift(game) && workplaceHere(game)?.outX));
+    // delivery run's parcel to the door, in both hands; at Ramen Hinata a
+    // bowl out to a diner.
+    const servingStool = ramenServing();
+    const carrying = Boolean(servingStool)
+      || (place.id === POST_PLACE && (isSending(game) || (isOnShift(game) && workplaceHere(game)?.outX)));
     const pose = reaction.pose.activity === 'fish' ? { ...reaction.pose, fishing: look }
       : carrying && !reaction.pose.activity ? { ...reaction.pose, activity: 'hold' } : reaction.pose;
     const delivering = isDelivering();
@@ -1929,7 +2009,7 @@ async function start() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     const hovered = hoveredThing(ended);
     let outlined = '';
-    const here = { treeDecor, lakeLife, farmAnimals, cafeLife, storeLife, postLife, alleyLife, officeLife };
+    const here = { treeDecor, lakeLife, farmAnimals, cafeLife, storeLife, postLife, alleyLife, officeLife, ramenLife };
     if (panning) {
       drawPan(panning, now, dt, here, weather);
     } else {
@@ -1947,6 +2027,7 @@ async function start() {
     postLife = here.postLife;
     alleyLife = here.alleyLife;
     officeLife = here.officeLife;
+    ramenLife = here.ramenLife;
     farmAnimals = here.farmAnimals;
     // The character waits past the edge while the view pans, and isn't
     // there while out on a delivery run.
@@ -1993,6 +2074,19 @@ async function start() {
         if (pose.lift > 0) {
           drawPostCounterFront(ctx, layout);
           drawPostLifeFront(ctx, layout, postLife);
+        }
+      }
+      // At Ramen Hinata: a bowl carried out to a diner (theirs once
+      // they're beside them); cooking behind the counter, its front and
+      // everything in front of it go over them again.
+      if (place.id === RAMEN_PLACE && ramenLife) {
+        if (servingStool && hasArrived(game)) serveDinerAt(ramenLife, servingStool.x);
+        if (servingStool && pose.activity === 'hold') {
+          drawHeldBowl(ctx, heldHand(stage, pose, layout.feetY, layout.characterScale));
+        }
+        if (pose.activity === 'hold' && pose.lift > 0) {
+          drawRamenCounterFront(ctx, layout);
+          drawRamenFront(ctx, layout, ramenLife);
         }
       }
       // In Mural Alley: a brush in hand at the easel (painting a shift or

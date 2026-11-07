@@ -20,6 +20,7 @@ import { STORE_ITEMS } from '../src/data/store.js';
 import { POST_ITEMS } from '../src/data/post.js';
 import { ALLEY_ITEMS } from '../src/data/alley.js';
 import { OFFICE_ITEMS } from '../src/data/office.js';
+import { RAMEN_ITEMS } from '../src/data/ramen.js';
 
 const HOUR_MS = 3600 * 1000;
 const ADULT_HOURS_PER_YEAR = LIFE_STAGES.find((s) => s.id === 'adult').realMinutesPerYear / 60;
@@ -188,4 +189,12 @@ test("Paperleaf Co.'s break corner is a small sink: a coffee a few minutes of en
   assert.ok(OFFICE_ITEMS.resume.price / entryPerMinute <= 10);
   assert.equal(OFFICE_ITEMS.coffee.everyMinutes, 60);
   assert.equal(OFFICE_ITEMS.resume.everyMinutes, 24 * 60);
+});
+
+test("Ramen Hinata's bowls are a small sink: ramen about ten minutes of entry pay hourly, the special daily", () => {
+  const entryPerMinute = 100 / ADULT_HOURS_PER_YEAR / 60;
+  assert.ok(RAMEN_ITEMS.ramen.price / entryPerMinute <= 10);
+  assert.ok(RAMEN_ITEMS.special.price / entryPerMinute <= 30);
+  assert.equal(RAMEN_ITEMS.ramen.everyMinutes, 60);
+  assert.equal(RAMEN_ITEMS.special.everyMinutes, 24 * 60);
 });
