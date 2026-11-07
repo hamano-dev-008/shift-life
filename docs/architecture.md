@@ -360,7 +360,7 @@ Shift-Life/
 │   │   │                  door's noren, the sign and menu tags, a
 │   │   │                  lantern, the kitchen (bowls, stove, pots), the
 │   │   │                  counter (its front again over whoever's behind
-│   │   │                  it), four stools
+│   │   │                  it, and the stools), four tall stools
 │   │   ├── ramenLife.js   Ramen Hinata's cook (stirring, bringing bowls)
 │   │   │                  and diners (sitting, eating, leaving), visual
 │   │   │                  only (no DOM, so tests run it); the
@@ -1591,8 +1591,9 @@ Parents' Yard and then of My Yard (see **Farm**).
   `PLACES`, `town: true`), a cozy ramen shop, is a sixth town place,
   reached and left like the others, indoors. One picture (107 x 80, the
   `ramen` sprite, else code-drawn), feet on row 72, walls both sides.
-  The counter's front (`drawRamenCounterFront()`) is drawn again over
-  whoever stands behind it. The Chef job (`RAMEN_JOB`) works here: its
+  The counter's front and the tall stools before it, which stand on the
+  feet row (`drawRamenCounterFront()`), are drawn again over whoever
+  stands behind it. The Chef job (`RAMEN_JOB`) works here: its
   spot is at the stove behind the counter (`stoveX`), and its shifts are
   cooking (`COOK_TEXT`, "Cook a shift - $X", $7, $11 or $17). In the
   last `serve` seconds of every `every` of a shift (`RAMEN_SERVING`),

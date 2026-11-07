@@ -2,13 +2,14 @@
 // wooden walls under a dark beam, a plank floor, the door with its indigo
 // noren, the "RAMEN" sign over hanging menu tags, a paper lantern, the
 // kitchen behind the counter (shelves of bowls, a noren across its top,
-// the stove and its pots), the counter and four stools. The counter's
-// front is also its own layer, drawn again over whoever stands behind it.
+// the stove and its pots), the counter and four tall stools. The
+// counter's front and the stools are also their own layer, drawn again
+// over whoever stands behind the counter.
 // Positions come from data/ramen.js (the picture's pixels); the ramen
 // sprite replaces the whole picture if there is one.
 
 import {
-  RAMEN_ART, RAMEN_DOOR, RAMEN_SIGN, RAMEN_LANTERN, RAMEN_COUNTER, RAMEN_POTS, RAMEN_STOOLS,
+  RAMEN_ART, RAMEN_DOOR, RAMEN_SIGN, RAMEN_LANTERN, RAMEN_COUNTER, RAMEN_POTS, RAMEN_STOOLS, RAMEN_FEET_FROM_BOTTOM,
 } from '../data/ramen.js';
 import { OUTLINE_COLOR } from '../data/appearance.js';
 import { createLayer, fill, drawLayer } from './pixel.js';
@@ -130,13 +131,21 @@ function kitchen(layer) {
   }
 }
 
-// The stools in front of the counter.
+// The tall stools in front of the counter, standing on the floor where
+// people walk (the feet row): a cushioned seat, a post with a footrest
+// ring, and a round base, outlined.
 function stools(layer) {
-  for (const stool of RAMEN_STOOLS) {
-    fill(layer, stool.x - 2, stool.row - 1, 5, 2, OUTLINE_COLOR);
-    fill(layer, stool.x - 2, stool.row, 5, 1, STOOL_SEAT);
-    fill(layer, stool.x, stool.row + 1, 1, FLOOR_ROW + 2 - stool.row - 1, STOOL);
-    fill(layer, stool.x - 2, FLOOR_ROW + 1, 5, 1, STOOL);
+  const feetRow = H - RAMEN_FEET_FROM_BOTTOM;
+  for (const { x, row } of RAMEN_STOOLS) {
+    fill(layer, x - 4, row - 2, 9, 4, OUTLINE_COLOR);
+    fill(layer, x - 3, row - 1, 7, 1, STOOL_SEAT);
+    fill(layer, x - 3, row, 7, 1, STOOL);
+    fill(layer, x - 1, row + 2, 3, feetRow - row - 2, OUTLINE_COLOR);
+    fill(layer, x, row + 1, 1, feetRow - row - 1, STOOL);
+    fill(layer, x - 3, row + 4, 7, 3, OUTLINE_COLOR);
+    fill(layer, x - 2, row + 5, 5, 1, STOOL);
+    fill(layer, x - 3, feetRow - 1, 7, 2, OUTLINE_COLOR);
+    fill(layer, x - 2, feetRow - 1, 5, 1, STOOL);
   }
 }
 
@@ -165,10 +174,11 @@ export function drawRamen(ctx, layout) {
   drawLayer(ctx, roomLayer, 0, layout.height, layout.scale);
 }
 
-// The counter's front again, over whoever stands behind it. Not with the
-// ramen sprite (a picture has no separate layers).
+// The counter's front and the stools in front of it again, over whoever
+// stands behind it. Not with the ramen sprite (a picture has no separate
+// layers).
 export function drawRamenCounterFront(ctx, layout) {
   if (getSprite('ramen')) return;
-  frontLayer ??= paint(counterFront);
+  frontLayer ??= paint(counterFront, stools);
   drawLayer(ctx, frontLayer, 0, layout.height, layout.scale);
 }
