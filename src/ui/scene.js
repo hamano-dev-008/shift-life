@@ -28,7 +28,9 @@ import { FARM_BACKGROUND, FARM_BACKGROUND_FALLBACK, PADDIES } from '../data/farm
 import { drawFarmGround } from './farm.js';
 import { TREE_BACKGROUND, TREE_BACKGROUND_FALLBACK, WELL_PROP } from '../data/fortuneTreeDecor.js';
 import { CAFE_DOOR_PROP, CAFE_COUNTER_PROP } from '../data/cafe.js';
+import { STORE_DOOR_PROP, STORE_COUNTER_PROP } from '../data/store.js';
 import { drawCafe } from './cafe.js';
+import { drawStore } from './store.js';
 import { getSprite, isAnimated, frameAtTime, drawSprite } from './assets.js';
 import { PARALLAX_LAYERS, LAYERED_BACKGROUNDS, PIECE_LAYERS } from '../data/parallax.js';
 import { BACK_LAYERS, wrapX, edgeGaps } from './parallax.js';
@@ -341,6 +343,10 @@ const SCENERY = [
   background('cafe', drawCafe),
   prop(CAFE_DOOR_PROP, NO_ART),
   prop(CAFE_COUNTER_PROP, NO_ART),
+  // The 6-Eleven; its door and register counter are part of it.
+  background('store', drawStore),
+  prop(STORE_DOOR_PROP, NO_ART),
+  prop(STORE_COUNTER_PROP, NO_ART),
 ];
 
 function createCanvas(layout, width = layout.width) {

@@ -90,7 +90,7 @@ test('the Farm is right of the yard: the parents\' yard growing up, My Yard afte
   assert.deepEqual(routeBetween(adult, FARM_PLACE, 'fortuneTree'), ['myYard', 'fortuneTree']);
   const farm = placeView(adult, FARM_PLACE);
   assert.equal(farm.name, 'Farm');
-  assert.deepEqual(farm.exits.map((exit) => exit.via), ['left', 'town'], 'only the left side leads anywhere (and town)');
+  assert.deepEqual(farm.exits.map((exit) => exit.via), ['left', 'town', 'town'], 'only the left side leads anywhere (and town)');
   const baby = lifeAt(1, { place: 'yard' });
   assert.ok(existingPlaces(baby).some((place) => place.id === FARM_PLACE), 'any age can visit');
 });

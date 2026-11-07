@@ -11,6 +11,9 @@ import {
 import {
   CAFE_PLACE, CAFE_FEET_FROM_BOTTOM, CAFE_WALK, CAFE_DOOR_PROP, CAFE_COUNTER_PROP, CAFE_TEXT,
 } from './cafe.js';
+import {
+  STORE_PLACE, STORE_FEET_FROM_BOTTOM, STORE_WALK, STORE_DOOR_PROP, STORE_COUNTER_PROP, STORE_TEXT,
+} from './store.js';
 
 // Each place has:
 //   id        Unique and saved; don't rename one once it has shipped.
@@ -139,6 +142,18 @@ export const PLACES = [
     door: CAFE_DOOR_PROP,
     exits: [],
     targets: { [CAFE_DOOR_PROP]: CAFE_TEXT.door, [CAFE_COUNTER_PROP]: CAFE_TEXT.counter },
+  },
+  {
+    id: STORE_PLACE,
+    name: STORE_TEXT.name,
+    // The store (one picture), and its door and register counter.
+    scenery: ['store', STORE_DOOR_PROP, STORE_COUNTER_PROP],
+    feetFromBottom: STORE_FEET_FROM_BOTTOM,
+    walk: STORE_WALK,
+    town: true,
+    door: STORE_DOOR_PROP,
+    exits: [],
+    targets: { [STORE_DOOR_PROP]: STORE_TEXT.door },
   },
 ];
 

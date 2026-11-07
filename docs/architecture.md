@@ -204,8 +204,7 @@ Shift-Life/
 │   │   ├── cafe.js        The Cafe's counter: ordering a coffee or a
 │   │   │                  cake (paid at once, served at the table once
 │   │   │                  seated, once an hour each, refunded if
-│   │   │                  stopped first) and paid shifts behind the
-│   │   │                  counter for whoever works there
+│   │   │                  stopped first)
 │   │   ├── shifts.js      Paid shifts at a workplace in town, for whoever
 │   │   │                  works there: start, stop, pay when done
 │   │   ├── farm.js        The Farm's rice paddies: owning and buying
@@ -302,6 +301,13 @@ Shift-Life/
 │   │   │                  chairs, plant, the counter with its siphons
 │   │   │                  and stools (and its front again, over
 │   │   │                  whoever stands behind it)
+│   │   ├── store.js       Draws the 6-Eleven in code: walls and strip
+│   │   │                  lights, tiles, the glass front with the
+│   │   │                  street and its sliding door, fridges, snack
+│   │   │                  shelves, magazine rack, ATM, the striped
+│   │   │                  register counter with register and hot food
+│   │   │                  case, the "6-ELEVEN" sign (its front and the
+│   │   │                  glass's shine again, over what's behind)
 │   │   ├── cafeLife.js    The Cafe's people and cat, visual only (no
 │   │   │                  DOM, so tests run it): the master polishing,
 │   │   │                  brewing and walking behind the counter,
@@ -501,6 +507,11 @@ Shift-Life/
 │       │                  row and walls, the door, counter (and the
 │       │                  row behind it), window, sill, seats, table,
 │       │                  siphons, in the picture's pixels; text
+│       ├── store.js       The 6-Eleven: its place id, picture size,
+│       │                  feet row and walls, the glass front, door,
+│       │                  sidewalk, register counter (and the row
+│       │                  behind it), register, hot case, where to pay
+│       │                  and browse, the sign, its job; text
 │       ├── work.js        Workplaces in town (place, job, the spot
 │       │                  behind the counter), a shift's length and
 │       │                  rate, its text
@@ -632,6 +643,9 @@ Shift-Life/
                        before its bubble, lost into fairies, the well's
                        glow brightening and fading, stopping
                        before or after the fall, leaving, not saved),
+                       store.test.mjs (the 6-Eleven in town: routes,
+                       the door back, walls and feet, the picture's
+                       numbers, the Shop job working there),
                        cafe.test.mjs (the Cafe in town: routes in and
                        out from every place, never a shortcut, the
                        door back to where they came from, the fades,
@@ -1311,6 +1325,16 @@ Parents' Yard and then of My Yard (see **Farm**).
     menu adds the shift's button and lines.
   - No ordering while on a shift or the other way round; neither during
     the character's own plans, which don't start while either is.
+- The 6-Eleven (`data/store.js`, drawn by `ui/store.js`; `store` in
+  `PLACES`, `town: true`) is a second town place, reached and left
+  like the Cafe (the door back to `game.townFrom`; Cafe to 6-Eleven
+  goes out the Cafe's door first). One picture (107 x 80, the `store`
+  sprite, else code-drawn), feet on row 72, walls both sides, indoors
+  for the weather. The glass front shows the street; its door is a
+  prop with no art of its own. The register counter's front
+  (`drawStoreCounterFront()`) is drawn again over whoever stands
+  behind it, and the glass's shine (`drawStoreShine()`) over whatever
+  is outside. The Shop job (`STORE_JOB`) works here.
 - Workplaces and shifts (`data/work.js`, `game/shifts.js`; `game.work`:
   `{ shift: { place, ms } or null, shifts }`, saved,
   `restoreWorkState()`, which also takes an older save's shift kept in

@@ -3,6 +3,9 @@
 // and what it pays, and its text. Pure data: game/shifts.js runs it.
 
 import { CAFE_PLACE, CAFE_JOB, CAFE_COUNTER, CAFE_ART, CAFE_FEET_FROM_BOTTOM } from './cafe.js';
+import {
+  STORE_PLACE, STORE_JOB, STORE_COUNTER, STORE_ART, STORE_FEET_FROM_BOTTOM,
+} from './store.js';
 
 // Each workplace: the place, the job (data/jobs.js) that works there at
 // any level, and the spot behind its counter where the worker stands: x
@@ -15,13 +18,18 @@ export const WORKPLACES = [
     job: CAFE_JOB,
     spot: { x: CAFE_COUNTER.flap, lift: CAFE_ART.height - CAFE_FEET_FROM_BOTTOM - CAFE_COUNTER.behindRow, facing: -1 },
   },
+  {
+    place: STORE_PLACE,
+    job: STORE_JOB,
+    spot: { x: STORE_COUNTER.flap, lift: STORE_ART.height - STORE_FEET_FROM_BOTTOM - STORE_COUNTER.behindRow, facing: -1 },
+  },
 ];
 
 // A shift: `minutes` of real time (only once behind the counter; game
 // speed doesn't change it, and it waits while the app is closed), paying
 // `rate` of the job's hourly pay for that time when done (an adult year
 // is 4 real hours, data/lifeStages.js), so yearly pay / 16: a Barista $6,
-// a Cafe Owner $13. Extra income below a career's (AGENTS.md: about
+// a Shop Clerk $7, a Store Manager $13. Extra income below a career's (AGENTS.md: about
 // $12-26 an hour on top). Stopping early pays nothing.
 export const SHIFT = { minutes: 30, rate: 0.5 };
 

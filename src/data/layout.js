@@ -10,6 +10,9 @@ import { FARM_ART, PADDIES, PADDY_WATER } from './farm.js';
 import {
   CAFE_ART, CAFE_DOOR, CAFE_DOOR_PROP, CAFE_COUNTER, CAFE_COUNTER_PROP,
 } from './cafe.js';
+import {
+  STORE_ART, STORE_DOOR, STORE_DOOR_PROP, STORE_COUNTER, STORE_COUNTER_PROP,
+} from './store.js';
 
 // Overall scene scale: screen pixels per scene pixel. Whole numbers only,
 // so pixels stay crisp. Sizes everything except the character.
@@ -78,27 +81,29 @@ export const PROPS = {
     visitOffset: Math.floor((paddy.left + paddy.right) / 2) - paddy.left - 1,
     visit: false,
   }])),
-  // The Cafe's door and counter are part of its picture too (CAFE_DOOR
-  // and CAFE_COUNTER in data/cafe.js): click areas, and the spots at the
-  // door and at the counter's flap.
-  [CAFE_DOOR_PROP]: {
-    edge: 'left',
-    margin: CAFE_DOOR.left + 1,
-    width: CAFE_DOOR.right - CAFE_DOOR.left - 1,
-    height: CAFE_DOOR.bottom - CAFE_DOOR.top - 1,
-    base: CAFE_ART.height - CAFE_DOOR.bottom,
-    visitOffset: CAFE_DOOR.x - CAFE_DOOR.left - 1,
-  },
-  [CAFE_COUNTER_PROP]: {
-    edge: 'left',
-    margin: CAFE_COUNTER.left + 1,
-    width: CAFE_COUNTER.right - CAFE_COUNTER.left - 1,
-    height: CAFE_COUNTER.bottom - CAFE_COUNTER.top - 1,
-    base: CAFE_ART.height - CAFE_COUNTER.bottom,
-    visitOffset: CAFE_COUNTER.flap - CAFE_COUNTER.left - 1,
-    visit: false,
-  },
+  // The Cafe's and the 6-Eleven's doors and counters are part of their
+  // pictures too (data/cafe.js, data/store.js): click areas, and the spots
+  // at the door and at the counter's flap.
+  [CAFE_DOOR_PROP]: inPicture(CAFE_ART, CAFE_DOOR, CAFE_DOOR.x),
+  [CAFE_COUNTER_PROP]: { ...inPicture(CAFE_ART, CAFE_COUNTER, CAFE_COUNTER.flap), visit: false },
+  [STORE_DOOR_PROP]: inPicture(STORE_ART, STORE_DOOR, STORE_DOOR.x),
+  [STORE_COUNTER_PROP]: { ...inPicture(STORE_ART, STORE_COUNTER, STORE_COUNTER.flap), visit: false },
 };
+
+// A prop that's part of a town place's picture (`art`): its click area
+// is `box` (columns left..right, rows top..bottom) and its spot at x
+// `spotX`. (A code-drawn prop's click area is the prop plus a 1px outline
+// all round, hence the 1s.)
+function inPicture(art, box, spotX) {
+  return {
+    edge: 'left',
+    margin: box.left + 1,
+    width: box.right - box.left - 1,
+    height: box.bottom - box.top - 1,
+    base: art.height - box.bottom,
+    visitOffset: spotX - box.left - 1,
+  };
+}
 
 // How close to the window edges the character's center may wander.
 export const WANDER_MARGIN = 6;
