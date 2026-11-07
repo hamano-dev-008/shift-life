@@ -308,6 +308,13 @@ Shift-Life/
 │   │   │                  register counter with register and hot food
 │   │   │                  case, the "6-ELEVEN" sign (its front and the
 │   │   │                  glass's shine again, over what's behind)
+│   │   ├── storeLife.js   The 6-Eleven's clerk (yawning, scanning),
+│   │   │                  shoppers (a door chime, browsing, paying in
+│   │   │                  turn, leaving) and the pigeon outside, visual
+│   │   │                  only (no DOM, so tests run it); clicks, boxes
+│   │   ├── storeLifeArt.js Draws them: the clerk and shoppers with the
+│   │   │                  character art, the scanner's beam, the yawn's
+│   │   │                  puff, the pigeon
 │   │   ├── cafeLife.js    The Cafe's people and cat, visual only (no
 │   │   │                  DOM, so tests run it): the master polishing,
 │   │   │                  brewing and walking behind the counter,
@@ -645,7 +652,9 @@ Shift-Life/
                        before or after the fall, leaving, not saved),
                        store.test.mjs (the 6-Eleven in town: routes,
                        the door back, walls and feet, the picture's
-                       numbers, the Shop job working there),
+                       numbers, the Shop job working there; shoppers
+                       chiming in and out, paying one at a time while
+                       the clerk scans, the pigeon flying off and back),
                        cafe.test.mjs (the Cafe in town: routes in and
                        out from every place, never a shortcut, the
                        door back to where they came from, the fades,
@@ -1334,7 +1343,30 @@ Parents' Yard and then of My Yard (see **Farm**).
   prop with no art of its own. The register counter's front
   (`drawStoreCounterFront()`) is drawn again over whoever stands
   behind it, and the glass's shine (`drawStoreShine()`) over whatever
-  is outside. The Shop job (`STORE_JOB`) works here.
+  is outside. The Shop job (`STORE_JOB`) works here. The door's click
+  area stops above the sidewalk seen through it, so the pigeon there can
+  be clicked.
+- The 6-Eleven's life (`ui/storeLife.js`, drawn by `ui/storeLifeArt.js`;
+  `STORE_CLERK`, `STORE_SHOPPERS`, `STORE_PIGEON`; made each time the
+  store is shown, never saved). Drawn back to front: the pigeon, the
+  glass's shine, the clerk, the counter's front, the shoppers.
+  - The clerk (a young adult in the shop's cap, at `clerkX` by the
+    register) stands, now and then yawns with an arm stretched up (a
+    puff over the head), and scans (the `hold` arm, a red beam on the
+    counter) while a shopper pays.
+  - Shoppers: up to `max` (2), one every `spawnEvery`. Each comes in at
+    the door, browses one or two `STORE_BROWSE` spots (sometimes
+    reaching up), waits their turn behind whoever is paying
+    (`queueGap`), pays at `STORE_PAY_X` facing the register, and leaves
+    by the door. The door chimes both ways (`chimes`, shown by the
+    renderer as the critter bubble "ding-dong!" over the door).
+  - The pigeon walks the sidewalk outside (head bobbing), pecks, stands;
+    clicked it coos and flies up and off to the left, and walks back in
+    `returnIn` seconds later.
+  - Clicking the clerk gets one of `STORE_CLERK.lines`; the pigeon,
+    "coo!". `#wildlife` buttons (ids `clerk`, `pigeon`) like the Cafe's,
+    with the same bubble, hover outline and shared treat
+    (`crittersHere()` in the renderer picks the place's).
 - Workplaces and shifts (`data/work.js`, `game/shifts.js`; `game.work`:
   `{ shift: { place, ms } or null, shifts }`, saved,
   `restoreWorkState()`, which also takes an older save's shift kept in

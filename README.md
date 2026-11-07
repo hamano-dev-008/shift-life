@@ -125,7 +125,11 @@ Early development. What works so far:
     drink fridges, snack shelves, an ATM, a magazine rack, the street
     outside the glass front, and the register under a striped
     "6-ELEVEN" sign. Go there from "Go to" like the Cafe. Its numbers
-    are in `src/data/store.js`.
+    are in `src/data/store.js`. A sleepy clerk yawns behind the register
+    and scans for shoppers who come in to a "ding-dong!", browse, queue
+    and pay, and a pigeon pecks about the sidewalk outside. Click the
+    clerk for a line, or the pigeon to send it flapping off (it comes
+    back).
   - Inside the Cafe, the old master polishes cups and brews at the siphons
     behind the counter, customers drop in for a coffee at the counter
     or the table and leave again, and Tama the cat naps on the window

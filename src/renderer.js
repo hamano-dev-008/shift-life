@@ -144,6 +144,14 @@ import {
   drawMaster, drawCafeLifeFront, drawCat, drawCafeCritter, drawOrder, drawHeldCup,
 } from './ui/cafeLifeArt.js';
 import { drawCafeCounterFront } from './ui/cafe.js';
+import { createStoreLife, updateStoreLife, clickStoreCritter, storeBoxes } from './ui/storeLife.js';
+import {
+  drawClerk, drawStoreLifeFront, drawPigeon, drawStoreCritter,
+} from './ui/storeLifeArt.js';
+import { drawStoreCounterFront, drawStoreShine } from './ui/store.js';
+import {
+  STORE_PLACE, STORE_DOOR, STORE_CLERK, STORE_PIGEON, STORE_SHOPPERS,
+} from './data/store.js';
 import {
   CAFE_PLACE, CAFE_MASTER, CAFE_CAT, CAFE_COUNTER_PROP, CAFE_SEATS, CAFE_TABLE, ORDER_SEAT,
   CAFE_ART, CAFE_FEET_FROM_BOTTOM,
@@ -541,6 +549,18 @@ async function start() {
   // the Cafe is shown, never saved. The master and the cat are clickable
   // like the Lake's wildlife: a line, a meow, the same little treat.
   let cafeLife = null;
+  // The 6-Eleven's clerk, shoppers and pigeon (ui/storeLife.js), the
+  // same way; the clerk and the pigeon are clickable.
+  let storeLife = null;
+  // The clickable critters where the character is now: the Lake's
+  // wildlife, the Cafe's master and cat, the 6-Eleven's clerk and pigeon
+  // ({ boxes(), click(id) }), or null.
+  function crittersHere() {
+    if (lakeLife) return { boxes: () => critterBoxes(lakeLife), click: (id) => clickCritter(lakeLife, id) };
+    if (cafeLife) return { boxes: () => cafeBoxes(cafeLife), click: (id) => clickCafeCritter(cafeLife, id) };
+    if (storeLife) return { boxes: () => storeBoxes(storeLife), click: (id) => clickStoreCritter(storeLife, id) };
+    return null;
+  }
   // The Farm's chickens, made each time the Farm is shown (purely visual,
   // never saved); in a thunderstorm they go into the barn.
   let farmAnimals = null;
@@ -621,8 +641,9 @@ async function start() {
   const wildlifeReward = createWildlifeReward();
   let critterBubbleUntil = 0;
   function clickWildlife(id) {
-    if (!(lakeLife || cafeLife) || game.endOfLife.ended) return;
-    const reaction = lakeLife ? clickCritter(lakeLife, id) : clickCafeCritter(cafeLife, id);
+    const critters = crittersHere();
+    if (!critters || game.endOfLife.ended) return;
+    const reaction = critters.click(id);
     if (!reaction) return;
     const now = performance.now();
     const deltas = rewardWildlifeClick(game.character, wildlifeReward, now);
@@ -647,6 +668,8 @@ async function start() {
     butterfly: WILDLIFE_CLICK.butterflyLabel,
     master: CAFE_MASTER.label,
     cat: CAFE_CAT.label,
+    clerk: STORE_CLERK.label,
+    pigeon: STORE_PIGEON.label,
   };
   // One invisible button over each frog and butterfly (generous areas),
   // or the Cafe's master and cat, reused by id; none while travelling,
@@ -657,7 +680,7 @@ async function start() {
       if (wildlife.childElementCount) wildlife.replaceChildren();
       return;
     }
-    const boxes = lakeLife ? critterBoxes(lakeLife) : cafeBoxes(cafeLife);
+    const boxes = crittersHere().boxes();
     const keep = new Set(boxes.map((box) => String(box.id)));
     for (const button of [...wildlife.children]) {
       if (!keep.has(button.dataset.id)) button.remove();
@@ -1034,7 +1057,7 @@ async function start() {
   function updateTrip(now) {
     if (!trip || !hasExited(animator)) return;
     const from = game.place;
-    const left = { scene, treeDecor, lakeLife, farmAnimals, cafeLife };
+    const left = { scene, treeDecor, lakeLife, farmAnimals, cafeLife, storeLife };
     const next = trip.route.shift();
     const way = exitBetween(game, from, next);
     const kind = transitionFor(from, next, way.via, settings.parallax);
@@ -1515,6 +1538,28 @@ async function start() {
     } else {
       deco.cafeLife = null;
     }
+    // The 6-Eleven: the pigeon outside, the glass's shine over it, the
+    // clerk behind the counter, the counter's front, then the shoppers.
+    // The door chimes as they come and go.
+    if (place.id === STORE_PLACE) {
+      deco.storeLife ??= createStoreLife();
+      updateStoreLife(deco.storeLife, dt);
+      drawPigeon(target, layout, deco.storeLife);
+      drawStoreShine(target, layout);
+      drawClerk(target, layout, deco.storeLife);
+      drawStoreCounterFront(target, layout);
+      drawStoreLifeFront(target, layout, deco.storeLife);
+      if (deco.storeLife.chimes.length && place.id === game.place && !travelling()) {
+        deco.storeLife.chimes = [];
+        showCritterBubble({ text: STORE_SHOPPERS.chime, x: STORE_DOOR.x, row: STORE_DOOR.top }, performance.now());
+      }
+      if (hovered?.kind === 'critter'
+        && hoverOutline.draw(target, (maskCtx) => drawStoreCritter(maskCtx, layout, deco.storeLife, hovered.id), seconds)) {
+        outlined = `critter:${hovered.id}`;
+      }
+    } else {
+      deco.storeLife = null;
+    }
     return outlined;
   }
 
@@ -1701,7 +1746,7 @@ async function start() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     const hovered = hoveredThing(ended);
     let outlined = '';
-    const here = { treeDecor, lakeLife, farmAnimals, cafeLife };
+    const here = { treeDecor, lakeLife, farmAnimals, cafeLife, storeLife };
     if (panning) {
       drawPan(panning, now, dt, here, weather);
     } else {
@@ -1715,6 +1760,7 @@ async function start() {
     treeDecor = here.treeDecor;
     lakeLife = here.lakeLife;
     cafeLife = here.cafeLife;
+    storeLife = here.storeLife;
     farmAnimals = here.farmAnimals;
     // The character waits past the edge while the view pans.
     if (!panning) {
@@ -1723,8 +1769,6 @@ async function start() {
       if (pose.activity === 'fish' && look) {
         drawFishing(ctx, layout, fishingHand(stage, pose, layout.feetY, layout.characterScale), look);
       }
-      // Picking the apple: the branch held up, the apple falling or held
-      // up, the fairies; once it's dropped the branch stays where it fell.
       // At the Cafe: once they're seated with an order the master brings
       // it to the table; working behind the counter, its front (and
       // everything in front of it) goes over them again, cup in hand.
@@ -1739,6 +1783,14 @@ async function start() {
           drawHeldCup(ctx, heldHand(stage, pose, layout.feetY - pose.lift, layout.characterScale));
         }
       }
+      // Working behind the 6-Eleven's register: its front and the
+      // shoppers go over them again.
+      if (place.id === STORE_PLACE && storeLife && pose.activity === 'hold' && pose.lift > 0) {
+        drawStoreCounterFront(ctx, layout);
+        drawStoreLifeFront(ctx, layout, storeLife);
+      }
+      // Picking the apple: the branch held up, the apple falling or held
+      // up, the fairies; once it's dropped the branch stays where it fell.
       if (pickShown && place.id === FORTUNE_TREE_PLACE) {
         const { look: pickLooks, t } = pickShown;
         const hand = pose.activity === 'reachUp' ? raisedHand(stage, pose, layout.feetY, layout.characterScale) : null;
@@ -1781,8 +1833,8 @@ async function start() {
     // A catch's reveal card over the scene (fishing carries on behind).
     catchReveal.draw(ctx, now);
     const revealing = catchReveal.isOpen();
-    updateWildlifeTargets(Boolean(lakeLife || cafeLife) && !travelling() && !ended);
-    critterBubble.hidden = critterBubble.hidden || now >= critterBubbleUntil || !(lakeLife || cafeLife) || revealing;
+    updateWildlifeTargets(Boolean(crittersHere()) && !travelling() && !ended);
+    critterBubble.hidden = critterBubble.hidden || now >= critterBubbleUntil || !crittersHere() || revealing;
     propBubble.hidden = propBubble.hidden || now >= propBubbleUntil || place.id !== propBubblePlace
       || travelling() || Boolean(ended);
     if (farewell) drawFarewellFade(ctx, canvas.width, canvas.height, (now - farewell.since) / 1000);
