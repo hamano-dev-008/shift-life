@@ -142,6 +142,11 @@ Early development. What works so far:
     on a wall rack, a dispatch board with a route map, a coffee shelf,
     stacks of parcels and a green cargo bike by the door. Go there from
     "Go to". Its numbers are in `src/data/post.js`.
+    The dispatcher stamps parcels behind the counter, a rider takes
+    parcels from the pile out of the door, customers bring parcels in,
+    and Mochi the shiba naps on its bed, sitting up to wag or trotting
+    over to sniff at the door. Click the dispatcher for a word, or Mochi
+    for a woof.
   - Inside the Cafe, the old master polishes cups and brews at the siphons
     behind the counter, customers drop in for a coffee at the counter
     or the table and leave again, and Tama the cat naps on the window

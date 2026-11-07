@@ -149,8 +149,12 @@ import {
   drawClerk, drawStoreLifeFront, drawPigeon, drawStoreCritter, drawHeldItem,
 } from './ui/storeLifeArt.js';
 import { drawStoreCounterFront, drawStoreShine } from './ui/store.js';
-import { drawCargoBike } from './ui/post.js';
-import { POST_PLACE } from './data/post.js';
+import { drawCargoBike, drawPostCounterFront } from './ui/post.js';
+import { createPostLife, updatePostLife, clickPostCritter, postBoxes } from './ui/postLife.js';
+import {
+  drawDispatcher, drawPostLifeFront, drawDog, drawPostCritter,
+} from './ui/postLifeArt.js';
+import { POST_PLACE, POST_DISPATCHER, POST_DOG } from './data/post.js';
 import {
   STORE_PLACE, STORE_DOOR, STORE_CLERK, STORE_PIGEON, STORE_SHOPPERS, STORE_MENU_TEXT, STORE_COUNTER_PROP,
   STORE_PAY_X, STORE_EAT_X,
@@ -574,6 +578,10 @@ async function start() {
   // The 6-Eleven's clerk, shoppers and pigeon (ui/storeLife.js), the
   // same way; the clerk and the pigeon are clickable.
   let storeLife = null;
+  // Pedal Post's dispatcher, rider, customers and Mochi the dog
+  // (ui/postLife.js), the same way; the dispatcher and the dog are
+  // clickable.
+  let postLife = null;
   // The clickable critters where the character is now: the Lake's
   // wildlife, the Cafe's master and cat, the 6-Eleven's clerk and pigeon
   // ({ boxes(), click(id) }), or null.
@@ -581,6 +589,7 @@ async function start() {
     if (lakeLife) return { boxes: () => critterBoxes(lakeLife), click: (id) => clickCritter(lakeLife, id) };
     if (cafeLife) return { boxes: () => cafeBoxes(cafeLife), click: (id) => clickCafeCritter(cafeLife, id) };
     if (storeLife) return { boxes: () => storeBoxes(storeLife), click: (id) => clickStoreCritter(storeLife, id) };
+    if (postLife) return { boxes: () => postBoxes(postLife), click: (id) => clickPostCritter(postLife, id) };
     return null;
   }
   // The Farm's chickens, made each time the Farm is shown (purely visual,
@@ -692,6 +701,8 @@ async function start() {
     cat: CAFE_CAT.label,
     clerk: STORE_CLERK.label,
     pigeon: STORE_PIGEON.label,
+    dispatcher: POST_DISPATCHER.label,
+    dog: POST_DOG.label,
   };
   // One invisible button over each frog and butterfly (generous areas),
   // or the Cafe's master and cat, reused by id; none while travelling,
@@ -1080,7 +1091,7 @@ async function start() {
   function updateTrip(now) {
     if (!trip || !hasExited(animator)) return;
     const from = game.place;
-    const left = { scene, treeDecor, lakeLife, farmAnimals, cafeLife, storeLife };
+    const left = { scene, treeDecor, lakeLife, farmAnimals, cafeLife, storeLife, postLife };
     const next = trip.route.shift();
     const way = exitBetween(game, from, next);
     const kind = transitionFor(from, next, way.via, settings.parallax);
@@ -1591,8 +1602,24 @@ async function start() {
     } else {
       deco.storeLife = null;
     }
-    // Pedal Post: the cargo bike by the door.
-    if (place.id === POST_PLACE) drawCargoBike(target, layout);
+    // Pedal Post: Mochi and the cargo bike on the floor, the dispatcher
+    // behind the counter, the counter's front, then the rider and the
+    // customer.
+    if (place.id === POST_PLACE) {
+      deco.postLife ??= createPostLife();
+      updatePostLife(deco.postLife, dt);
+      drawDog(target, layout, deco.postLife);
+      drawCargoBike(target, layout);
+      drawDispatcher(target, layout, deco.postLife);
+      drawPostCounterFront(target, layout);
+      drawPostLifeFront(target, layout, deco.postLife);
+      if (hovered?.kind === 'critter'
+        && hoverOutline.draw(target, (maskCtx) => drawPostCritter(maskCtx, layout, deco.postLife, hovered.id), seconds)) {
+        outlined = `critter:${hovered.id}`;
+      }
+    } else {
+      deco.postLife = null;
+    }
     return outlined;
   }
 
@@ -1779,7 +1806,7 @@ async function start() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     const hovered = hoveredThing(ended);
     let outlined = '';
-    const here = { treeDecor, lakeLife, farmAnimals, cafeLife, storeLife };
+    const here = { treeDecor, lakeLife, farmAnimals, cafeLife, storeLife, postLife };
     if (panning) {
       drawPan(panning, now, dt, here, weather);
     } else {
@@ -1794,6 +1821,7 @@ async function start() {
     lakeLife = here.lakeLife;
     cafeLife = here.cafeLife;
     storeLife = here.storeLife;
+    postLife = here.postLife;
     farmAnimals = here.farmAnimals;
     // The character waits past the edge while the view pans.
     if (!panning) {
@@ -1829,6 +1857,12 @@ async function start() {
           drawStoreCounterFront(ctx, layout);
           drawStoreLifeFront(ctx, layout, storeLife);
         }
+      }
+      // Working behind Pedal Post's counter: its front and the people in
+      // front of it go over them again.
+      if (place.id === POST_PLACE && postLife && pose.activity === 'hold' && pose.lift > 0) {
+        drawPostCounterFront(ctx, layout);
+        drawPostLifeFront(ctx, layout, postLife);
       }
       // Picking the apple: the branch held up, the apple falling or held
       // up, the fairies; once it's dropped the branch stays where it fell.

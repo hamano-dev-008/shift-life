@@ -323,6 +323,14 @@ Shift-Life/
 │   │   │                  (its front again over whoever's behind it),
 │   │   │                  and the cargo bike on its own
 │   │   ├── pixelFont.js   A 3 x 5 pixel font for the signs
+│   │   ├── postLife.js    Pedal Post's dispatcher (stamping), rider
+│   │   │                  (pile to the door and back), customers
+│   │   │                  (handing a parcel in) and Mochi the shiba
+│   │   │                  (sleeping, sitting, wagging, sniffing at the
+│   │   │                  door), visual only (no DOM, so tests run it);
+│   │   │                  clicks, boxes
+│   │   ├── postLifeArt.js Draws them: the people with the character
+│   │   │                  art, parcels in hand, the stamp, Mochi
 │   │   ├── storeLife.js   The 6-Eleven's clerk (yawning, scanning),
 │   │   │                  shoppers (a door chime, browsing, paying in
 │   │   │                  turn, leaving) and the pigeon outside, visual
@@ -673,7 +681,9 @@ Shift-Life/
                        before or after the fall, leaving, not saved),
                        post.test.mjs (Pedal Post in town: routes, the
                        door back, walls and feet, the picture's
-                       numbers),
+                       numbers; the rider's round, a customer handing
+                       a parcel in and the stamp, Mochi's naps, sniffs
+                       and woofs),
                        store.test.mjs (the 6-Eleven in town: routes,
                        the door back, walls and feet, the picture's
                        numbers, the Shop job working there; shoppers
@@ -1419,6 +1429,26 @@ Parents' Yard and then of My Yard (see **Farm**).
   The cargo bike by the door is drawn on its own (`drawCargoBike()`).
   The Courier job (`POST_JOB`) works here. The signs here and at the
   6-Eleven use `ui/pixelFont.js`.
+- Pedal Post's life (`ui/postLife.js`, drawn by `ui/postLifeArt.js`;
+  `POST_DISPATCHER`, `POST_RIDER`, `POST_CUSTOMERS`, `POST_DOG`; made
+  each time the hub is shown, never saved). Drawn back to front: Mochi,
+  the cargo bike, the dispatcher, the counter's front, the rider and the
+  customer.
+  - The dispatcher (at `dispatcherX` behind the counter) stands, and now
+    and then, and whenever a parcel is handed in, stamps for `stamp`
+    seconds (the `hold` arm, a red stamp thunking every `thunk`).
+  - The rider comes in at the door, walks to the pile (`POST_PILE_X`),
+    reaches down for a parcel for `pick` seconds, carries it out of the
+    door and is gone `out` seconds.
+  - Customers: one at a time, every `spawnEvery`, carry a parcel in to
+    `POST_HAND_IN_X`, hand it over for `hand` seconds and leave.
+  - Mochi the shiba (code-drawn at `SCENE_SCALE`, outlined) sleeps
+    curled on its bed (breathing), sits up (sometimes wagging), and
+    sometimes trots to sniff by the door and back to curl up again.
+  - Clicking the dispatcher gets one of `POST_DISPATCHER.lines`; Mochi,
+    "Woof?" if it was asleep (it sits up, wagging) or "Woof!".
+    `#wildlife` buttons (ids `dispatcher`, `dog`) like the Cafe's, with
+    the same bubble, hover outline and shared treat.
 - Workplaces and shifts (`data/work.js`, `game/shifts.js`; `game.work`:
   `{ shift: { place, ms } or null, shifts }`, saved,
   `restoreWorkState()`, which also takes an older save's shift kept in
