@@ -149,6 +149,8 @@ import {
   drawClerk, drawStoreLifeFront, drawPigeon, drawStoreCritter, drawHeldItem,
 } from './ui/storeLifeArt.js';
 import { drawStoreCounterFront, drawStoreShine } from './ui/store.js';
+import { drawCargoBike } from './ui/post.js';
+import { POST_PLACE } from './data/post.js';
 import {
   STORE_PLACE, STORE_DOOR, STORE_CLERK, STORE_PIGEON, STORE_SHOPPERS, STORE_MENU_TEXT, STORE_COUNTER_PROP,
   STORE_PAY_X, STORE_EAT_X,
@@ -1589,6 +1591,8 @@ async function start() {
     } else {
       deco.storeLife = null;
     }
+    // Pedal Post: the cargo bike by the door.
+    if (place.id === POST_PLACE) drawCargoBike(target, layout);
     return outlined;
   }
 

@@ -13,6 +13,9 @@ import {
 import {
   STORE_ART, STORE_DOOR, STORE_DOOR_PROP, STORE_COUNTER, STORE_COUNTER_PROP,
 } from './store.js';
+import {
+  POST_ART, POST_DOOR, POST_DOOR_PROP, POST_COUNTER, POST_COUNTER_PROP,
+} from './post.js';
 
 // Overall scene scale: screen pixels per scene pixel. Whole numbers only,
 // so pixels stay crisp. Sizes everything except the character.
@@ -81,13 +84,15 @@ export const PROPS = {
     visitOffset: Math.floor((paddy.left + paddy.right) / 2) - paddy.left - 1,
     visit: false,
   }])),
-  // The Cafe's and the 6-Eleven's doors and counters are part of their
-  // pictures too (data/cafe.js, data/store.js): click areas, and the spots
-  // at the door and at the counter's flap.
+  // The town places' doors and counters are part of their pictures too
+  // (data/cafe.js, data/store.js, data/post.js): click areas, and the
+  // spots at the door and at the counter's flap.
   [CAFE_DOOR_PROP]: inPicture(CAFE_ART, CAFE_DOOR, CAFE_DOOR.x),
   [CAFE_COUNTER_PROP]: { ...inPicture(CAFE_ART, CAFE_COUNTER, CAFE_COUNTER.flap), visit: false },
   [STORE_DOOR_PROP]: inPicture(STORE_ART, STORE_DOOR, STORE_DOOR.x),
   [STORE_COUNTER_PROP]: { ...inPicture(STORE_ART, STORE_COUNTER, STORE_COUNTER.flap), visit: false },
+  [POST_DOOR_PROP]: inPicture(POST_ART, POST_DOOR, POST_DOOR.x),
+  [POST_COUNTER_PROP]: { ...inPicture(POST_ART, POST_COUNTER, POST_COUNTER.flap), visit: false },
 };
 
 // A prop that's part of a town place's picture (`art`): its click area

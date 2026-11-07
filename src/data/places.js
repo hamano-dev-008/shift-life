@@ -14,6 +14,9 @@ import {
 import {
   STORE_PLACE, STORE_FEET_FROM_BOTTOM, STORE_WALK, STORE_DOOR_PROP, STORE_COUNTER_PROP, STORE_TEXT,
 } from './store.js';
+import {
+  POST_PLACE, POST_FEET_FROM_BOTTOM, POST_WALK, POST_DOOR_PROP, POST_COUNTER_PROP, POST_TEXT,
+} from './post.js';
 
 // Each place has:
 //   id        Unique and saved; don't rename one once it has shipped.
@@ -154,6 +157,18 @@ export const PLACES = [
     door: STORE_DOOR_PROP,
     exits: [],
     targets: { [STORE_DOOR_PROP]: STORE_TEXT.door, [STORE_COUNTER_PROP]: STORE_TEXT.counter },
+  },
+  {
+    id: POST_PLACE,
+    name: POST_TEXT.name,
+    // The hub (one picture), and its door and counter.
+    scenery: ['post', POST_DOOR_PROP, POST_COUNTER_PROP],
+    feetFromBottom: POST_FEET_FROM_BOTTOM,
+    walk: POST_WALK,
+    town: true,
+    door: POST_DOOR_PROP,
+    exits: [],
+    targets: { [POST_DOOR_PROP]: POST_TEXT.door },
   },
 ];
 

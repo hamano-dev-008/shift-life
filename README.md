@@ -138,6 +138,10 @@ Early development. What works so far:
     (Shop Clerk, Shift Lead, Store Manager), they stand behind the
     register when there and can work a 30-minute shift ($7, $8 or
     $13).
+  - Pedal Post is a cozy bike courier hub in town: a brick wall, bikes
+    on a wall rack, a dispatch board with a route map, a coffee shelf,
+    stacks of parcels and a green cargo bike by the door. Go there from
+    "Go to". Its numbers are in `src/data/post.js`.
   - Inside the Cafe, the old master polishes cups and brews at the siphons
     behind the counter, customers drop in for a coffee at the counter
     or the table and leave again, and Tama the cat naps on the window

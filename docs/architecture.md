@@ -316,6 +316,13 @@ Shift-Life/
 │   │   │                  register counter with register and hot food
 │   │   │                  case, the "6-ELEVEN" sign (its front and the
 │   │   │                  glass's shine again, over what's behind)
+│   │   ├── post.js        Draws Pedal Post in code: brick wall, plank
+│   │   │                  floor, green door and window, the sign, bikes
+│   │   │                  on the rack, the dispatch board, the coffee
+│   │   │                  shelf, the dog's bed, parcels, the counter
+│   │   │                  (its front again over whoever's behind it),
+│   │   │                  and the cargo bike on its own
+│   │   ├── pixelFont.js   A 3 x 5 pixel font for the signs
 │   │   ├── storeLife.js   The 6-Eleven's clerk (yawning, scanning),
 │   │   │                  shoppers (a door chime, browsing, paying in
 │   │   │                  turn, leaving) and the pigeon outside, visual
@@ -528,6 +535,11 @@ Shift-Life/
 │       │                  sidewalk, register counter (and the row
 │       │                  behind it), register, hot case, where to pay
 │       │                  and browse, the sign, its job; text
+│       ├── post.js        Pedal Post: its place id, picture size, feet
+│       │                  row and walls, the door, the cargo bike, the
+│       │                  counter (and the row behind it), where to hand
+│       │                  parcels in, the pile, scale, stamp, the dog's
+│       │                  bed, the sign, its job; text
 │       ├── work.js        Workplaces in town (place, job, the spot
 │       │                  behind the counter), a shift's length and
 │       │                  rate, its text
@@ -659,6 +671,9 @@ Shift-Life/
                        before its bubble, lost into fairies, the well's
                        glow brightening and fading, stopping
                        before or after the fall, leaving, not saved),
+                       post.test.mjs (Pedal Post in town: routes, the
+                       door back, walls and feet, the picture's
+                       numbers),
                        store.test.mjs (the 6-Eleven in town: routes,
                        the door back, walls and feet, the picture's
                        numbers, the Shop job working there; shoppers
@@ -1397,6 +1412,13 @@ Parents' Yard and then of My Yard (see **Farm**).
   before it's paid refunds it; after, it just ends. Events aren't
   frozen. The Shop job works here: see **Workplaces and shifts** (a
   Shop Clerk's shift pays $7).
+- Pedal Post (`data/post.js`, drawn by `ui/post.js`; `post` in
+  `PLACES`, `town: true`), a bike courier hub, is a third town place,
+  reached and left like the others. One picture (107 x 80, the `post`
+  sprite, else code-drawn), feet on row 72, walls both sides, indoors.
+  The cargo bike by the door is drawn on its own (`drawCargoBike()`).
+  The Courier job (`POST_JOB`) works here. The signs here and at the
+  6-Eleven use `ui/pixelFont.js`.
 - Workplaces and shifts (`data/work.js`, `game/shifts.js`; `game.work`:
   `{ shift: { place, ms } or null, shifts }`, saved,
   `restoreWorkState()`, which also takes an older save's shift kept in

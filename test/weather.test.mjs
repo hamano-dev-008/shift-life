@@ -295,7 +295,7 @@ test('rain lands: splashes on the ground line, ripples on the Lake and the paddi
   assert.equal(landingFor(90, farm, random).kind, 'splash');
   // Home's glass: no splash.
   assert.equal(landingFor(10, { feetRow: 30, water: null, splash: false }, random).kind, null);
-  assert.deepEqual(INDOOR_PLACES, ['home', 'myHome', 'cafe', 'store']);
+  assert.deepEqual(INDOOR_PLACES, ['home', 'myHome', 'cafe', 'store', 'post']);
   assert.ok(INDOOR_PLACES.every((id) => PLACES.some((place) => place.id === id)));
 });
 

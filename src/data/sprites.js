@@ -72,6 +72,11 @@
 //     store   The whole store, 107 x 80, like the Cafe's picture; without
 //             it the store is code-drawn (ui/store.js), its counter and
 //             the glass's shine drawn again over what's behind them.
+//   Pedal Post (data/post.js):
+//     post    The whole hub, 107 x 80, like the Cafe's picture; without it
+//             the hub is code-drawn (ui/post.js), its counter drawn again
+//             over whoever stands behind it. The cargo bike by the door is
+//             always code-drawn on its own (it goes out on deliveries).
 //   The Farm (data/farm.js):
 //     farm.background  The whole background (sky, the three rice
 //             paddies, the path, the barn), 107 x 80, drawn from the

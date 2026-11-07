@@ -15,6 +15,7 @@ import {
 import { OUTLINE_COLOR } from '../data/appearance.js';
 import { createLayer, fill, drawLayer } from './pixel.js';
 import { getSprite } from './assets.js';
+import { drawText } from './pixelFont.js';
 
 // Pure art: the store's colors.
 const WALL = '#f2f1ec';
@@ -51,16 +52,6 @@ const GOODS = ['#e8483f', '#3fa34d', '#f2a33a', '#3b7dd8', '#f2d94e', '#c45ab8',
 
 const { width: W, height: H } = STORE_ART;
 const C = STORE_COUNTER;
-
-// The sign's letters, 3 x 5 (N is 4 wide); '#' is a pixel.
-const LETTERS = {
-  6: ['###', '#..', '###', '#.#', '###'],
-  '-': ['...', '...', '###', '...', '...'],
-  E: ['###', '#..', '##.', '#..', '###'],
-  L: ['#..', '#..', '#..', '#..', '###'],
-  V: ['#.#', '#.#', '#.#', '#.#', '.#.'],
-  N: ['#..#', '##.#', '#.##', '#..#', '#..#'],
-};
 
 const good = (i) => GOODS[i % GOODS.length];
 
@@ -142,14 +133,7 @@ function behindCounter(layer) {
   fill(layer, left, top + 3, right - left + 1, 1, GREEN);
   fill(layer, left, bottom - 2, right - left + 1, 1, GREEN);
   fill(layer, left, bottom - 1, right - left + 1, 1, RED);
-  let x = left + 2;
-  for (const char of text) {
-    const rows = LETTERS[char];
-    rows.forEach((line, row) => [...line].forEach((pixel, col) => {
-      if (pixel === '#') fill(layer, x + col, top + 6 + row, 1, 1, char === '6' ? GREEN : RED);
-    }));
-    x += rows[0].length + 1;
-  }
+  drawText(layer, left + 2, top + 6, text, (char) => (char === '6' ? GREEN : RED));
   for (const row of [30, 38]) {
     fill(layer, C.left + 3, row + 4, C.right - C.left - 4, 1, SHELF);
     for (let i = 0, gx = C.left + 4; gx < C.right - 2; i++, gx += 2) fill(layer, gx, row, 1, 4, good(i * 3 + row));
