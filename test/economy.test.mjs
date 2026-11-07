@@ -18,6 +18,7 @@ import { CAFE_ORDERS } from '../src/data/cafe.js';
 import { SHIFT, WORKPLACES } from '../src/data/work.js';
 import { STORE_ITEMS } from '../src/data/store.js';
 import { POST_ITEMS } from '../src/data/post.js';
+import { ALLEY_ITEMS } from '../src/data/alley.js';
 
 const HOUR_MS = 3600 * 1000;
 const ADULT_HOURS_PER_YEAR = LIFE_STAGES.find((s) => s.id === 'adult').realMinutesPerYear / 60;
@@ -170,4 +171,12 @@ test("Pedal Post's mail is a small sink: a postcard a few minutes of entry pay, 
   assert.ok(POST_ITEMS.gift.price / entryPerMinute <= 45);
   assert.equal(POST_ITEMS.postcard.everyMinutes, 60);
   assert.equal(POST_ITEMS.gift.everyMinutes, 24 * 60);
+});
+
+test("Mural Alley's stall is a small sink: a print a quarter hour of entry pay, a class under half an hour's, once a day", () => {
+  const entryPerMinute = 100 / ADULT_HOURS_PER_YEAR / 60;
+  assert.ok(ALLEY_ITEMS.print.price / entryPerMinute <= 15);
+  assert.ok(ALLEY_ITEMS.class.price / entryPerMinute <= 30);
+  assert.equal(ALLEY_ITEMS.print.everyMinutes, 60);
+  assert.equal(ALLEY_ITEMS.class.everyMinutes, 24 * 60);
 });

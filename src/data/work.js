@@ -7,6 +7,7 @@ import {
   STORE_PLACE, STORE_JOB, STORE_COUNTER, STORE_ART, STORE_FEET_FROM_BOTTOM,
 } from './store.js';
 import { POST_PLACE, POST_JOB, POST_COUNTER, POST_ART, POST_FEET_FROM_BOTTOM, POST_DOOR } from './post.js';
+import { ALLEY_PLACE, ALLEY_JOB, ALLEY_EASEL } from './alley.js';
 
 // The workplace menus' shift lines, the bar and the bubble. {pay} is
 // dollars, {time} "3:07", {total} "30:00", {job} a job title.
@@ -29,13 +30,24 @@ export const DELIVERY_TEXT = {
   bar: 'Out on a delivery - {time} of {total}',
   done: { heading: 'Delivered!', text: 'Every parcel got there.' },
 };
+// Mural Alley's shifts are painting at the easel.
+export const PAINT_TEXT = {
+  ...SHIFT_TEXT,
+  start: 'Paint at the easel - ${pay}',
+  stop: 'Stop painting',
+  working: 'Painting: {time} of {total}',
+  toCounter: 'Off to the easel...',
+  bar: 'Painting - {time} of {total}',
+  done: { heading: 'Painting done!', text: 'Someone snapped it up.' },
+};
 
 // Each workplace: the place, the job (data/jobs.js) that works there at
 // any level, and the spot behind its counter where the worker stands: x
 // in the place's picture, `lift` (rows up from the place's feet row to
 // the floor behind the counter) and the way they face, holding something
-// in front of them (pose activity 'hold'), and the text of its shifts
-// (`text`, SHIFT_TEXT or DELIVERY_TEXT). A workplace with `outX` sends its
+// in front of them (pose activity 'hold'; `lift` 0 where there's no
+// counter), and the text of its shifts (`text`: SHIFT_TEXT, DELIVERY_TEXT
+// or PAINT_TEXT). A workplace with `outX` sends its
 // shifts out of the door instead: they walk to x `outX` with a parcel
 // and are out (not shown) until the shift is done.
 export const WORKPLACES = [
@@ -57,6 +69,12 @@ export const WORKPLACES = [
     spot: { x: POST_COUNTER.flap, lift: POST_ART.height - POST_FEET_FROM_BOTTOM - POST_COUNTER.behindRow, facing: -1 },
     text: DELIVERY_TEXT,
     outX: POST_DOOR.x,
+  },
+  {
+    place: ALLEY_PLACE,
+    job: ALLEY_JOB,
+    spot: { x: ALLEY_EASEL.standX, lift: 0, facing: ALLEY_EASEL.facing },
+    text: PAINT_TEXT,
   },
 ];
 

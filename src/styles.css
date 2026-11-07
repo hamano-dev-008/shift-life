@@ -499,6 +499,24 @@ body {
   color: #6b6478;
 }
 
+/* Go to: the places around home, and the town's beside them. */
+#go-menu .menu-options {
+  flex-direction: row;
+  gap: 6px;
+}
+
+#go-menu .go-column {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+#go-menu .go-heading {
+  color: #6b6478;
+}
+
 .panel .menu-status span {
   display: block;
 }

@@ -30,9 +30,11 @@ import { TREE_BACKGROUND, TREE_BACKGROUND_FALLBACK, WELL_PROP } from '../data/fo
 import { CAFE_DOOR_PROP, CAFE_COUNTER_PROP } from '../data/cafe.js';
 import { STORE_DOOR_PROP, STORE_COUNTER_PROP } from '../data/store.js';
 import { POST_DOOR_PROP, POST_COUNTER_PROP } from '../data/post.js';
+import { ALLEY_MOUTH_PROP, ALLEY_STALL_PROP } from '../data/alley.js';
 import { drawCafe } from './cafe.js';
 import { drawStore } from './store.js';
 import { drawPost } from './post.js';
+import { drawAlley } from './alley.js';
 import { getSprite, isAnimated, frameAtTime, drawSprite } from './assets.js';
 import { PARALLAX_LAYERS, LAYERED_BACKGROUNDS, PIECE_LAYERS } from '../data/parallax.js';
 import { BACK_LAYERS, wrapX, edgeGaps } from './parallax.js';
@@ -353,6 +355,10 @@ const SCENERY = [
   background('post', drawPost),
   prop(POST_DOOR_PROP, NO_ART),
   prop(POST_COUNTER_PROP, NO_ART),
+  // Mural Alley; its way out and its stall are part of it.
+  background('alley', drawAlley),
+  prop(ALLEY_MOUTH_PROP, NO_ART),
+  prop(ALLEY_STALL_PROP, NO_ART),
 ];
 
 function createCanvas(layout, width = layout.width) {

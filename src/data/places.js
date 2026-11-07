@@ -17,6 +17,9 @@ import {
 import {
   POST_PLACE, POST_FEET_FROM_BOTTOM, POST_WALK, POST_DOOR_PROP, POST_COUNTER_PROP, POST_TEXT,
 } from './post.js';
+import {
+  ALLEY_PLACE, ALLEY_FEET_FROM_BOTTOM, ALLEY_WALK, ALLEY_MOUTH_PROP, ALLEY_STALL_PROP, ALLEY_TEXT,
+} from './alley.js';
 
 // Each place has:
 //   id        Unique and saved; don't rename one once it has shipped.
@@ -170,6 +173,19 @@ export const PLACES = [
     exits: [],
     targets: { [POST_DOOR_PROP]: POST_TEXT.door, [POST_COUNTER_PROP]: POST_TEXT.counter },
   },
+  {
+    id: ALLEY_PLACE,
+    name: ALLEY_TEXT.name,
+    // The alley (one picture, outdoors), its way back out to the street
+    // and its print stall.
+    scenery: ['alley', ALLEY_MOUTH_PROP, ALLEY_STALL_PROP],
+    feetFromBottom: ALLEY_FEET_FROM_BOTTOM,
+    walk: ALLEY_WALK,
+    town: true,
+    door: ALLEY_MOUTH_PROP,
+    exits: [],
+    targets: { [ALLEY_MOUTH_PROP]: ALLEY_TEXT.mouth, [ALLEY_STALL_PROP]: ALLEY_TEXT.stall },
+  },
 ];
 
 // Where a new life starts (the parents' living room).
@@ -185,10 +201,12 @@ export const DEFAULT_PLACE = 'fortuneTree';
 // edge's wander limit (WANDER_MARGIN in data/layout.js).
 export const TRAVEL = { exitPast: 10, entryWalk: 20 };
 
-// Text for the Go to menu and the place name while travelling. {place} is
-// a place's name, {to} the trip's destination.
+// Text for the Go to menu (`town` heads its column of town places) and the
+// place name while travelling. {place} is a place's name, {to} the trip's
+// destination.
 export const PLACE_TEXT = {
   goTitle: 'Go to',
+  town: 'Town',
   here: 'Now at: {place}',
   travelling: '{place} > {to}',
 };

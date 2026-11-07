@@ -154,6 +154,16 @@ Early development. What works so far:
     stand behind the counter when there and can do a 30-minute delivery
     run ($7, $8 or $12): they carry a parcel out of the door and ride off
     on the cargo bike, back when it's done.
+  - Mural Alley is a street art alley in town, outdoors (it gets the
+    rain): string lights, a mural half painted, two easels and a print
+    stall. A painter in a beret sprays the mural, visitors drop by to
+    look, and Rio the parrot sits over the stall. Click the painter for
+    a line, and Rio repeats it (or squawks its own). At the stall (from
+    age 6): an art class ($10, +2 smarts, +2 happiness, once a day,
+    painted at the easel) or a print ($6, +3 happiness, once an hour).
+    Working the Artist job (Street Artist, Illustrator, Gallery Star),
+    they stand at the easel and can paint a 30-minute shift ($6, $10 or
+    $18), the canvas filling in. Its numbers are in `src/data/alley.js`.
   - Inside the Cafe, the old master polishes cups and brews at the siphons
     behind the counter, customers drop in for a coffee at the counter
     or the table and leave again, and Tama the cat naps on the window
@@ -171,7 +181,7 @@ Early development. What works so far:
     of the salary ($6, $8 or $13 by level). Stopping early pays
     nothing.
   - The place button (the map pin in the top bar) opens "Go to", listing
-    the other places. Pick one and the character walks there, through
+    the other places (those in town in their own column). Pick one and the character walks there, through
     any places in between (the Lake to the living room goes past the
     Fortune Tree, through the yard and in the front door). Babies crawl the whole way.
     The button is disabled while they're on the way, and travelling

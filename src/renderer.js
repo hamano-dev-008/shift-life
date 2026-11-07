@@ -158,6 +158,14 @@ import {
   POST_PLACE, POST_DISPATCHER, POST_DOG, POST_COUNTER_PROP, POST_MENU_TEXT, POST_HAND_IN_X,
 } from './data/post.js';
 import { sendItem, updatePost, postView, isSending } from './game/post.js';
+import { createAlleyLife, updateAlleyLife, clickAlleyCritter, alleyBoxes } from './ui/alleyLife.js';
+import {
+  drawAlleyPeople, drawParrot, drawAlleyCritter, drawAlleyCanvas, drawHeldBrush, drawHeldPrint,
+} from './ui/alleyLifeArt.js';
+import {
+  ALLEY_PLACE, ALLEY_PAINTER, ALLEY_PARROT, ALLEY_STALL_PROP, ALLEY_MENU_TEXT, ALLEY_EASEL, CLASS_EASEL, ALLEY_STALL,
+} from './data/alley.js';
+import { buyAtStall, updateAlley, alleyView, isAtStall } from './game/alley.js';
 import {
   STORE_PLACE, STORE_DOOR, STORE_CLERK, STORE_PIGEON, STORE_SHOPPERS, STORE_MENU_TEXT, STORE_COUNTER_PROP,
   STORE_PAY_X, STORE_EAT_X,
@@ -475,19 +483,21 @@ async function start() {
   // Clicking a town place's counter opens its menu: at the Cafe a coffee
   // or a cake at the table (game/cafe.js), at the 6-Eleven a snack or a
   // scratch card (game/store.js), at Pedal Post a postcard or a gift
-  // parcel (game/post.js), and for whoever works there a shift behind the
-  // counter or a delivery run (game/shifts.js). Each starts once they're
+  // parcel (game/post.js), at Mural Alley's stall an art class or a print
+  // (game/alley.js), and for whoever works there a shift behind the
+  // counter, a delivery run or painting at the easel (game/shifts.js). Each starts once they're
   // at the spot.
   const counterMenu = createCounterMenu(document.getElementById('counter-menu'), {
     order: (item) => {
       playerTookOver();
       const bought = game.place === CAFE_PLACE ? orderItem(game, item)
-        : game.place === POST_PLACE ? sendItem(game, item) : buyAtStore(game, item);
+        : game.place === POST_PLACE ? sendItem(game, item)
+          : game.place === ALLEY_PLACE ? buyAtStall(game, item) : buyAtStore(game, item);
       if (bought) saveGame(game);
     },
     shift: () => {
       playerTookOver();
-      if (startShift(game, isOrdering(game) || isBuying(game) || isSending(game))) saveGame(game);
+      if (startShift(game, isOrdering(game) || isBuying(game) || isSending(game) || isAtStall(game))) saveGame(game);
     },
     stopShift: () => {
       playerTookOver();
@@ -509,6 +519,10 @@ async function start() {
     if (scene.place.id === POST_PLACE) {
       const view = postView(game);
       return { ...view, text: POST_MENU_TEXT, busy: view.sending?.thing ?? null, shift: shiftView(game) };
+    }
+    if (scene.place.id === ALLEY_PLACE) {
+      const view = alleyView(game);
+      return { ...view, text: ALLEY_MENU_TEXT, busy: view.visit?.thing ?? null, shift: shiftView(game) };
     }
     return null;
   }
@@ -591,14 +605,18 @@ async function start() {
   // (ui/postLife.js), the same way; the dispatcher and the dog are
   // clickable.
   let postLife = null;
+  // Mural Alley's painter, visitors and Rio the parrot (ui/alleyLife.js),
+  // the same way; the painter and the parrot are clickable.
+  let alleyLife = null;
   // The clickable critters where the character is now: the Lake's
-  // wildlife, the Cafe's master and cat, the 6-Eleven's clerk and pigeon
-  // ({ boxes(), click(id) }), or null.
+  // wildlife, the town places' people and animals ({ boxes(), click(id)
+  // }), or null.
   function crittersHere() {
     if (lakeLife) return { boxes: () => critterBoxes(lakeLife), click: (id) => clickCritter(lakeLife, id) };
     if (cafeLife) return { boxes: () => cafeBoxes(cafeLife), click: (id) => clickCafeCritter(cafeLife, id) };
     if (storeLife) return { boxes: () => storeBoxes(storeLife), click: (id) => clickStoreCritter(storeLife, id) };
     if (postLife) return { boxes: () => postBoxes(postLife), click: (id) => clickPostCritter(postLife, id) };
+    if (alleyLife) return { boxes: () => alleyBoxes(alleyLife), click: (id) => clickAlleyCritter(alleyLife, id) };
     return null;
   }
   // The Farm's chickens, made each time the Farm is shown (purely visual,
@@ -712,6 +730,8 @@ async function start() {
     pigeon: STORE_PIGEON.label,
     dispatcher: POST_DISPATCHER.label,
     dog: POST_DOG.label,
+    painter: ALLEY_PAINTER.label,
+    parrot: ALLEY_PARROT.label,
   };
   // One invisible button over each frog and butterfly (generous areas),
   // or the Cafe's master and cat, reused by id; none while travelling,
@@ -810,7 +830,8 @@ async function start() {
     // The town counters' waits, what's being had or sent, and shifts (real
     // time; game/cafe.js, game/store.js, game/post.js, game/shifts.js).
     const cafeNews = [
-      ...updateCafe(game, realMs), ...updateStore(game, realMs), ...updatePost(game, realMs), ...updateShift(game, realMs),
+      ...updateCafe(game, realMs), ...updateStore(game, realMs), ...updatePost(game, realMs), ...updateAlley(game, realMs),
+      ...updateShift(game, realMs),
     ];
     cafeNews.forEach(showNews);
     if (cafeNews.length) saveGame(game);
@@ -890,7 +911,8 @@ async function start() {
       activityMenu.toggle(activity.id);
     } else if ((id === CAFE_COUNTER_PROP && scene.place.id === CAFE_PLACE)
       || (id === STORE_COUNTER_PROP && scene.place.id === STORE_PLACE)
-      || (id === POST_COUNTER_PROP && scene.place.id === POST_PLACE)) {
+      || (id === POST_COUNTER_PROP && scene.place.id === POST_PLACE)
+      || (id === ALLEY_STALL_PROP && scene.place.id === ALLEY_PLACE)) {
       counterMenu.toggle();
     } else if (PADDY_IDS.has(id) && scene.place.id === FARM_PLACE) {
       farmMenu.toggle(id);
@@ -1104,7 +1126,7 @@ async function start() {
   function updateTrip(now) {
     if (!trip || !hasExited(animator)) return;
     const from = game.place;
-    const left = { scene, treeDecor, lakeLife, farmAnimals, cafeLife, storeLife, postLife };
+    const left = { scene, treeDecor, lakeLife, farmAnimals, cafeLife, storeLife, postLife, alleyLife };
     const next = trip.route.shift();
     const way = exitBetween(game, from, next);
     const kind = transitionFor(from, next, way.via, settings.parallax);
@@ -1260,6 +1282,13 @@ async function start() {
     // At Pedal Post sending mail: at the counter, handing it over.
     if (place.id === POST_PLACE && isSending(game)) {
       return { x: (POST_HAND_IN_X + 0.5) * layout.scale, mode: 'doing', activity: 'hold', facing: 1 };
+    }
+    // In Mural Alley for a class (at the class easel) or a print (at the
+    // stall).
+    if (place.id === ALLEY_PLACE && isAtStall(game)) {
+      const atEasel = game.alley.visit.item === 'class';
+      const x = atEasel ? CLASS_EASEL.standX : ALLEY_STALL.x;
+      return { x: (x + 0.5) * layout.scale, mode: 'doing', activity: 'hold', facing: atEasel ? CLASS_EASEL.facing : 1 };
     }
     // Working at a workplace: behind its counter (on the floor further
     // back), holding something, whether on a shift or not; a delivery run
@@ -1474,7 +1503,7 @@ async function start() {
       planNow: () => {
         if (game.endOfLife.ended || travelling() || currentPlan(game) || isPlaying(game) || isResting(game)
           || isDoingActivity(game) || currentFarmJob(game) || isPicking(game) || isOrdering(game) || isBuying(game)
-          || isSending(game) || isOnShift(game)) {
+          || isSending(game) || isAtStall(game) || isOnShift(game)) {
           return AUTONOMY_TEXT.notNow;
         }
         restPreview = null;
@@ -1647,6 +1676,26 @@ async function start() {
     } else {
       deco.postLife = null;
     }
+    // Mural Alley: the easels' canvases (filling in as a shift or a class
+    // is painted), Rio on its perch, then the painter and the visitors.
+    if (place.id === ALLEY_PLACE) {
+      deco.alleyLife ??= createAlleyLife();
+      updateAlleyLife(deco.alleyLife, dt);
+      const shift = shiftView(game);
+      const painting = place.id === game.place && isOnShift(game) && hasArrived(game) && shift;
+      drawAlleyCanvas(target, layout, ALLEY_EASEL.x, painting ? shift.ms / shift.totalMs : 0);
+      const { visit } = alleyView(game);
+      const inClass = place.id === game.place && visit?.item === 'class' && hasArrived(game);
+      drawAlleyCanvas(target, layout, CLASS_EASEL.x, inClass ? visit.ms / visit.totalMs : 0);
+      drawParrot(target, layout, deco.alleyLife);
+      drawAlleyPeople(target, layout, deco.alleyLife);
+      if (hovered?.kind === 'critter'
+        && hoverOutline.draw(target, (maskCtx) => drawAlleyCritter(maskCtx, layout, deco.alleyLife, hovered.id), seconds)) {
+        outlined = `critter:${hovered.id}`;
+      }
+    } else {
+      deco.alleyLife = null;
+    }
     return outlined;
   }
 
@@ -1760,7 +1809,7 @@ async function start() {
     // showing, not away), now and then they choose something to do.
     const running = isPlaying(game) || isResting(game) || isDoingActivity(game)
       || Boolean(currentFarmJob(game)) || isPicking(game) || isOrdering(game) || isBuying(game)
-      || isSending(game) || isOnShift(game);
+      || isSending(game) || isAtStall(game) || isOnShift(game);
     const idle = !busy && !running && !restPreview && !farewell && !isAtWork(animator);
     if (mayChoose(choosing, now, { enabled: settings.ownPlans, idle })) beginOwnPlan(now);
     // While the view pans they wait past the edge, then walk in.
@@ -1839,7 +1888,7 @@ async function start() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     const hovered = hoveredThing(ended);
     let outlined = '';
-    const here = { treeDecor, lakeLife, farmAnimals, cafeLife, storeLife, postLife };
+    const here = { treeDecor, lakeLife, farmAnimals, cafeLife, storeLife, postLife, alleyLife };
     if (panning) {
       drawPan(panning, now, dt, here, weather);
     } else {
@@ -1855,6 +1904,7 @@ async function start() {
     cafeLife = here.cafeLife;
     storeLife = here.storeLife;
     postLife = here.postLife;
+    alleyLife = here.alleyLife;
     farmAnimals = here.farmAnimals;
     // The character waits past the edge while the view pans, and isn't
     // there while out on a delivery run.
@@ -1902,6 +1952,13 @@ async function start() {
           drawPostCounterFront(ctx, layout);
           drawPostLifeFront(ctx, layout, postLife);
         }
+      }
+      // In Mural Alley: a brush in hand at the easel (painting a shift or
+      // a class), or the print picked out at the stall.
+      if (place.id === ALLEY_PLACE && pose.activity === 'hold' && hasArrived(game)) {
+        const hand = heldHand(stage, pose, layout.feetY, layout.characterScale);
+        if (game.alley.visit?.item === 'print') drawHeldPrint(ctx, hand);
+        else if (game.alley.visit || (isOnShift(game) && workplaceHere(game))) drawHeldBrush(ctx, hand, seconds);
       }
       // Picking the apple: the branch held up, the apple falling or held
       // up, the fairies; once it's dropped the branch stays where it fell.

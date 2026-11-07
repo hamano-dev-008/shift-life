@@ -24,6 +24,7 @@ import {
 import { isOrdering } from './cafe.js';
 import { isBuying } from './store.js';
 import { isSending } from './post.js';
+import { isAtStall } from './alley.js';
 import { isOnShift } from './shifts.js';
 import { isResting, startResting, stopResting } from './home.js';
 import {
@@ -230,7 +231,8 @@ function planRunning(game, plan) {
 // Starts the plan's thing here. Returns whether it started.
 function startPlanned(game, plan) {
   if (isDoingActivity(game) || isPlaying(game) || isResting(game) || currentFarmJob(game)
-    || isPicking(game) || isOrdering(game) || isBuying(game) || isSending(game) || isOnShift(game)) return false;
+    || isPicking(game) || isOrdering(game) || isBuying(game) || isSending(game) || isAtStall(game)
+    || isOnShift(game)) return false;
   if (plan.kind === 'fish') return startActivity(game, AUTONOMY_CHOICES.fish.activity);
   if (AUTONOMY_CHOICES[plan.kind].farm) {
     const [paddy] = paddiesFor(game, plan.kind);

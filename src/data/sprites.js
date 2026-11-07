@@ -77,6 +77,10 @@
 //             the hub is code-drawn (ui/post.js), its counter drawn again
 //             over whoever stands behind it. The cargo bike by the door is
 //             always code-drawn on its own (it goes out on deliveries).
+//   Mural Alley (data/alley.js):
+//     alley   The whole alley, 107 x 80, like the Cafe's picture; without
+//             it the alley is code-drawn (ui/alley.js). The easels'
+//             canvases are always code-drawn over it (they fill in).
 //   The Farm (data/farm.js):
 //     farm.background  The whole background (sky, the three rice
 //             paddies, the path, the barn), 107 x 80, drawn from the

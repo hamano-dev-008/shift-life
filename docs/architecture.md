@@ -213,6 +213,11 @@ Shift-Life/
 │   │   │                  register, had or scratched by the window,
 │   │   │                  once an hour each, refunded if stopped
 │   │   │                  first)
+│   │   ├── alley.js       Mural Alley's print stall: art classes and
+│   │   │                  prints (paid at once, a class painted at the
+│   │   │                  class easel, a print picked out at the
+│   │   │                  stall, once a day or an hour, refunded if
+│   │   │                  stopped first)
 │   │   ├── post.js        Pedal Post's counter: postcards and gift
 │   │   │                  parcels (paid at once, handed over at the
 │   │   │                  counter, once an hour or a day, refunded if
@@ -329,6 +334,17 @@ Shift-Life/
 │   │   │                  (its front again over whoever's behind it),
 │   │   │                  and the cargo bike on its own
 │   │   ├── pixelFont.js   A 3 x 5 pixel font for the signs
+│   │   ├── alley.js       Draws Mural Alley in code: sky and string
+│   │   │                  lights, the back wall with its archway out to
+│   │   │                  the street, the mural half painted, two
+│   │   │                  easels, spray cans, the print stall, cobbles
+│   │   ├── alleyLife.js   Mural Alley's painter (spraying, stepping back,
+│   │   │                  moving along), visitors and Rio the parrot,
+│   │   │                  visual only (no DOM, so tests run it); clicks,
+│   │   │                  boxes
+│   │   ├── alleyLifeArt.js Draws them: the painter's spray can and puffs,
+│   │   │                  the visitors, Rio, the easels' canvases filling
+│   │   │                  in, a brush or a print in hand
 │   │   ├── postLife.js    Pedal Post's dispatcher (stamping), rider
 │   │   │                  (pile to the door and back), customers
 │   │   │                  (handing a parcel in) and Mochi the shiba
@@ -443,7 +459,8 @@ Shift-Life/
 │   │   │                  rest/get up, rest progress, health, the next
 │   │   │                  housing upgrade
 │   │   ├── goMenu.js      The Go to menu (place button): the other
-│   │   │                  places that exist now; disabled while
+│   │   │                  places that exist now, in two columns (around
+│   │   │                  home, and the town's); disabled while
 │   │   │                  travelling
 │   │   ├── activityMenu.js The activity menu (the dock): buy the item,
 │   │   │                  start/stop, status (the bucket), and the fish
@@ -555,6 +572,11 @@ Shift-Life/
 │       │                  parcels in, the pile, scale, stamp, the dog's
 │       │                  bed, the sign, its job, the people and Mochi,
 │       │                  the mail sent at the counter; text
+│       ├── alley.js       Mural Alley: its place id, picture size, feet
+│       │                  row and walls, the way out, the mural, the
+│       │                  easels, the stall and the perch, its job, the
+│       │                  painter, visitors and Rio, the stall's items;
+│       │                  text
 │       ├── work.js        Workplaces in town (place, job, the spot
 │       │                  behind the counter, where delivery runs go
 │       │                  out, their text), a shift's length and rate
@@ -690,7 +712,11 @@ Shift-Life/
                        door back, walls and feet, the picture's
                        numbers; the rider's round, a customer handing
                        a parcel in and the stamp, Mochi's naps, sniffs
-                       and woofs),
+                       and woofs; sending mail, delivery runs),
+                       alley.test.mjs (Mural Alley in town, outdoors:
+                       routes, the way back, the picture's numbers; the
+                       painter, visitors, Rio repeating the painter;
+                       art classes, prints, refunds, painting shifts),
                        store.test.mjs (the 6-Eleven in town: routes,
                        the door back, walls and feet, the picture's
                        numbers, the Shop job working there; shoppers
@@ -1231,8 +1257,10 @@ Parents' Yard and then of My Yard (see **Farm**).
   plop), and starts from wherever they are (even away at work). Only
   the place reached is saved; closing mid-trip ends it there.
 - The place button (map pin, top bar) opens Go to (`ui/goMenu.js`),
-  listing the other places that exist now; it's disabled, and the
-  prop click areas hidden, while travelling.
+  listing the other places that exist now in two columns, those around
+  home and, under "Town" (`PLACE_TEXT.town`), the town places (`town`),
+  so it fits the window; it's disabled, and the prop click areas
+  hidden, while travelling.
 - Click areas: the renderer puts an invisible button in
   `#targets` over each of the place's `targets` (the prop's visible
   pixels, `propClickRect()`; the target's name is its `aria-label`,
@@ -1448,6 +1476,43 @@ Parents' Yard and then of My Yard (see **Farm**).
   `SEND_SECONDS` while the dispatcher stamps (the renderer sets
   `playerSending`), then "Sent!" with its effects. Stop or leaving
   first refunds it. Events aren't frozen.
+- Mural Alley (`data/alley.js`, drawn by `ui/alley.js`; `alley` in
+  `PLACES`, `town: true`), a street art alley, is a fourth town place,
+  reached and left like the others through its archway
+  (`ALLEY_MOUTH_PROP`, "Back to the street"). One picture (107 x 80, the
+  `alley` sprite, else code-drawn), feet on row 72, walls both sides,
+  and outdoors: not in `INDOOR_PLACES`, so the rain falls there. The
+  Artist job (`ALLEY_JOB`) works here: its spot is at the easel
+  (`ALLEY_EASEL`, `lift` 0), and its shifts are painting there
+  (`PAINT_TEXT`, "Paint at the easel - $X", $6, $10 or $18), the
+  canvas filling in with the shift (`drawAlleyCanvas()`), a brush in
+  hand.
+- Mural Alley's life (`ui/alleyLife.js`, drawn by `ui/alleyLifeArt.js`;
+  `ALLEY_PAINTER`, `ALLEY_VISITORS`, `ALLEY_PARROT`; made each time the
+  alley is shown, never saved). Drawn back to front: the canvases, Rio,
+  the painter, the visitors.
+  - The painter (a young adult in a beret) sprays the mural's chalked-in
+    part (an arm up, puffs of paint) for `spray` seconds, steps back for
+    `gaze`, and walks to another of `spots`.
+  - Visitors: up to `max` (2), one every `spawnEvery`, come in from the
+    street, look at the mural or the stall's prints (`spots`, one each)
+    for `gaze`, sometimes a second spot, and leave.
+  - Rio the parrot (code-drawn at `SCENE_SCALE`, outlined) sits on its
+    perch over the stall, bobs and now and then flaps.
+  - Clicking the painter gets one of `ALLEY_PAINTER.lines`, which Rio
+    hears: clicked, Rio repeats it once (with a flap), else squawks one
+    of `ALLEY_PARROT.lines`. `#wildlife` buttons (ids `painter`,
+    `parrot`) like the Cafe's.
+- The print stall (`game/alley.js`, the same menu, `ui/counterMenu.js`,
+  with `ALLEY_MENU_TEXT`; `game.alley`: `{ waitMs, visit }`, saved,
+  `restoreAlleyState()`). Clicking it opens its menu (from
+  `ALLEY_MIN_AGE` 6). `ALLEY_ITEMS`: "Take an art class" $10 (+2 smarts,
+  +2 happiness, once a day), painted at the class easel (`CLASS_EASEL`,
+  `stayKey()` `'alley:class'`) for 60 seconds, its canvas filling in;
+  "Buy a print" $6 (+3 happiness, once an hour), picked out at the
+  stall (`'alley:print'`) for 4 seconds, held up. Paid at once
+  (`buyAtStall()`); Stop or leaving before it's done refunds it. Events
+  aren't frozen.
 - Pedal Post's life (`ui/postLife.js`, drawn by `ui/postLifeArt.js`;
   `POST_DISPATCHER`, `POST_RIDER`, `POST_CUSTOMERS`, `POST_DOG`; made
   each time the hub is shown, never saved). Drawn back to front: Mochi,
