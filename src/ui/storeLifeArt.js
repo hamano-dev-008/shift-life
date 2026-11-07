@@ -7,7 +7,7 @@
 // them (ui/store.js), then the shoppers (drawStoreLifeFront()).
 
 import {
-  STORE_ART, STORE_COUNTER, STORE_SIDEWALK, STORE_CLERK, STORE_PIGEON, STORE_REGISTER_X,
+  STORE_ART, STORE_COUNTER, STORE_SIDEWALK, STORE_CLERK, STORE_PIGEON, STORE_REGISTER_X, STORE_ITEM_COLORS,
 } from '../data/store.js';
 import { OUTLINE_COLOR } from '../data/appearance.js';
 import { drawCharacter } from './sprite.js';
@@ -59,6 +59,33 @@ export function drawStoreLifeFront(ctx, layout, life) {
       stage: shopper.stage, activity, time: life.time, seed: shopper.id, walking: isWalking(shopper),
     });
     drawCharacter(ctx, pose, shopper.stage, shopper.look, 'smile', groundY, layout.characterScale);
+  }
+}
+
+// What the character has in hand at `hand` (heldHand()), `t` seconds in:
+// an onigiri in its wrapper, an ice cream cone, a can, or a scratch card
+// with its silver patch flickering as it's scratched.
+export function drawHeldItem(ctx, hand, item, t) {
+  const u = hand.unit;
+  const { main, wrap } = STORE_ITEM_COLORS[item];
+  const x = hand.x - u / 2 + hand.facing * u;
+  const at = (dx, dy, w, h, color) => {
+    ctx.fillStyle = color;
+    ctx.fillRect(x + (hand.facing < 0 ? -dx - w + 1 : dx) * u, hand.y - u / 2 + dy * u, w * u, h * u);
+  };
+  if (item === 'onigiri') {
+    at(0, -2, 1, 1, main);
+    at(-1, -1, 3, 1, main);
+    at(-1, 0, 3, 1, wrap);
+  } else if (item === 'iceCream') {
+    at(-1, -2, 2, 2, main);
+    at(0, 0, 1, 2, wrap);
+  } else if (item === 'energyDrink') {
+    at(0, -2, 2, 3, main);
+    at(0, -1, 2, 1, wrap);
+  } else {
+    at(0, -2, 3, 2, main);
+    at(Math.floor(t * 6) % 2, -2, 1, 1, wrap);
   }
 }
 

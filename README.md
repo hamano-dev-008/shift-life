@@ -130,6 +130,14 @@ Early development. What works so far:
     and pay, and a pigeon pecks about the sidewalk outside. Click the
     clerk for a line, or the pigeon to send it flapping off (it comes
     back).
+  - Click the register (from age 6): onigiri $2 (+1 health, +1
+    happiness), ice cream $3 (+3 happiness), energy drink $4 (+3
+    health), or a $2 scratch card that now and then wins $10 (or, rarely,
+    $50), each once an hour. The character pays at the register while
+    the clerk scans, then has it by the window. Working the Shop job
+    (Shop Clerk, Shift Lead, Store Manager), they stand behind the
+    register when there and can work a 30-minute shift ($7, $8 or
+    $13).
   - Inside the Cafe, the old master polishes cups and brews at the siphons
     behind the counter, customers drop in for a coffee at the counter
     or the table and leave again, and Tama the cat naps on the window

@@ -1088,9 +1088,9 @@ app.whenReady().then(async () => {
     const cafeMoney = saved.character.stats.money;
     await pressProp('Counter');
     await wait(60);
-    assert.deepEqual(await openPanels(), ['cafe-menu']);
-    assert.match(await js('document.querySelector("#cafe-menu").textContent'), /Counter.*Coffee - \$3.*Cake - \$8/s);
-    await press(inPanel('#cafe-menu', 'Coffee - $3'));
+    assert.deepEqual(await openPanels(), ['counter-menu']);
+    assert.match(await js('document.querySelector("#counter-menu").textContent'), /Counter.*Coffee - \$3.*Cake - \$8/s);
+    await press(inPanel('#counter-menu', 'Coffee - $3'));
     assert.deepEqual(await openPanels(), [], 'ordering closes the menu');
     await wait(100);
     assert.equal(saved.cafe.order.item, 'coffee');
@@ -1121,14 +1121,33 @@ app.whenReady().then(async () => {
     await arrive('6-Eleven');
     assert.equal(saved.place, 'store');
     assert.deepEqual((await transitionsSeen()).kinds, ['fade'], 'into the 6-Eleven should fade');
-    assert.deepEqual(await checkProps('the 6-Eleven at rest'), ['Go outside']);
+    assert.deepEqual(await checkProps('the 6-Eleven at rest'), ['Go outside', 'Register']);
     await answersClick('Clerk', /^(Welcome to 6-Eleven!|Point card\? \.\.\.No\? Okay\.|Want that heated up\?|Bag for that\?|Long night\.\.\.|Six is the new seven\.)$/);
     await answersClick('Pigeon', /^coo!$/);
+    // The register's menu (real clicks): an onigiri sends them to pay at
+    // the register; Stop on the bar before it's paid refunds it.
+    const storeMoney = saved.character.stats.money;
+    await pressProp('Register');
+    await wait(60);
+    assert.deepEqual(await openPanels(), ['counter-menu']);
+    assert.match(await js('document.querySelector("#counter-menu").textContent'),
+      /Register.*Onigiri - \$2.*Ice cream - \$3.*Energy drink - \$4.*Scratch card - \$2/s);
+    await press(inPanel('#counter-menu', 'Onigiri - $2'));
+    assert.deepEqual(await openPanels(), []);
+    await wait(100);
+    assert.equal(saved.store.purchase.item, 'onigiri');
+    assert.equal(saved.character.stats.money, storeMoney - 2);
+    assert.equal(await untilThere('Heading to the register...'), 'Paying for the onigiri...');
+    await checkProps('the 6-Eleven, paying');
+    await press('document.querySelector("#activity-bar .bar-stop")');
+    await wait(200);
+    assert.equal(saved.store.purchase, null);
+    assert.equal(saved.character.stats.money, storeMoney, 'refunded');
     await pressProp('Go outside');
     await arrive('Farm');
     assert.deepEqual(await appRegions(), []);
     assert.deepEqual(errors, []);
-    console.log(`PASS: the Fortune Tree's wishing well (its bubble, click area apart from the tree's, drags from it and the background), activities start only on arrival (walking to the tree from the far side, then "Busking - 0:00"; the sofa; the dock), no -webkit-app-region anywhere, JS window drags (background, character, tree: the window follows, no poke, no menu), plain clicks on every prop in every place, native gentle/rapid clicks, spam, calming, moving hit regions, drag rejection, 25 poses, offscreen, prop/event priority, real clicks on props and menus, prop click areas on top in every place (at rest, after travel, menus closed, an event waiting, the activity bar, a catch reveal), rest/travel/busking preserved, transparent sprite, end of life, summary, Book, new life, the Lake (frogs, butterflies, a frog on the shore hunting and a real click on it), fishing (rod, bite, catch, reveal, collection, activity bar, selling), work trips (the setting saved, "Off to work!", the "At work" label calling them back), picking the golden apple (real clicks, walking under it, the menu while picking, the bubble after), the Fortune Tree's wind (Gust now there only; props still on top with the apple glowing in a gust), the hover outline (tree, character, sofa, dock: shown while hovering, gone on leaving, none with a menu open, clicks unchanged, no native tooltips), the dev Rest now (lying down asleep where they are, outlined on hover, up again), their own plans (Let them choose On by default next to Work trips, saved; Choose now says what and shows in the read-out; Off ends it), parallax (the front door fades and a side trip pans for about 1.2 s with nothing clickable meanwhile; the Parallax setting On by default next to Let them choose, saved, Off switching places at once), the weather (the icon named on hover and drawn, the dev Weather row and Next weather saved, Lightning flashes On by default next to Parallax and saved, props on top and clickable in a thunderstorm, no busking or fishing offered in it), the Farm (paddies on top and opening their menu, feet on the path, buying offered, Give paddies, the hover outline, planting on arrival, Grow paddies, the harvest's bubble and pay), the Cafe in town (Go to with a fade, walls, feet on the floor, real clicks on the master and the cat, the counter's menu, ordering a coffee and Stop refunding it, the door back to where they came from), the 6-Eleven (Go to with a fade, real clicks on the clerk and the pigeon, the door back); no renderer errors.`);
+    console.log(`PASS: the Fortune Tree's wishing well (its bubble, click area apart from the tree's, drags from it and the background), activities start only on arrival (walking to the tree from the far side, then "Busking - 0:00"; the sofa; the dock), no -webkit-app-region anywhere, JS window drags (background, character, tree: the window follows, no poke, no menu), plain clicks on every prop in every place, native gentle/rapid clicks, spam, calming, moving hit regions, drag rejection, 25 poses, offscreen, prop/event priority, real clicks on props and menus, prop click areas on top in every place (at rest, after travel, menus closed, an event waiting, the activity bar, a catch reveal), rest/travel/busking preserved, transparent sprite, end of life, summary, Book, new life, the Lake (frogs, butterflies, a frog on the shore hunting and a real click on it), fishing (rod, bite, catch, reveal, collection, activity bar, selling), work trips (the setting saved, "Off to work!", the "At work" label calling them back), picking the golden apple (real clicks, walking under it, the menu while picking, the bubble after), the Fortune Tree's wind (Gust now there only; props still on top with the apple glowing in a gust), the hover outline (tree, character, sofa, dock: shown while hovering, gone on leaving, none with a menu open, clicks unchanged, no native tooltips), the dev Rest now (lying down asleep where they are, outlined on hover, up again), their own plans (Let them choose On by default next to Work trips, saved; Choose now says what and shows in the read-out; Off ends it), parallax (the front door fades and a side trip pans for about 1.2 s with nothing clickable meanwhile; the Parallax setting On by default next to Let them choose, saved, Off switching places at once), the weather (the icon named on hover and drawn, the dev Weather row and Next weather saved, Lightning flashes On by default next to Parallax and saved, props on top and clickable in a thunderstorm, no busking or fishing offered in it), the Farm (paddies on top and opening their menu, feet on the path, buying offered, Give paddies, the hover outline, planting on arrival, Grow paddies, the harvest's bubble and pay), the Cafe in town (Go to with a fade, walls, feet on the floor, real clicks on the master and the cat, the counter's menu, ordering a coffee and Stop refunding it, the door back to where they came from), the 6-Eleven (Go to with a fade, real clicks on the clerk and the pigeon, the register's menu, buying an onigiri and Stop refunding it, the door back); no renderer errors.`);
   } catch (error) {
     console.error(error);
     process.exitCode = 1;

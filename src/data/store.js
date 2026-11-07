@@ -126,3 +126,60 @@ export const STORE_PIGEON = {
   line: 'coo!',
   colors: { body: '#8d93a0', dark: '#5c6270', neck: '#6fb39a', beak: '#3d3a4b', feet: '#e98b8b' },
 };
+
+// Buying at the register (from STORE_MIN_AGE): each item's price, what
+// it gives once eaten or drunk, and how often it can be had (real
+// minutes; game speed doesn't change it, and it waits while the app is
+// closed). The character pays at the register (PURCHASE_TIMES.pay seconds
+// while the clerk scans), then has it by the glass front at STORE_EAT_X
+// for PURCHASE_TIMES.enjoy seconds ("munch!"). Money sinks (AGENTS.md):
+// a few minutes of an entry job's pay each.
+//
+// The scratch card is had the same way but scratched instead
+// (PURCHASE_TIMES.scratch seconds): it wins one of `prizes` (each with
+// its chance), else nothing. On average it pays back $1.30 of its $2
+// (0.08 x $10 + 0.01 x $50), so it's a sink too, never a way to earn.
+export const STORE_MIN_AGE = 6;
+export const STORE_ITEMS = {
+  onigiri: { name: 'Onigiri', price: 2, effects: { health: 1, happiness: 1 }, everyMinutes: 60 },
+  iceCream: { name: 'Ice cream', price: 3, effects: { happiness: 3 }, everyMinutes: 60 },
+  energyDrink: { name: 'Energy drink', price: 4, effects: { health: 3 }, everyMinutes: 60 },
+  scratch: {
+    name: 'Scratch card',
+    price: 2,
+    everyMinutes: 60,
+    prizes: [{ chance: 0.08, pay: 10 }, { chance: 0.01, pay: 50 }],
+  },
+};
+export const PURCHASE_TIMES = { pay: 3, enjoy: 20, scratch: 3 };
+export const STORE_EAT_X = 22;
+
+// What's in their hand while they have it (ui/storeLifeArt.js): each
+// item's colors.
+export const STORE_ITEM_COLORS = {
+  onigiri: { main: '#fbfaf5', wrap: '#2e2a35' },
+  iceCream: { main: '#f4c6c6', wrap: '#d9a85a' },
+  energyDrink: { main: '#3b7dd8', wrap: '#f2d94e' },
+  scratch: { main: '#f2d94e', wrap: '#c0c4cc' },
+};
+
+// The register's menu, the bar and the bubbles. {item} is an item's name,
+// {pay} dollars, {age} an age.
+export const STORE_MENU_TEXT = {
+  title: 'Register',
+  tooYoung: 'Come back at age {age} for a snack.',
+  busy: 'Having the {item}...',
+  idle: 'Grab a snack, or try your luck.',
+};
+export const STORE_BAR_TEXT = {
+  toRegister: 'Heading to the register...',
+  paying: 'Paying for the {item}...',
+  toWindow: 'Off to the window...',
+  enjoying: 'Having the {item}...',
+  scratching: 'Scratching the card...',
+};
+export const STORE_NEWS = {
+  munch: { heading: 'Munch!', text: 'The {item} hits the spot.' },
+  won: { heading: 'A winner!', text: 'The scratch card pays ${pay}!' },
+  lost: { text: 'No luck this time...' },
+};

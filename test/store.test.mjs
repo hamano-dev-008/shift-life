@@ -1,21 +1,30 @@
 // store.test.mjs — The 6-Eleven in town: reached from Go to like the Cafe
 // (never a shortcut, its door back to where they came from), walls on
 // both sides, its door where the picture has it, and the picture's
-// numbers; the clerk, shoppers and pigeon.
+// numbers; the clerk, shoppers and pigeon; buying snacks and scratch
+// cards, and shifts for the Shop job.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createClock } from '../src/game/clock.js';
 import { startNewLife } from '../src/game/endOfLife.js';
 import { placeView, routeBetween, existingPlaces, exitBetween, enterPlace } from '../src/game/places.js';
 import { computeLayout } from '../src/ui/scene.js';
-import { workplaceAt } from '../src/game/shifts.js';
+import {
+  workplaceAt, workplaceHere, shiftPay, startShift, updateShift,
+} from '../src/game/shifts.js';
+import {
+  buyAtStore, buyBlock, updateStore, isBuying, scratchPrize, createStoreState, restoreStoreState,
+} from '../src/game/store.js';
+import { applyJobChange } from '../src/game/jobs.js';
+import { arriveAtStay, stayKey } from '../src/game/stay.js';
+import { activityBarView, stopFromBar } from '../src/game/activityBar.js';
 import {
   createStoreLife, updateStoreLife, clickStoreCritter, storeBoxes,
 } from '../src/ui/storeLife.js';
 import {
   STORE_PLACE, STORE_ART, STORE_DOOR, STORE_DOOR_PROP, STORE_COUNTER, STORE_COUNTER_PROP, STORE_WALK,
   STORE_FRONT, STORE_SIDEWALK, STORE_SIGN, STORE_BROWSE, STORE_PAY_X, STORE_JOB, STORE_FEET_FROM_BOTTOM,
-  STORE_SHOPPERS, STORE_CLERK, STORE_PIGEON,
+  STORE_SHOPPERS, STORE_CLERK, STORE_PIGEON, STORE_ITEMS, PURCHASE_TIMES, STORE_BAR_TEXT,
 } from '../src/data/store.js';
 import { CAFE_PLACE } from '../src/data/cafe.js';
 import { INDOOR_PLACES } from '../src/data/weather.js';
@@ -152,4 +161,102 @@ test('the pigeon pecks about the sidewalk; clicked it coos, flies off, and walks
   assert.ok(STORE_CLERK.lines.includes(clerk.text));
   const box = storeBoxes(life).find((b) => b.id === 'clerk');
   assert.ok(box.bottom <= STORE_COUNTER.top + 1);
+});
+
+function runStore(game, seconds, random = Math.random) {
+  const bubbles = [];
+  for (let ms = 0; ms < seconds * 1000; ms += 250) bubbles.push(...updateStore(game, 250, random), ...updateShift(game, 250));
+  return bubbles;
+}
+
+function atStore(age = 30, money = 100) {
+  const game = lifeAt(age, STORE_PLACE);
+  Object.assign(game.character.stats, { money, happiness: 50, health: 50 });
+  return game;
+}
+
+test('a snack: paid at once, scanned at the register, had by the window, once an hour each', () => {
+  const game = atStore();
+  assert.equal(buyBlock(atStore(4), 'onigiri'), 'tooYoung');
+  assert.equal(buyAtStore(game, 'onigiri'), true);
+  assert.equal(game.character.stats.money, 100 - STORE_ITEMS.onigiri.price);
+  assert.equal(stayKey(game), 'store:pay');
+  assert.equal(buyAtStore(game, 'iceCream'), false, 'one at a time');
+  assert.equal(activityBarView(game).text, STORE_BAR_TEXT.toRegister);
+  assert.deepEqual(runStore(game, 30), [], 'nothing until they get there');
+  arriveAtStay(game);
+  assert.equal(activityBarView(game).text, 'Paying for the onigiri...');
+  runStore(game, PURCHASE_TIMES.pay);
+  assert.equal(stayKey(game), 'store:have', 'off to the window');
+  assert.equal(activityBarView(game).text, STORE_BAR_TEXT.toWindow);
+  arriveAtStay(game);
+  const had = runStore(game, PURCHASE_TIMES.enjoy);
+  assert.equal(had.length, 1);
+  assert.deepEqual(had[0].deltas, STORE_ITEMS.onigiri.effects);
+  assert.equal(isBuying(game), false);
+  assert.equal(buyBlock(game, 'onigiri'), 'wait');
+  assert.equal(buyBlock(game, 'energyDrink'), null);
+  runStore(game, 60 * 60);
+  assert.equal(buyBlock(game, 'onigiri'), null);
+});
+
+test('stopping before paying refunds it; after paying it just ends; leaving calls it off', () => {
+  const game = atStore();
+  buyAtStore(game, 'energyDrink');
+  assert.deepEqual(stopFromBar(game), { stopped: true, news: null });
+  assert.equal(game.character.stats.money, 100);
+  buyAtStore(game, 'iceCream');
+  arriveAtStay(game);
+  runStore(game, PURCHASE_TIMES.pay);
+  stopFromBar(game);
+  assert.equal(game.character.stats.money, 97, 'eaten money stays spent');
+  buyAtStore(game, 'onigiri');
+  enterPlace(game, 'lake');
+  assert.equal(isBuying(game), false);
+  assert.equal(game.character.stats.money, 97);
+});
+
+test('the scratch card: scratched by the window, wins now and then, and pays back less than it costs', () => {
+  assert.equal(scratchPrize(() => 0), 10);
+  assert.equal(scratchPrize(() => 0.085), 50);
+  assert.equal(scratchPrize(() => 0.5), 0);
+  const expected = STORE_ITEMS.scratch.prizes.reduce((sum, prize) => sum + prize.chance * prize.pay, 0);
+  assert.ok(expected < STORE_ITEMS.scratch.price, `pays back $${expected} of $${STORE_ITEMS.scratch.price}`);
+  const random = seeded(12);
+  let won = 0;
+  for (let i = 0; i < 20000; i++) won += scratchPrize(random);
+  assert.ok(Math.abs(won / 20000 - expected) < 0.15, `${won / 20000}`);
+
+  const game = atStore();
+  buyAtStore(game, 'scratch');
+  arriveAtStay(game);
+  runStore(game, PURCHASE_TIMES.pay);
+  assert.equal(game.store.purchase.step, 'scratch');
+  arriveAtStay(game);
+  const [lucky] = runStore(game, PURCHASE_TIMES.scratch, () => 0);
+  assert.equal(lucky.deltas.money, 10);
+  assert.equal(lucky.celebrate, true);
+  assert.equal(game.store.scratchWins, 10);
+  game.store.waitMs.scratch = 0;
+  buyAtStore(game, 'scratch');
+  arriveAtStay(game);
+  runStore(game, PURCHASE_TIMES.pay);
+  arriveAtStay(game);
+  const [unlucky] = runStore(game, PURCHASE_TIMES.scratch, () => 0.9);
+  assert.deepEqual(unlucky.deltas, {});
+});
+
+test('a Shop Clerk stands behind the register and can work a shift ($7)', () => {
+  const game = atStore(30, 0);
+  applyJobChange(game, { hire: STORE_JOB });
+  assert.equal(workplaceHere(game).place, STORE_PLACE);
+  assert.equal(shiftPay(game), 7);
+  assert.equal(startShift(game), true);
+  assert.equal(stayKey(game), 'shift:store');
+  assert.equal(buyBlock(game, 'onigiri'), 'busy');
+  arriveAtStay(game);
+  const done = runStore(game, 30 * 60);
+  assert.equal(done.at(-1).deltas.money, 7);
+  assert.deepEqual(restoreStoreState(JSON.parse(JSON.stringify(game.store))), game.store);
+  assert.deepEqual(restoreStoreState(null), createStoreState());
 });

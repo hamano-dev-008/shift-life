@@ -20,6 +20,8 @@ import { isResting, stopResting, restView } from './home.js';
 import { currentFarmJob, stopFarmJob } from './farm.js';
 import { isOrdering, stopOrder, cafeView } from './cafe.js';
 import { isOnShift, stopShift, shiftView } from './shifts.js';
+import { isBuying, stopPurchase, storeView } from './store.js';
+import { STORE_BAR_TEXT } from '../data/store.js';
 import { CAFE_BAR_TEXT } from '../data/cafe.js';
 import { SHIFT_TEXT } from '../data/work.js';
 import { restSpotOf } from './places.js';
@@ -36,7 +38,7 @@ function clockTime(ms) {
 }
 
 // What the bar shows now: { kind ('activity', 'farm', 'picking', 'cafe',
-// 'shift', 'busking' or 'resting'),
+// 'store', 'shift', 'busking' or 'resting'),
 // text, stop (the button's label), onTheWay (still walking to the spot) },
 // or null when nothing is running (or the life has ended).
 export function activityBarView(game) {
@@ -52,6 +54,7 @@ function onTheWayText(game, kind) {
   if (kind === 'picking') return TREE_TEXT.pickOnTheWay;
   if (kind === 'cafe') return CAFE_BAR_TEXT.toSeat;
   if (kind === 'shift') return SHIFT_TEXT.toCounter;
+  if (kind === 'store') return game.store.purchase.step === 'pay' ? STORE_BAR_TEXT.toRegister : STORE_BAR_TEXT.toWindow;
   if (kind === 'farm') return FARM_TEXT.onTheWay;
   if (kind === 'resting') {
     const seat = REST_SPOT_NAMES[restSpotOf(game)] ?? REST_SPOT_NAMES['home.sofa'];
@@ -77,6 +80,12 @@ function runningView(game) {
     const { order } = cafeView(game);
     const text = order.step === 'serve' ? CAFE_BAR_TEXT.waiting : CAFE_BAR_TEXT.enjoying;
     return { kind: 'cafe', text: fill(text, { item: order.name.toLowerCase() }), stop, onTheWay: false };
+  }
+  if (isBuying(game)) {
+    const { purchase } = storeView(game);
+    const text = purchase.step === 'pay' ? STORE_BAR_TEXT.paying
+      : purchase.step === 'scratch' ? STORE_BAR_TEXT.scratching : STORE_BAR_TEXT.enjoying;
+    return { kind: 'store', text: fill(text, { item: purchase.name.toLowerCase() }), stop, onTheWay: false };
   }
   if (isOnShift(game)) {
     const shift = shiftView(game);
@@ -112,6 +121,7 @@ export function stopFromBar(game) {
   if (stopFarmJob(game)) return { stopped: true, news: null };
   if (isPicking(game)) return { stopped: true, news: stopPicking(game) };
   if (isOrdering(game)) return { stopped: stopOrder(game), news: null };
+  if (isBuying(game)) return { stopped: stopPurchase(game), news: null };
   if (isOnShift(game)) return { stopped: stopShift(game), news: null };
   if (stopPlaying(game)) return { stopped: true, news: null };
   if (stopResting(game)) return { stopped: true, news: null };

@@ -1,13 +1,14 @@
-// cafeMenu.js — The Cafe counter's menu: a compact panel opened by
-// clicking the counter (the renderer calls toggle()). Offers a coffee or
-// a cake (each with its price; greyed out while too dear, already had
-// this hour, or something else is going on) and, for whoever works at the
-// cafe, a shift (or stopping it), with the shift's progress and the
-// waits. It only calls the actions it's given; the logic is in
-// game/cafe.js. Text comes from CAFE_MENU_TEXT in data/cafe.js.
+// counterMenu.js — A town place's counter menu (the Cafe's counter, the
+// 6-Eleven's register): a compact panel opened by clicking the counter
+// (the renderer calls toggle()). Offers the place's items (each with its
+// price; greyed out while too dear, already had this hour, or something
+// else is going on) and, for whoever works there, a shift (or stopping
+// it), with the shift's progress and the waits. It only calls the actions
+// it's given; the logic is in game/cafe.js, game/store.js and
+// game/shifts.js. The place's own words come in the view; the items' and
+// the shift's are COUNTER_TEXT and SHIFT_TEXT in data/work.js.
 
-import { CAFE_MENU_TEXT } from '../data/cafe.js';
-import { SHIFT_TEXT } from '../data/work.js';
+import { COUNTER_TEXT, SHIFT_TEXT } from '../data/work.js';
 import { clockTime, longTime } from './timeText.js';
 
 function element(tag, className, text = '') {
@@ -30,7 +31,7 @@ function renderOptions(menu, view, actions) {
     return;
   }
   const buttons = view.items.map((item) => {
-    const button = element('button', '', fill(CAFE_MENU_TEXT.order, { item: item.name, price: item.price }));
+    const button = element('button', '', fill(COUNTER_TEXT.order, { item: item.name, price: item.price }));
     button.disabled = Boolean(item.block);
     button.addEventListener('click', () => actions.order(item.id));
     return button;
@@ -40,7 +41,7 @@ function renderOptions(menu, view, actions) {
     const shift = working
       ? element('button', 'active', SHIFT_TEXT.stop)
       : element('button', 'golden', fill(SHIFT_TEXT.start, { pay: view.shift.pay }));
-    shift.disabled = !working && Boolean(view.order);
+    shift.disabled = !working && Boolean(view.busy);
     shift.addEventListener('click', working ? actions.stopShift : actions.shift);
     buttons.push(shift);
   }
@@ -49,32 +50,32 @@ function renderOptions(menu, view, actions) {
 
 // The status lines, as text.
 function statusLines(view) {
-  if (view.tooYoung) return [fill(CAFE_MENU_TEXT.tooYoung, { age: view.minAge })];
+  const { text } = view;
+  if (view.tooYoung) return [fill(text.tooYoung, { age: view.minAge })];
   const lines = [];
   if (view.shift) lines.push(fill(SHIFT_TEXT.staff, { job: view.shift.job }));
   if (view.shift?.ms != null) {
     lines.push(fill(SHIFT_TEXT.working, { time: clockTime(view.shift.ms), total: clockTime(view.shift.totalMs) }));
-  } else if (view.order) {
-    lines.push(fill(CAFE_MENU_TEXT.ordering, { item: view.order.name.toLowerCase() }));
+  } else if (view.busy) {
+    lines.push(fill(text.busy, { item: view.busy.toLowerCase() }));
   } else {
-    lines.push(CAFE_MENU_TEXT.idle);
+    lines.push(text.idle);
   }
   for (const item of view.items) {
-    if (item.block === 'wait') lines.push(fill(CAFE_MENU_TEXT.again, { item: item.name, time: longTime(item.waitMs) }));
+    if (item.block === 'wait') lines.push(fill(COUNTER_TEXT.again, { item: item.name, time: longTime(item.waitMs) }));
   }
   const short = view.items.filter((item) => item.block === 'money');
-  if (short.length) lines.push(fill(CAFE_MENU_TEXT.need, { need: Math.min(...short.map((item) => item.need)) }));
+  if (short.length) lines.push(fill(COUNTER_TEXT.need, { need: Math.min(...short.map((item) => item.need)) }));
   return lines;
 }
 
-// `menu` is the #cafe-menu element. `actions` is { order(itemId), shift,
-// stopShift, onOpen } (onOpen closes other panels).
-export function createCafeMenu(menu, actions) {
+// `menu` is the #counter-menu element. `actions` is { order(itemId),
+// shift, stopShift, onOpen } (onOpen closes other panels).
+export function createCounterMenu(menu, actions) {
   let shownOptions = '';
   let shownStatus = '';
   const close = () => { menu.hidden = true; };
-  // Every action closes the menu, so the walk to the table or the counter
-  // shows.
+  // Every action closes the menu, so the walk to the spot shows.
   const then = (action) => (...args) => { action(...args); close(); };
   const wrapped = { order: then(actions.order), shift: then(actions.shift), stopShift: then(actions.stopShift) };
 
@@ -93,16 +94,18 @@ export function createCafeMenu(menu, actions) {
       menu.hidden = false;
       actions.onOpen();
     },
-    // Call every frame with cafeView() plus `shift` (shiftView()), or null
-    // away from the Cafe.
+    // Call every frame with the place's counter view, or null away from a
+    // counter: { text: { title, tooYoung, busy, idle }, minAge, tooYoung,
+    // items: [{ id, name, price, block, waitMs, need }], busy (the name of
+    // what they're having now, or null), shift (shiftView(), or null) }.
     // Updates the open menu only where what it shows changed.
     update(view) {
       if (!view) close();
       if (menu.hidden) return;
       const titleNode = menu.querySelector('.menu-title');
-      if (titleNode.textContent !== CAFE_MENU_TEXT.title) titleNode.textContent = CAFE_MENU_TEXT.title;
-      const optionsKey = JSON.stringify([view.tooYoung, view.items.map((item) => item.block), view.order?.item,
-        view.shift?.ms != null, view.shift?.pay]);
+      if (titleNode.textContent !== view.text.title) titleNode.textContent = view.text.title;
+      const optionsKey = JSON.stringify([view.text.title, view.tooYoung, view.items.map((item) => item.block),
+        view.busy, view.shift?.ms != null, view.shift?.pay]);
       if (optionsKey !== shownOptions) {
         shownOptions = optionsKey;
         renderOptions(menu, view, wrapped);

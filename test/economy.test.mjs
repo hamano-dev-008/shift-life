@@ -14,8 +14,9 @@ import { JOBS } from '../src/data/jobs.js';
 import { HOUSING_TIERS } from '../src/data/housing.js';
 import { SESSION_MINUTES, SESSION_PAY, APPLE_EVERY_HOURS } from '../src/data/fortuneTree.js';
 import { RICE } from '../src/data/farm.js';
-import { CAFE_JOB, CAFE_ORDERS } from '../src/data/cafe.js';
-import { SHIFT } from '../src/data/work.js';
+import { CAFE_ORDERS } from '../src/data/cafe.js';
+import { SHIFT, WORKPLACES } from '../src/data/work.js';
+import { STORE_ITEMS } from '../src/data/store.js';
 
 const HOUR_MS = 3600 * 1000;
 const ADULT_HOURS_PER_YEAR = LIFE_STAGES.find((s) => s.id === 'adult').realMinutesPerYear / 60;
@@ -135,9 +136,10 @@ test('an unanswered event is decided after a real minute at any age', () => {
   }
 });
 
-test('cafe shifts pay half the job hourly rate on top (below a career); coffee and cake are sinks to match', () => {
-  const cafe = JOBS.find((job) => job.id === CAFE_JOB);
-  for (const level of cafe.levels) {
+test('workplace shifts pay half the job hourly rate on top (below a career); coffee and cake are sinks to match', () => {
+  const levels = WORKPLACES.flatMap((work) => JOBS.find((job) => job.id === work.job).levels);
+  assert.ok(levels.length >= 6);
+  for (const level of levels) {
     const hourly = level.pay / ADULT_HOURS_PER_YEAR;
     const shiftsPerHour = 60 / SHIFT.minutes;
     const extra = Math.round((hourly * SHIFT.rate * SHIFT.minutes) / 60) * shiftsPerHour;
@@ -148,4 +150,15 @@ test('cafe shifts pay half the job hourly rate on top (below a career); coffee a
   const entryPerMinute = 100 / ADULT_HOURS_PER_YEAR / 60;
   assert.ok(CAFE_ORDERS.coffee.price / entryPerMinute < 15);
   assert.ok(CAFE_ORDERS.cake.price / entryPerMinute < 30);
+});
+
+test('the 6-Eleven sells small treats (a few minutes of entry pay) and a scratch card that loses on average', () => {
+  const entryPerMinute = 100 / ADULT_HOURS_PER_YEAR / 60;
+  for (const [id, item] of Object.entries(STORE_ITEMS)) {
+    assert.ok(item.price / entryPerMinute <= 10, `${id}: ${item.price / entryPerMinute} minutes of pay`);
+    assert.equal(item.everyMinutes, 60, `${id}: once an hour`);
+  }
+  const { price, prizes } = STORE_ITEMS.scratch;
+  const back = prizes.reduce((sum, prize) => sum + prize.chance * prize.pay, 0);
+  assert.ok(back < price * 0.75, `a $${price} card pays back $${back} on average`);
 });

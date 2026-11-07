@@ -153,7 +153,7 @@ export const PLACES = [
     town: true,
     door: STORE_DOOR_PROP,
     exits: [],
-    targets: { [STORE_DOOR_PROP]: STORE_TEXT.door },
+    targets: { [STORE_DOOR_PROP]: STORE_TEXT.door, [STORE_COUNTER_PROP]: STORE_TEXT.counter },
   },
 ];
 

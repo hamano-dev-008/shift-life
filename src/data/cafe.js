@@ -155,15 +155,12 @@ export const ORDER_SEAT = 'chairL';
 export const CAFE_JOB = 'cafe';
 
 // The counter's menu, the bar and the bubble. {item} is an item's name,
-// {price} dollars, {need} the dollars short, {time} "42m", {age} an age.
-// The shift's lines are SHIFT_TEXT in data/work.js.
+// {age} an age. The items' and the shift's lines are COUNTER_TEXT and
+// SHIFT_TEXT in data/work.js.
 export const CAFE_MENU_TEXT = {
   title: 'Counter',
   tooYoung: 'Come back at age {age} for a coffee.',
-  order: '{item} - ${price}',
-  need: 'Need ${need} more',
-  again: '{item} again in {time}',
-  ordering: 'Enjoying the {item}...',
+  busy: 'Enjoying the {item}...',
   idle: 'Sit down for a coffee or a cake.',
 };
 export const CAFE_BAR_TEXT = {

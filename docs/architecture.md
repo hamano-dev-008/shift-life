@@ -205,6 +205,11 @@ Shift-Life/
 │   │   │                  cake (paid at once, served at the table once
 │   │   │                  seated, once an hour each, refunded if
 │   │   │                  stopped first)
+│   │   ├── store.js       The 6-Eleven's register: snacks and scratch
+│   │   │                  cards (paid at once, paid for at the
+│   │   │                  register, had or scratched by the window,
+│   │   │                  once an hour each, refunded if stopped
+│   │   │                  first)
 │   │   ├── shifts.js      Paid shifts at a workplace in town, for whoever
 │   │   │                  works there: start, stop, pay when done
 │   │   ├── farm.js        The Farm's rice paddies: owning and buying
@@ -402,8 +407,9 @@ Shift-Life/
 │   │   ├── treeDecorArt.js Draws the leaves (code or fortuneTree.leaf),
 │   │   │                  the apple's glow and its sparkles; the
 │   │   │                  leaves' area from the tree's drawn box
-│   │   ├── cafeMenu.js    The Cafe counter's menu: coffee, cake, a
-│   │   │                  shift (or stopping it), the waits
+│   │   ├── counterMenu.js A town place's counter menu (the Cafe's, the
+│   │   │                  6-Eleven's): its items, a shift (or stopping
+│   │   │                  it) for whoever works there, the waits
 │   │   ├── timeText.js    "7:05" and "1h 25m" for menus
 │   │   ├── people.js      What the town places' people share: walking
 │   │   │                  along a row, their pose for drawCharacter()
@@ -654,7 +660,9 @@ Shift-Life/
                        the door back, walls and feet, the picture's
                        numbers, the Shop job working there; shoppers
                        chiming in and out, paying one at a time while
-                       the clerk scans, the pigeon flying off and back),
+                       the clerk scans, the pigeon flying off and back;
+                       buying, refunds, the scratch card's odds, a Shop
+                       Clerk's shift),
                        cafe.test.mjs (the Cafe in town: routes in and
                        out from every place, never a shortcut, the
                        door back to where they came from, the fades,
@@ -1314,7 +1322,7 @@ Parents' Yard and then of My Yard (see **Farm**).
     (ids `master` and `cat`), with the same bubble, hover outline (the
     master's only above the counter) and the shared +1 happiness
     cooldown.
-- The counter (`game/cafe.js`, menu `ui/cafeMenu.js`; `game.cafe`:
+- The counter (`game/cafe.js`, menu `ui/counterMenu.js`; `game.cafe`:
   `{ waitMs, order }`, saved, `restoreCafeState()`).
   Clicking it opens its menu.
   - Orders (`CAFE_ORDERS`, from `CAFE_MIN_AGE` 6): "Coffee - $3" (+2
@@ -1367,6 +1375,25 @@ Parents' Yard and then of My Yard (see **Farm**).
     "coo!". `#wildlife` buttons (ids `clerk`, `pigeon`) like the Cafe's,
     with the same bubble, hover outline and shared treat
     (`crittersHere()` in the renderer picks the place's).
+- The register (`game/store.js`, the same menu, `ui/counterMenu.js`,
+  with `STORE_MENU_TEXT`; `game.store`: `{ waitMs, purchase,
+  scratchWins }`, saved, `restoreStoreState()`). Clicking it opens its
+  menu (from `STORE_MIN_AGE` 6). `STORE_ITEMS`: onigiri $2 (+1 health,
+  +1 happiness), ice cream $3 (+3 happiness), energy drink $4 (+3
+  health), each once every `everyMinutes` (60), and the scratch card
+  $2, once an hour too. Buying (`buyAtStore()`) pays at once; they walk
+  to `STORE_PAY_X` (`stayKey()` `'store:pay'`) and pay for
+  `PURCHASE_TIMES.pay` while the clerk scans (the renderer sets
+  `playerPaying`; shoppers queue behind them), then walk to the window
+  (`STORE_EAT_X`, `'store:have'`) and have it for `enjoy` seconds, the
+  item in hand (`drawHeldItem()`), and get its effects with "Munch!".
+  The scratch card is scratched there for `scratch` seconds instead:
+  `scratchPrize()` wins one of `prizes` ($10 at 8%, $50 at 1%), a
+  golden bubble, else "No luck this time...". It pays back $1.30 of
+  its $2 on average (a test checks it stays a sink). Stop or leaving
+  before it's paid refunds it; after, it just ends. Events aren't
+  frozen. The Shop job works here: see **Workplaces and shifts** (a
+  Shop Clerk's shift pays $7).
 - Workplaces and shifts (`data/work.js`, `game/shifts.js`; `game.work`:
   `{ shift: { place, ms } or null, shifts }`, saved,
   `restoreWorkState()`, which also takes an older save's shift kept in
@@ -2366,7 +2393,7 @@ all five files live in `%APPDATA%\shift-life\`.
   would put the window off every connected screen.
 - `save.json` holds the life: `{ version, clock: { years }, character,
   events, goals, jobs, place, townFrom, fortuneTree, home, housing, endOfLife,
-  activities, autonomy, farm, cafe, work, weather, weatherSeen }`.
+  activities, autonomy, farm, cafe, work, store, weather, weatherSeen }`.
   `character` includes
   `stats` and `traits`; `events`
   holds `nextAt`, the `pending` event, how often each was `seen`,

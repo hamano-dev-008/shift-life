@@ -18,7 +18,8 @@ import { toScene, between, pick, walkToward } from './people.js';
 
 // The store's life now: { time (seconds), clerk, shoppers, pigeon,
 // nextId, spawnIn, chimes (door chimes not yet shown: the renderer takes
-// them) }.
+// them), playerPaying (the character is paying at the register: the
+// renderer sets it) }.
 //   clerk:   { x, facing, state ('idle', 'yawn', 'scan'), t, left }
 //   shopper: { id, look, stage, x, facing, step ('browsing' walking to a
 //            spot, 'browse', 'paying' walking to the register or waiting
@@ -38,6 +39,7 @@ export function createStoreLife(random = Math.random) {
     nextId: 1,
     spawnIn: between(STORE_SHOPPERS.firstIn, random),
     chimes: [],
+    playerPaying: false,
   };
 }
 
@@ -68,9 +70,9 @@ export function addShopper(life, random = Math.random) {
 export const isWalking = (shopper) => shopper.step === 'browsing' || shopper.step === 'paying' || shopper.step === 'out';
 
 // Where a shopper heading to pay goes: the register, or behind whoever is
-// paying there.
+// paying there (the character too).
 function payTarget(life, shopper) {
-  const ahead = life.shoppers.some((other) => other !== shopper && (other.step === 'pay'
+  const ahead = life.playerPaying || life.shoppers.some((other) => other !== shopper && (other.step === 'pay'
     || (other.step === 'paying' && other.x > shopper.x)));
   return ahead ? STORE_PAY_X - STORE_SHOPPERS.queueGap : STORE_PAY_X;
 }
@@ -115,12 +117,12 @@ function updateShopper(life, shopper, dt, random) {
   }
 }
 
-// The clerk scans while someone pays; otherwise stands, and now and then
-// yawns and stretches.
+// The clerk scans while someone pays (the character too); otherwise
+// stands, and now and then yawns and stretches.
 function updateClerk(life, dt, random) {
   const { clerk } = life;
   clerk.t += dt;
-  const paying = life.shoppers.some((shopper) => shopper.step === 'pay');
+  const paying = life.playerPaying || life.shoppers.some((shopper) => shopper.step === 'pay');
   if (paying) {
     if (clerk.state !== 'scan') {
       clerk.state = 'scan';

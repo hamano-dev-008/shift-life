@@ -146,14 +146,15 @@ import {
 import { drawCafeCounterFront } from './ui/cafe.js';
 import { createStoreLife, updateStoreLife, clickStoreCritter, storeBoxes } from './ui/storeLife.js';
 import {
-  drawClerk, drawStoreLifeFront, drawPigeon, drawStoreCritter,
+  drawClerk, drawStoreLifeFront, drawPigeon, drawStoreCritter, drawHeldItem,
 } from './ui/storeLifeArt.js';
 import { drawStoreCounterFront, drawStoreShine } from './ui/store.js';
 import {
-  STORE_PLACE, STORE_DOOR, STORE_CLERK, STORE_PIGEON, STORE_SHOPPERS,
+  STORE_PLACE, STORE_DOOR, STORE_CLERK, STORE_PIGEON, STORE_SHOPPERS, STORE_MENU_TEXT, STORE_COUNTER_PROP,
+  STORE_PAY_X, STORE_EAT_X,
 } from './data/store.js';
 import {
-  CAFE_PLACE, CAFE_MASTER, CAFE_CAT, CAFE_COUNTER_PROP, CAFE_SEATS, CAFE_TABLE, ORDER_SEAT,
+  CAFE_PLACE, CAFE_MASTER, CAFE_CAT, CAFE_COUNTER_PROP, CAFE_SEATS, CAFE_TABLE, ORDER_SEAT, CAFE_MENU_TEXT,
   CAFE_ART, CAFE_FEET_FROM_BOTTOM,
 } from './data/cafe.js';
 import { LAKE_PLACE, BOBBER_SPOT, DOCK_PROP } from './data/lake.js';
@@ -169,7 +170,10 @@ import { drawFarmCrops } from './ui/farm.js';
 import { createFarmAnimals, updateFarmAnimals } from './ui/farmAnimals.js';
 import { drawFarmAnimals } from './ui/farmAnimalsArt.js';
 import { createFarmMenu } from './ui/farmMenu.js';
-import { createCafeMenu } from './ui/cafeMenu.js';
+import { createCounterMenu } from './ui/counterMenu.js';
+import {
+  buyAtStore, updateStore, storeView, isBuying,
+} from './game/store.js';
 import {
   orderItem, updateCafe, cafeView, isOrdering,
 } from './game/cafe.js';
@@ -350,7 +354,7 @@ async function start() {
     if (except !== 'event') closeEventCard();
     for (const [id, panel] of [['goal', goalMenu], ['tree', treeMenu], ['rest', restMenu],
       ['activity', activityMenu], ['go', goMenu], ['summary', summaryCard], ['book', bookMenu],
-      ['farm', farmMenu], ['cafe', cafeMenu], ['dev', devMenu]]) {
+      ['farm', farmMenu], ['counter', counterMenu], ['dev', devMenu]]) {
       if (id !== except) panel?.close();
     }
   }
@@ -459,24 +463,40 @@ async function start() {
     onOpen: () => closePanels('farm'),
   });
   const PADDY_IDS = new Set(PADDIES.map((paddy) => paddy.id));
-  // Clicking the Cafe's counter opens its menu: a coffee or a cake at the
-  // table, or (working at the cafe) a shift behind the counter
-  // (game/cafe.js). Either starts once they're at the spot.
-  const cafeMenu = createCafeMenu(document.getElementById('cafe-menu'), {
+  // Clicking a town place's counter opens its menu: at the Cafe a coffee
+  // or a cake at the table (game/cafe.js), at the 6-Eleven a snack or a
+  // scratch card (game/store.js), and for whoever works there a shift
+  // behind the counter (game/shifts.js). Each starts once they're at the
+  // spot.
+  const counterMenu = createCounterMenu(document.getElementById('counter-menu'), {
     order: (item) => {
       playerTookOver();
-      if (orderItem(game, item)) saveGame(game);
+      const bought = game.place === CAFE_PLACE ? orderItem(game, item) : buyAtStore(game, item);
+      if (bought) saveGame(game);
     },
     shift: () => {
       playerTookOver();
-      if (startShift(game, isOrdering(game))) saveGame(game);
+      if (startShift(game, isOrdering(game) || isBuying(game))) saveGame(game);
     },
     stopShift: () => {
       playerTookOver();
       if (stopShift(game)) saveGame(game);
     },
-    onOpen: () => closePanels('cafe'),
+    onOpen: () => closePanels('counter'),
   });
+  // The counter menu's view where the character is (null away from a
+  // counter).
+  function counterView() {
+    if (scene.place.id === CAFE_PLACE) {
+      const view = cafeView(game);
+      return { ...view, text: CAFE_MENU_TEXT, busy: view.order?.name ?? null, shift: shiftView(game) };
+    }
+    if (scene.place.id === STORE_PLACE) {
+      const view = storeView(game);
+      return { ...view, text: STORE_MENU_TEXT, busy: view.purchase?.name ?? null, shift: shiftView(game) };
+    }
+    return null;
+  }
   // Stops an activity before leaving the place (travelling, the dev
   // menu's Go to), showing the sale if there was one.
   function stopActivityToLeave() {
@@ -766,7 +786,7 @@ async function start() {
     const farmNews = updateFarm(game, realMs);
     farmNews.forEach(showNews);
     // The Cafe's waits, order and shift (real time; game/cafe.js).
-    const cafeNews = [...updateCafe(game, realMs), ...updateShift(game, realMs)];
+    const cafeNews = [...updateCafe(game, realMs), ...updateStore(game, realMs), ...updateShift(game, realMs)];
     cafeNews.forEach(showNews);
     if (cafeNews.length) saveGame(game);
     const moved = updatePlaces(game);
@@ -843,8 +863,9 @@ async function start() {
       restMenu.toggle();
     } else if (activity) {
       activityMenu.toggle(activity.id);
-    } else if (id === CAFE_COUNTER_PROP && scene.place.id === CAFE_PLACE) {
-      cafeMenu.toggle();
+    } else if ((id === CAFE_COUNTER_PROP && scene.place.id === CAFE_PLACE)
+      || (id === STORE_COUNTER_PROP && scene.place.id === STORE_PLACE)) {
+      counterMenu.toggle();
     } else if (PADDY_IDS.has(id) && scene.place.id === FARM_PLACE) {
       farmMenu.toggle(id);
     } else if (id === WELL_PROP) {
@@ -1199,6 +1220,13 @@ async function start() {
       const seat = CAFE_SEATS.find((candidate) => candidate.id === ORDER_SEAT);
       return { x: (seat.x + 0.5) * layout.scale, mode: 'sitting', lift: (feetRow - seat.row) * layout.scale, facing: seat.facing };
     }
+    // At the 6-Eleven with a snack or a card: paying at the register
+    // (facing it), then by the glass front having it.
+    if (place.id === STORE_PLACE && isBuying(game)) {
+      const paying = game.store.purchase.step === 'pay';
+      const x = paying ? STORE_PAY_X : STORE_EAT_X;
+      return { x: (x + 0.5) * layout.scale, mode: 'doing', activity: 'hold', facing: paying ? 1 : -1 };
+    }
     // Working at a workplace: behind its counter (on the floor further
     // back), holding something, whether on a shift or not.
     const work = workplaceHere(game);
@@ -1407,7 +1435,8 @@ async function start() {
       // They choose something to do now, skipping the wait.
       planNow: () => {
         if (game.endOfLife.ended || travelling() || currentPlan(game) || isPlaying(game) || isResting(game)
-          || isDoingActivity(game) || currentFarmJob(game) || isPicking(game) || isOrdering(game) || isOnShift(game)) {
+          || isDoingActivity(game) || currentFarmJob(game) || isPicking(game) || isOrdering(game) || isBuying(game)
+          || isOnShift(game)) {
           return AUTONOMY_TEXT.notNow;
         }
         restPreview = null;
@@ -1672,7 +1701,7 @@ async function start() {
     // Their own plans: left alone long enough (nothing running, nothing
     // showing, not away), now and then they choose something to do.
     const running = isPlaying(game) || isResting(game) || isDoingActivity(game)
-      || Boolean(currentFarmJob(game)) || isPicking(game) || isOrdering(game) || isOnShift(game);
+      || Boolean(currentFarmJob(game)) || isPicking(game) || isOrdering(game) || isBuying(game) || isOnShift(game);
     const idle = !busy && !running && !restPreview && !farewell && !isAtWork(animator);
     if (mayChoose(choosing, now, { enabled: settings.ownPlans, idle })) beginOwnPlan(now);
     // While the view pans they wait past the edge, then walk in.
@@ -1783,11 +1812,19 @@ async function start() {
           drawHeldCup(ctx, heldHand(stage, pose, layout.feetY - pose.lift, layout.characterScale));
         }
       }
-      // Working behind the 6-Eleven's register: its front and the
-      // shoppers go over them again.
-      if (place.id === STORE_PLACE && storeLife && pose.activity === 'hold' && pose.lift > 0) {
-        drawStoreCounterFront(ctx, layout);
-        drawStoreLifeFront(ctx, layout, storeLife);
+      // At the 6-Eleven: the clerk scans while they pay, then the snack
+      // or the card is in their hand; working behind the register, its
+      // front and the shoppers go over them again.
+      if (place.id === STORE_PLACE && storeLife) {
+        const { purchase } = game.store;
+        storeLife.playerPaying = purchase?.step === 'pay' && hasArrived(game);
+        if (purchase && purchase.step !== 'pay' && hasArrived(game) && pose.activity === 'hold') {
+          drawHeldItem(ctx, heldHand(stage, pose, layout.feetY, layout.characterScale), purchase.item, seconds);
+        }
+        if (pose.activity === 'hold' && pose.lift > 0) {
+          drawStoreCounterFront(ctx, layout);
+          drawStoreLifeFront(ctx, layout, storeLife);
+        }
       }
       // Picking the apple: the branch held up, the apple falling or held
       // up, the fairies; once it's dropped the branch stays where it fell.
@@ -1899,7 +1936,7 @@ async function start() {
     const goals = goalView(game);
     goalMenu.update(ended ? { ...goals, unlocked: false } : goals);
     treeMenu.update(place.name, place.id === FORTUNE_TREE_PLACE ? treeView(game) : null);
-    cafeMenu.update(place.id === CAFE_PLACE ? { ...cafeView(game), shift: shiftView(game) } : null);
+    counterMenu.update(counterView());
     restMenu.update(restMenuView());
     activityMenu.update((id) => {
       const activity = activityById(id);

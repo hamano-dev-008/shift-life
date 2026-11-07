@@ -33,6 +33,15 @@ export const WORKPLACES = [
 // $12-26 an hour on top). Stopping early pays nothing.
 export const SHIFT = { minutes: 30, rate: 0.5 };
 
+// What every counter's menu (the Cafe's, the 6-Eleven's) says about its
+// items: {item} is an item's name, {price} dollars, {need} the dollars
+// short, {time} "42m".
+export const COUNTER_TEXT = {
+  order: '{item} - ${price}',
+  need: 'Need ${need} more',
+  again: '{item} again in {time}',
+};
+
 // The workplace menus' shift lines, the bar and the bubble. {pay} is
 // dollars, {time} "3:07", {total} "30:00", {job} a job title.
 export const SHIFT_TEXT = {
