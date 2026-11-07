@@ -7,6 +7,7 @@
 // game/cafe.js. Text comes from CAFE_MENU_TEXT in data/cafe.js.
 
 import { CAFE_MENU_TEXT } from '../data/cafe.js';
+import { SHIFT_TEXT } from '../data/work.js';
 import { clockTime, longTime } from './timeText.js';
 
 function element(tag, className, text = '') {
@@ -37,8 +38,8 @@ function renderOptions(menu, view, actions) {
   if (view.shift) {
     const working = view.shift.ms !== null;
     const shift = working
-      ? element('button', 'active', CAFE_MENU_TEXT.stopShift)
-      : element('button', 'golden', fill(CAFE_MENU_TEXT.shift, { pay: view.shift.pay }));
+      ? element('button', 'active', SHIFT_TEXT.stop)
+      : element('button', 'golden', fill(SHIFT_TEXT.start, { pay: view.shift.pay }));
     shift.disabled = !working && Boolean(view.order);
     shift.addEventListener('click', working ? actions.stopShift : actions.shift);
     buttons.push(shift);
@@ -50,9 +51,9 @@ function renderOptions(menu, view, actions) {
 function statusLines(view) {
   if (view.tooYoung) return [fill(CAFE_MENU_TEXT.tooYoung, { age: view.minAge })];
   const lines = [];
-  if (view.staff) lines.push(fill(CAFE_MENU_TEXT.staff, { job: view.staff }));
+  if (view.shift) lines.push(fill(SHIFT_TEXT.staff, { job: view.shift.job }));
   if (view.shift?.ms != null) {
-    lines.push(fill(CAFE_MENU_TEXT.working, { time: clockTime(view.shift.ms), total: clockTime(view.shift.totalMs) }));
+    lines.push(fill(SHIFT_TEXT.working, { time: clockTime(view.shift.ms), total: clockTime(view.shift.totalMs) }));
   } else if (view.order) {
     lines.push(fill(CAFE_MENU_TEXT.ordering, { item: view.order.name.toLowerCase() }));
   } else {
@@ -92,7 +93,8 @@ export function createCafeMenu(menu, actions) {
       menu.hidden = false;
       actions.onOpen();
     },
-    // Call every frame with cafeView() (or null away from the Cafe).
+    // Call every frame with cafeView() plus `shift` (shiftView()), or null
+    // away from the Cafe.
     // Updates the open menu only where what it shows changed.
     update(view) {
       if (!view) close();

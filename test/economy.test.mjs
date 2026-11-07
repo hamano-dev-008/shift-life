@@ -14,7 +14,8 @@ import { JOBS } from '../src/data/jobs.js';
 import { HOUSING_TIERS } from '../src/data/housing.js';
 import { SESSION_MINUTES, SESSION_PAY, APPLE_EVERY_HOURS } from '../src/data/fortuneTree.js';
 import { RICE } from '../src/data/farm.js';
-import { CAFE_JOB, SHIFT, CAFE_ORDERS } from '../src/data/cafe.js';
+import { CAFE_JOB, CAFE_ORDERS } from '../src/data/cafe.js';
+import { SHIFT } from '../src/data/work.js';
 
 const HOUR_MS = 3600 * 1000;
 const ADULT_HOURS_PER_YEAR = LIFE_STAGES.find((s) => s.id === 'adult').realMinutesPerYear / 60;

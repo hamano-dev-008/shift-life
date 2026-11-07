@@ -14,15 +14,15 @@ import { PLACE_ACTIVITIES } from '../data/activities.js';
 
 // What's running that needs its spot: 'activity:<id>', 'farm:<paddy>'
 // (a job at a rice paddy), 'picking' (the golden apple), 'cafe:order'
-// (at the Cafe's table), 'cafe:shift' (behind its counter), 'busking',
-// 'resting', or null. An activity comes first, as in the activity bar.
+// (at the Cafe's table), 'shift:<place>' (behind a workplace's counter),
+// 'busking', 'resting', or null. An activity comes first, as in the activity bar.
 export function stayKey(game) {
   const activity = game.activities?.current;
   if (activity) return `activity:${activity.id}`;
   if (game.farm?.job) return `farm:${game.farm.job.paddy}`;
   if (game.fortuneTree?.picking) return 'picking';
   if (game.cafe?.order) return 'cafe:order';
-  if (game.cafe?.shift) return 'cafe:shift';
+  if (game.work?.shift) return `shift:${game.work.shift.place}`;
   if (game.fortuneTree?.playing) return 'busking';
   if (game.home?.resting) return 'resting';
   return null;

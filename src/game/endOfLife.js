@@ -23,6 +23,7 @@ import { createActivityState } from './activities.js';
 import { createAutonomyState } from './autonomy.js';
 import { createFarmState } from './farm.js';
 import { createCafeState } from './cafe.js';
+import { createWorkState } from './shifts.js';
 import { collectionCount } from './fishing.js';
 import { createWeatherSeenState } from './weather.js';
 
@@ -323,6 +324,7 @@ export function startNewLife(game, options = {}) {
   game.autonomy = createAutonomyState();
   game.farm = createFarmState();
   game.cafe = createCafeState();
+  game.work = createWorkState();
   game.weatherSeen = createWeatherSeenState();
   return game;
 }

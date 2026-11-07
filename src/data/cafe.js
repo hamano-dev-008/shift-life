@@ -150,19 +150,13 @@ export const CAFE_ORDERS = {
 export const ORDER_TIMES = { serve: 16, enjoy: 60 };
 export const ORDER_SEAT = 'chairL';
 
-// Working at the Cafe: while the character's job is CAFE_JOB (any level),
-// at the Cafe they stand behind the counter, and the counter's menu offers
-// a shift: `minutes` of real time (only once behind the counter), paying
-// `rate` of the job's hourly pay for that time when done (an adult year
-// is 4 real hours, data/lifeStages.js), so yearly pay / 16: Barista $6,
-// Head Barista $8, Cafe Owner $13. Extra income below a career's
-// (AGENTS.md: about $12-26 an hour on top). Stopping early pays nothing.
+// The job that works at the Cafe (data/jobs.js): they stand behind the
+// counter there, and can work shifts (data/work.js).
 export const CAFE_JOB = 'cafe';
-export const SHIFT = { minutes: 30, rate: 0.5 };
 
-// The counter's menu, the bar and the bubbles. {item} is an item's name,
-// {price} and {pay} dollars, {need} the dollars short, {time} "42m" or
-// "3:07", {total} "30:00", {age} an age, {job} a job title.
+// The counter's menu, the bar and the bubble. {item} is an item's name,
+// {price} dollars, {need} the dollars short, {time} "42m", {age} an age.
+// The shift's lines are SHIFT_TEXT in data/work.js.
 export const CAFE_MENU_TEXT = {
   title: 'Counter',
   tooYoung: 'Come back at age {age} for a coffee.',
@@ -170,20 +164,13 @@ export const CAFE_MENU_TEXT = {
   need: 'Need ${need} more',
   again: '{item} again in {time}',
   ordering: 'Enjoying the {item}...',
-  shift: 'Work a shift - ${pay}',
-  stopShift: 'Stop the shift',
-  working: 'Shift: {time} of {total}',
-  staff: 'You work here: {job}',
   idle: 'Sit down for a coffee or a cake.',
 };
 export const CAFE_BAR_TEXT = {
   toSeat: 'Heading to a table...',
   waiting: 'Waiting for the {item}...',
   enjoying: 'Enjoying the {item}...',
-  toCounter: 'Going behind the counter...',
-  shift: 'Shift - {time} of {total}',
 };
 export const CAFE_NEWS = {
   served: { heading: 'Cafe', text: 'The {item} is served. Lovely!' },
-  shiftDone: { heading: 'Shift done!', text: 'Thanks for the help today.' },
 };

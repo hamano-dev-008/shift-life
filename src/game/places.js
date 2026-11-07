@@ -9,7 +9,8 @@ import { PLACES, DEFAULT_PLACE } from '../data/places.js';
 import { FORTUNE_TREE_PLACE } from '../data/fortuneTree.js';
 import { REST_SEATS } from '../data/home.js';
 import { stopPlaying, stopPicking, isPicking } from './fortuneTree.js';
-import { stopCafe } from './cafe.js';
+import { stopOrder } from './cafe.js';
+import { stopShift } from './shifts.js';
 import { CAFE_PLACE } from '../data/cafe.js';
 import { stopResting } from './home.js';
 import { stopActivity, currentActivity } from './activities.js';
@@ -113,7 +114,7 @@ export function restSpotOf(game) {
 }
 
 // Ends whatever the character was doing that belongs to a place (busking,
-// picking the apple, an order or shift at the Cafe, resting, an activity such as fishing, which sells the bucket; call
+// picking the apple, a Cafe order, a shift, resting, an activity such as fishing, which sells the bucket; call
 // stopActivity() first to get its bubble). Returns whether anything ended.
 export function leavePlace(game) {
   const stoppedPlaying = stopPlaying(game);
@@ -122,8 +123,10 @@ export function leavePlace(game) {
   const stoppedJob = stopFarmJob(game);
   const stoppedPicking = isPicking(game);
   stopPicking(game);
-  const stoppedCafe = stopCafe(game);
-  return stoppedPlaying || stoppedResting || stoppedActivity || stoppedJob || stoppedPicking || stoppedCafe;
+  const stoppedOrder = stopOrder(game);
+  const stoppedShift = stopShift(game);
+  return stoppedPlaying || stoppedResting || stoppedActivity || stoppedJob || stoppedPicking || stoppedOrder
+    || stoppedShift;
 }
 
 // Makes sure the character is somewhere that exists, and doing only what
@@ -147,7 +150,8 @@ export function settlePlace(game) {
   if (!restSpotOf(game)) stopResting(game);
   if (currentActivity(game) && currentActivity(game).place !== game.place) stopActivity(game);
   if (game.place !== FARM_PLACE) stopFarmJob(game);
-  if (game.place !== CAFE_PLACE) stopCafe(game);
+  if (game.place !== CAFE_PLACE) stopOrder(game);
+  if (game.work.shift && game.work.shift.place !== game.place) stopShift(game);
   return moved;
 }
 

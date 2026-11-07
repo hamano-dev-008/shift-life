@@ -10,9 +10,12 @@ import { startNewLife } from '../src/game/endOfLife.js';
 import { placeView, routeBetween, existingPlaces, exitBetween, enterPlace } from '../src/game/places.js';
 import { computeLayout } from '../src/ui/scene.js';
 import {
-  orderItem, orderBlock, startShift, updateCafe, cafeView, worksAtCafe, shiftPay, isOrdering, isOnShift,
-  createCafeState, restoreCafeState,
+  orderItem, orderBlock, updateCafe, cafeView, isOrdering, createCafeState, restoreCafeState,
 } from '../src/game/cafe.js';
+import {
+  startShift, updateShift, workplaceHere, shiftPay, isOnShift, shiftView, restoreWorkState,
+} from '../src/game/shifts.js';
+import { SHIFT } from '../src/data/work.js';
 import { applyJobChange } from '../src/game/jobs.js';
 import { arriveAtStay, stayKey } from '../src/game/stay.js';
 import { activityBarView, stopFromBar } from '../src/game/activityBar.js';
@@ -20,7 +23,7 @@ import { transitionFor } from '../src/ui/parallax.js';
 import {
   CAFE_PLACE, CAFE_ART, CAFE_DOOR, CAFE_DOOR_PROP, CAFE_COUNTER, CAFE_COUNTER_PROP, CAFE_WALK, CAFE_SEATS,
   CAFE_SILL, CAFE_FEET_FROM_BOTTOM, CAFE_MASTER, CAFE_CUSTOMERS, CAFE_CAT, CAFE_ORDERS, ORDER_TIMES, CAFE_JOB,
-  SHIFT, CAFE_BAR_TEXT,
+  CAFE_BAR_TEXT,
 } from '../src/data/cafe.js';
 import { INDOOR_PLACES } from '../src/data/weather.js';
 import {
@@ -195,11 +198,11 @@ test('clicking the master gets a line; the cat wakes with a mrrp, or meows; both
   assert.ok(cat.bottom >= CAFE_SILL.row && cat.top < CAFE_SILL.row);
 });
 
-// Runs the life tick's cafe update for `seconds` in 250ms steps; returns
-// the bubbles.
+// Runs the life tick's cafe and shift updates for `seconds` in 250ms
+// steps; returns the bubbles.
 function runCafe(game, seconds) {
   const bubbles = [];
-  for (let ms = 0; ms < seconds * 1000; ms += 250) bubbles.push(...updateCafe(game, 250));
+  for (let ms = 0; ms < seconds * 1000; ms += 250) bubbles.push(...updateCafe(game, 250), ...updateShift(game, 250));
   return bubbles;
 }
 
@@ -256,16 +259,17 @@ test('stopping before it comes refunds the order; leaving the Cafe calls it off'
 test('shifts: only for whoever works at the cafe, behind the counter, paid when done, nothing if stopped early', () => {
   const visitor = atCafe();
   assert.equal(startShift(visitor), false);
-  assert.equal(cafeView(visitor).shift, null);
+  assert.equal(shiftView(visitor), null);
   const game = atCafe(30, 0);
   applyJobChange(game, { hire: CAFE_JOB });
-  assert.equal(worksAtCafe(game), true);
+  assert.equal(workplaceHere(game).place, CAFE_PLACE);
   assert.equal(shiftPay(game), 6, 'a Barista: yearly $100 / 16');
+  assert.equal(startShift(game, true), false, 'not while ordering');
   assert.equal(startShift(game), true);
-  assert.equal(stayKey(game), 'cafe:shift');
+  assert.equal(stayKey(game), 'shift:cafe');
   assert.equal(orderItem(game, 'coffee'), false, 'busy');
   runCafe(game, 60);
-  assert.equal(game.cafe.shift.ms, 0, 'only counts behind the counter');
+  assert.equal(game.work.shift.ms, 0, 'only counts behind the counter');
   arriveAtStay(game);
   assert.match(activityBarView(game).text, /^Shift - 0:00 of 30:00$/);
   runCafe(game, SHIFT.minutes * 60 - 1);
@@ -273,7 +277,7 @@ test('shifts: only for whoever works at the cafe, behind the counter, paid when 
   const done = runCafe(game, 1);
   assert.equal(done.length, 1);
   assert.equal(done[0].deltas.money, 6);
-  assert.equal(game.cafe.shifts, 1);
+  assert.equal(game.work.shifts, 1);
   assert.equal(isOnShift(game), false);
   startShift(game);
   arriveAtStay(game);
@@ -290,4 +294,7 @@ test('the cafe state saves and restores, dropping anything unusable', () => {
   assert.deepEqual(restoreCafeState(null), createCafeState());
   assert.equal(restoreCafeState({ order: { item: 'pie', step: 'serve', ms: 0 } }).order, null);
   assert.equal(restoreCafeState({ waitMs: { coffee: 1e12 } }).waitMs.coffee, CAFE_ORDERS.coffee.everyMinutes * 60000);
+  // A shift kept in the cafe state by an older save carries over.
+  assert.deepEqual(restoreWorkState(undefined, { shift: { ms: 5000 }, shifts: 3 }), { shift: { place: CAFE_PLACE, ms: 5000 }, shifts: 3 });
+  assert.deepEqual(restoreWorkState({ shift: { place: 'nowhere', ms: 1 } }).shift, null);
 });

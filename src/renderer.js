@@ -145,7 +145,7 @@ import {
 } from './ui/cafeLifeArt.js';
 import { drawCafeCounterFront } from './ui/cafe.js';
 import {
-  CAFE_PLACE, CAFE_MASTER, CAFE_CAT, CAFE_COUNTER_PROP, CAFE_COUNTER, CAFE_SEATS, CAFE_TABLE, ORDER_SEAT,
+  CAFE_PLACE, CAFE_MASTER, CAFE_CAT, CAFE_COUNTER_PROP, CAFE_SEATS, CAFE_TABLE, ORDER_SEAT,
   CAFE_ART, CAFE_FEET_FROM_BOTTOM,
 } from './data/cafe.js';
 import { LAKE_PLACE, BOBBER_SPOT, DOCK_PROP } from './data/lake.js';
@@ -163,8 +163,11 @@ import { drawFarmAnimals } from './ui/farmAnimalsArt.js';
 import { createFarmMenu } from './ui/farmMenu.js';
 import { createCafeMenu } from './ui/cafeMenu.js';
 import {
-  orderItem, startShift, stopCafe, updateCafe, cafeView, isAtCafeCounter, worksAtCafe, isOrdering, isOnShift,
+  orderItem, updateCafe, cafeView, isOrdering,
 } from './game/cafe.js';
+import {
+  startShift, stopShift, updateShift, shiftView, isOnShift, workplaceHere,
+} from './game/shifts.js';
 import {
   createAnimator, updateAnimator, poseOf, startActivityNow, goToWorkNow, gaitOf,
   travelTo, hasExited, enterScene, placeIn, setLayout, stopTravelling, hasSettled,
@@ -458,11 +461,11 @@ async function start() {
     },
     shift: () => {
       playerTookOver();
-      if (startShift(game)) saveGame(game);
+      if (startShift(game, isOrdering(game))) saveGame(game);
     },
     stopShift: () => {
       playerTookOver();
-      if (stopCafe(game)) saveGame(game);
+      if (stopShift(game)) saveGame(game);
     },
     onOpen: () => closePanels('cafe'),
   });
@@ -740,7 +743,7 @@ async function start() {
     const farmNews = updateFarm(game, realMs);
     farmNews.forEach(showNews);
     // The Cafe's waits, order and shift (real time; game/cafe.js).
-    const cafeNews = updateCafe(game, realMs);
+    const cafeNews = [...updateCafe(game, realMs), ...updateShift(game, realMs)];
     cafeNews.forEach(showNews);
     if (cafeNews.length) saveGame(game);
     const moved = updatePlaces(game);
@@ -1166,22 +1169,19 @@ async function start() {
         facing: 1,
       };
     }
-    // At the Cafe: sitting at the table with an order (on the chair's
-    // seat); working there, behind the counter at its flap (on the floor
-    // further back), holding a cup.
-    if (place.id === CAFE_PLACE && (isOrdering(game) || isOnShift(game) || worksAtCafe(game))) {
+    // At the Cafe with an order: sitting at the table (on the chair's
+    // seat).
+    if (place.id === CAFE_PLACE && isOrdering(game)) {
       const feetRow = CAFE_ART.height - CAFE_FEET_FROM_BOTTOM;
-      if (isOrdering(game)) {
-        const seat = CAFE_SEATS.find((candidate) => candidate.id === ORDER_SEAT);
-        return { x: (seat.x + 0.5) * layout.scale, mode: 'sitting', lift: (feetRow - seat.row) * layout.scale, facing: seat.facing };
-      }
-      return {
-        x: (CAFE_COUNTER.flap + 0.5) * layout.scale,
-        mode: 'doing',
-        activity: 'hold',
-        lift: (feetRow - CAFE_COUNTER.behindRow) * layout.scale,
-        facing: -1,
-      };
+      const seat = CAFE_SEATS.find((candidate) => candidate.id === ORDER_SEAT);
+      return { x: (seat.x + 0.5) * layout.scale, mode: 'sitting', lift: (feetRow - seat.row) * layout.scale, facing: seat.facing };
+    }
+    // Working at a workplace: behind its counter (on the floor further
+    // back), holding something, whether on a shift or not.
+    const work = workplaceHere(game);
+    if (work && place.id === work.place) {
+      const { x, lift, facing } = work.spot;
+      return { x: (x + 0.5) * layout.scale, mode: 'doing', activity: 'hold', lift: lift * layout.scale, facing };
     }
     // Under the golden apple to poke it down, posed as pickLook() says.
     const under = place.id === FORTUNE_TREE_PLACE && isPicking(game) ? pickSpot(layout) : null;
@@ -1384,7 +1384,7 @@ async function start() {
       // They choose something to do now, skipping the wait.
       planNow: () => {
         if (game.endOfLife.ended || travelling() || currentPlan(game) || isPlaying(game) || isResting(game)
-          || isDoingActivity(game) || currentFarmJob(game) || isPicking(game) || isAtCafeCounter(game)) {
+          || isDoingActivity(game) || currentFarmJob(game) || isPicking(game) || isOrdering(game) || isOnShift(game)) {
           return AUTONOMY_TEXT.notNow;
         }
         restPreview = null;
@@ -1627,7 +1627,7 @@ async function start() {
     // Their own plans: left alone long enough (nothing running, nothing
     // showing, not away), now and then they choose something to do.
     const running = isPlaying(game) || isResting(game) || isDoingActivity(game)
-      || Boolean(currentFarmJob(game)) || isPicking(game) || isAtCafeCounter(game);
+      || Boolean(currentFarmJob(game)) || isPicking(game) || isOrdering(game) || isOnShift(game);
     const idle = !busy && !running && !restPreview && !farewell && !isAtWork(animator);
     if (mayChoose(choosing, now, { enabled: settings.ownPlans, idle })) beginOwnPlan(now);
     // While the view pans they wait past the edge, then walk in.
@@ -1847,7 +1847,7 @@ async function start() {
     const goals = goalView(game);
     goalMenu.update(ended ? { ...goals, unlocked: false } : goals);
     treeMenu.update(place.name, place.id === FORTUNE_TREE_PLACE ? treeView(game) : null);
-    cafeMenu.update(place.id === CAFE_PLACE ? cafeView(game) : null);
+    cafeMenu.update(place.id === CAFE_PLACE ? { ...cafeView(game), shift: shiftView(game) } : null);
     restMenu.update(restMenuView());
     activityMenu.update((id) => {
       const activity = activityById(id);

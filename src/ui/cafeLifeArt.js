@@ -11,50 +11,13 @@ import {
   ORDER_SEAT,
 } from '../data/cafe.js';
 import { masterRow } from './cafeLife.js';
-import { STRIDE } from '../data/animation.js';
 import { OUTLINE_COLOR } from '../data/appearance.js';
 import { drawCharacter, heldHand } from './sprite.js';
-import { walkPose } from './animator.js';
 import { createLayer, fill, outline, drawLayer } from './pixel.js';
+import { personPose, pictureRowY } from './people.js';
 
 // Canvas y of the top edge of picture row `row`.
-function rowY(layout, row) {
-  return layout.height - (CAFE_ART.height - row) * layout.scale;
-}
-
-// Canvas x of the middle of picture column `x`, on the character grid.
-function personX(layout, x) {
-  const unit = layout.characterScale;
-  return Math.round((x * layout.scale) / unit) * unit;
-}
-
-// A blink now and then, its own rhythm for each `seed`.
-const blinking = (time, seed) => (time + seed * 1.7) % 4.3 < 0.15;
-
-// A person's pose for drawCharacter(): standing, walking (`walked`
-// character pixels so far) or sitting, holding something out
-// (`activity` 'hold') or not.
-function personPose(layout, who, { stage, sit = false, activity = null, time, seed, walking = null }) {
-  const stride = STRIDE[stage];
-  walking ??= who.state === 'walk' || who.state === 'out';
-  return {
-    x: personX(layout, who.x),
-    facing: who.facing,
-    gait: 'walk',
-    sit,
-    gaze: 0,
-    wobble: 0,
-    blinking: blinking(time, seed),
-    breath: !walking && time % 3 > 1.8 ? 1 : 0,
-    walk: walking ? walkPose(Math.floor(who.walked) % (4 * stride), stride) : null,
-    lying: false,
-    lift: 0,
-    bed: null,
-    activity,
-    activityTime: who.t,
-    time,
-  };
-}
+const rowY = (layout, row) => pictureRowY(layout, CAFE_ART.height, row);
 
 // A cup held at `hand` (heldHand()), with a cloth going round it while
 // polished (`polishing` seconds in, or null).

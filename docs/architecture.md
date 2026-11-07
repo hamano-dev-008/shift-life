@@ -206,6 +206,8 @@ Shift-Life/
 │   │   │                  seated, once an hour each, refunded if
 │   │   │                  stopped first) and paid shifts behind the
 │   │   │                  counter for whoever works there
+│   │   ├── shifts.js      Paid shifts at a workplace in town, for whoever
+│   │   │                  works there: start, stop, pay when done
 │   │   ├── farm.js        The Farm's rice paddies: owning and buying
 │   │   │                  them, the age to farm, planting ($5), real-time
 │   │   │                  growth (seedlings, young, ripe), weeds once,
@@ -390,6 +392,8 @@ Shift-Life/
 │   │   ├── cafeMenu.js    The Cafe counter's menu: coffee, cake, a
 │   │   │                  shift (or stopping it), the waits
 │   │   ├── timeText.js    "7:05" and "1h 25m" for menus
+│   │   ├── people.js      What the town places' people share: walking
+│   │   │                  along a row, their pose for drawCharacter()
 │   │   ├── treeMenu.js    The Fortune Tree menu: play/stop, pick the
 │   │   │                  apple, progress and pick chance
 │   │   ├── restMenu.js    The rest menu (sofa, sleeping bag, tent):
@@ -497,6 +501,9 @@ Shift-Life/
 │       │                  row and walls, the door, counter (and the
 │       │                  row behind it), window, sill, seats, table,
 │       │                  siphons, in the picture's pixels; text
+│       ├── work.js        Workplaces in town (place, job, the spot
+│       │                  behind the counter), a shift's length and
+│       │                  rate, its text
 │       ├── farm.js        The Farm: its place id, background and
 │       │                  fallback, feet row, walking limits, minimum
 │       │                  age, the paddies' water rows and columns and
@@ -1285,7 +1292,7 @@ Parents' Yard and then of My Yard (see **Farm**).
     master's only above the counter) and the shared +1 happiness
     cooldown.
 - The counter (`game/cafe.js`, menu `ui/cafeMenu.js`; `game.cafe`:
-  `{ waitMs, order, shift, shifts }`, saved, `restoreCafeState()`).
+  `{ waitMs, order }`, saved, `restoreCafeState()`).
   Clicking it opens its menu.
   - Orders (`CAFE_ORDERS`, from `CAFE_MIN_AGE` 6): "Coffee - $3" (+2
     happiness) and "Cake - $8" (+5 happiness, +1 health), each once
@@ -1298,18 +1305,27 @@ Parents' Yard and then of My Yard (see **Farm**).
     They enjoy it `ORDER_TIMES.enjoy` (60 s) at the table (a steaming
     cup, or a slice of strawberry cake), then get up. Stop (the bar) or
     leaving before it's served refunds it. Events aren't frozen.
-  - Working there (`worksAtCafe()`: the job is `CAFE_JOB`, any level):
-    at the Cafe they stand behind the counter at its flap, holding a
-    cup (stay mode `'doing'`, activity `hold`, raised to `behindRow`),
-    the counter's front and everything in front of it drawn again over
-    them. The menu adds "Work a shift - $6": `SHIFT.minutes` (30) of
-    real time once there (`'cafe:shift'`, events frozen like busking),
-    paying `shiftPay()`, `SHIFT.rate` (half) the job's hourly pay for
-    that time (yearly pay / 16: $6, $8, $13), with "Shift done!". The
-    bar shows "Shift - 3:07 of 30:00"; Stop or leaving pays nothing for
-    an unfinished shift. `shifts` counts them over the life.
-  - No ordering or shift while the other's on; neither during the
-    character's own plans, which don't start while either is.
+  - Working there (the job is `CAFE_JOB`, any level): see
+    **Workplaces and shifts**; the counter's front and everything in
+    front of it are drawn again over them, and they hold a cup. The
+    menu adds the shift's button and lines.
+  - No ordering while on a shift or the other way round; neither during
+    the character's own plans, which don't start while either is.
+- Workplaces and shifts (`data/work.js`, `game/shifts.js`; `game.work`:
+  `{ shift: { place, ms } or null, shifts }`, saved,
+  `restoreWorkState()`, which also takes an older save's shift kept in
+  `game.cafe`). `WORKPLACES` lists each workplace in town: its place,
+  the job that works there (any level) and the spot behind its counter
+  (x, `lift` rows up to the floor there, facing). Whoever's job works
+  at the place they're in (`workplaceHere()`) stands at that spot when
+  there (stay mode `'doing'`, activity `hold`, raised by `lift`). Its
+  menu offers "Work a shift - $X" (`startShift()`): `SHIFT.minutes`
+  (30) of real time once there (`stayKey()` `'shift:<place>'`, events
+  frozen like busking), paying `shiftPay()`, `SHIFT.rate` (half) the
+  job's hourly pay for that time (yearly pay / 16), with "Shift done!".
+  The bar shows "Shift - 3:07 of 30:00"; Stop, leaving, or the job
+  ending pays nothing for an unfinished shift. `shifts` counts them over
+  the life.
 - A new place needs an entry in `PLACES` (with exits both ways), any
   new scenery pieces in `SCENERY` (`ui/scene.js`, with code-drawn
   art) and props in `PROPS` (`data/layout.js`), and its sprite names
@@ -2294,7 +2310,7 @@ all five files live in `%APPDATA%\shift-life\`.
   would put the window off every connected screen.
 - `save.json` holds the life: `{ version, clock: { years }, character,
   events, goals, jobs, place, townFrom, fortuneTree, home, housing, endOfLife,
-  activities, autonomy, farm, cafe, weather, weatherSeen }`.
+  activities, autonomy, farm, cafe, work, weather, weatherSeen }`.
   `character` includes
   `stats` and `traits`; `events`
   holds `nextAt`, the `pending` event, how often each was `seen`,

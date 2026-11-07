@@ -12,16 +12,12 @@ import {
   CAFE_COUNTER, CAFE_DOOR, CAFE_SEATS, CAFE_SILL, CAFE_MASTER, CAFE_CUSTOMERS, CAFE_CAT, CAFE_ART,
   CAFE_FEET_FROM_BOTTOM,
 } from '../data/cafe.js';
-import { CHARACTER_SCALE, SCENE_SCALE } from '../data/layout.js';
 import { randomAppearance } from '../game/character.js';
+import { toScene, between, pick, walkToward } from './people.js';
 
 // The row everyone in front of the counter walks on.
 const CAFE_FLOOR_ROW = CAFE_ART.height - CAFE_FEET_FROM_BOTTOM;
 
-// Character pixels a second to the picture's pixels a second.
-const toScene = (speed) => (speed * CHARACTER_SCALE) / SCENE_SCALE;
-const between = ([min, max], random) => min + (max - min) * random();
-const pick = (list, random) => list[Math.floor(random() * list.length)];
 const seatById = (id) => CAFE_SEATS.find((seat) => seat.id === id);
 
 // The Cafe's life now: { time (seconds), master, customers, cat, nextId,
@@ -98,22 +94,6 @@ function sitDown(customer, random, served = false) {
   customer.t = served ? CAFE_CUSTOMERS.servedAfter : 0;
   customer.served = served;
   customer.left = between(CAFE_CUSTOMERS.stay, random);
-}
-
-// Walks `who` toward x `target` at `speed` (the picture's pixels a
-// second); returns whether they're there.
-function walkToward(who, target, speed, dt) {
-  const step = speed * dt;
-  const distance = target - who.x;
-  if (Math.abs(distance) <= step) {
-    who.walked += (Math.abs(distance) * SCENE_SCALE) / CHARACTER_SCALE;
-    who.x = target;
-    return true;
-  }
-  who.facing = Math.sign(distance);
-  who.x += who.facing * step;
-  who.walked += (step * SCENE_SCALE) / CHARACTER_SCALE;
-  return false;
 }
 
 // The master's next thing: polishing at the far end, brewing at a siphon,

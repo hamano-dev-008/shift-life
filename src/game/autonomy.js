@@ -21,7 +21,8 @@ import { ageOf } from './character.js';
 import {
   treeUnlocked, isPlaying, startPlaying, stopPlaying, isPicking,
 } from './fortuneTree.js';
-import { isAtCafeCounter } from './cafe.js';
+import { isOrdering } from './cafe.js';
+import { isOnShift } from './shifts.js';
 import { isResting, startResting, stopResting } from './home.js';
 import {
   activityById, currentActivity, isDoingActivity, hasItem, startActivity, stopActivity,
@@ -227,7 +228,7 @@ function planRunning(game, plan) {
 // Starts the plan's thing here. Returns whether it started.
 function startPlanned(game, plan) {
   if (isDoingActivity(game) || isPlaying(game) || isResting(game) || currentFarmJob(game)
-    || isPicking(game) || isAtCafeCounter(game)) return false;
+    || isPicking(game) || isOrdering(game) || isOnShift(game)) return false;
   if (plan.kind === 'fish') return startActivity(game, AUTONOMY_CHOICES.fish.activity);
   if (AUTONOMY_CHOICES[plan.kind].farm) {
     const [paddy] = paddiesFor(game, plan.kind);
