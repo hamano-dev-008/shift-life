@@ -1,10 +1,12 @@
 // devMenu.js — The developer settings menu: a compact panel opened from
-// the gear button (shown only when running from source). Its buttons call
-// the actions it's given (game/dev.js, wrapped by the renderer); it holds
-// no game logic itself.
+// the gear button (shown only when running from source), its buttons in
+// tabs by category (DEV_TABS in data/dev.js): the life, places, the Lake,
+// the world, the player settings, and the read-out. Its buttons call the
+// actions it's given (game/dev.js, wrapped by the renderer); it holds no
+// game logic itself.
 
 import { SPEEDS } from '../data/balance.js';
-import { DEV_SKIP_YEARS, DEV_MONEY, DEV_HEALTH } from '../data/dev.js';
+import { DEV_SKIP_YEARS, DEV_MONEY, DEV_HEALTH, DEV_TABS } from '../data/dev.js';
 import { HOUSING_TIERS, MOVE_OUT_AGE } from '../data/housing.js';
 import { RARITIES } from '../data/fishing.js';
 import { BUTTERFLIES } from '../data/lakeLife.js';
@@ -62,12 +64,16 @@ function row(label, ...children) {
 // goal, job, tree, place, life, fishing, farm, plan, weather }),
 // speed() (current speed id), onOpen() }.
 export function createDevMenu(menu, gear, actions) {
+  const tabs = menu.querySelector('.dev-tabs');
   const body = menu.querySelector('.dev-body');
   const readout = menu.querySelector('.dev-readout');
   let confirming = false;
   let note = '';
   let shown = '';
   let shownPlaces = '';
+  // The tab showing; kept while the app runs, so the menu opens where it
+  // was last left.
+  let tab = DEV_TABS[0].id;
   const placesKey = () => actions.places().map((place) => place.id).join('|');
 
   const close = () => {
@@ -114,7 +120,10 @@ export function createDevMenu(menu, gear, actions) {
           render();
         }
       }),
-      button('Apple now', () => actions.appleNow()),
+      button('Apple now', () => actions.appleNow()));
+
+    // The Fortune Tree's wind (only there).
+    const wind = row('Wind',
       button('Gust now', () => {
         note = actions.gustNow() ?? '';
         if (note) render(); else close();
@@ -214,8 +223,26 @@ export function createDevMenu(menu, gear, actions) {
       button(FARM_TEXT.devGrow, () => { actions.growPaddies(); note = ''; render(); }),
       button(FARM_TEXT.devGive, () => { actions.givePaddies(); note = ''; render(); }));
 
-    const children = [newLife, speeds, skips, extras, tree, home, housing, places, fish, catches, reveals,
-      wild, farm, weather, workTrips, ownPlans, parallax, lightning, life, health];
+    const rows = {
+      life: [newLife, speeds, skips, extras, health, housing, life],
+      places: [places, tree, home, farm],
+      lake: [fish, catches, reveals, wild],
+      world: [weather, wind],
+      settings: [workTrips, ownPlans, parallax, lightning],
+      info: [],
+    };
+    tabs.replaceChildren(...DEV_TABS.map(({ id, name }) => {
+      const node = button(name, () => {
+        tab = id;
+        note = '';
+        confirming = false;
+        render();
+      }, `dev-tab${tab === id ? ' active' : ''}`);
+      node.dataset.tab = id;
+      return node;
+    }));
+    readout.hidden = tab !== 'info';
+    const children = [...rows[tab]];
     if (note) {
       const message = document.createElement('p');
       message.className = 'dev-note';

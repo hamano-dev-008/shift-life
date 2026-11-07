@@ -597,6 +597,32 @@ body {
   margin: 4px auto;
 }
 
+/* Dev settings tabs: one row of small buttons, the open one filled. */
+.panel .dev-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 6px;
+  padding-bottom: 4px;
+  border-bottom: 2px dashed #e3cfa8;
+}
+
+.panel .dev-tabs button {
+  padding: 2px 5px;
+  border: 2px solid #3d3a4b;
+  border-radius: 4px;
+  background: #f6e7c8;
+}
+
+.panel .dev-tabs button:hover {
+  background: #f2cc8f;
+}
+
+.panel .dev-tabs button.active {
+  color: #fffaf0;
+  background: #81b29a;
+}
+
 /* Dev settings menu rows: an optional label, then buttons. */
 .panel .dev-row {
   display: flex;
@@ -649,11 +675,14 @@ body {
   display: none;
 }
 
+/* The read-out, on the Info tab. */
 .panel .dev-readout {
-  margin: 6px 0 0;
-  padding-top: 4px;
-  border-top: 2px dashed #e3cfa8;
+  margin: 0;
   color: #6b6478;
+}
+
+.panel .dev-readout[hidden] {
+  display: none;
 }
 
 .panel .dev-readout span {

@@ -194,8 +194,21 @@ app.whenReady().then(async () => {
     }
     return found;
   })()`);
-  const devClick = (label) => js(`[...document.querySelectorAll("#dev-menu button")]
-    .find(b=>b.textContent===${JSON.stringify(label)}).click()`);
+  // Clicks the dev menu button `label`, on whichever tab it's on (looking
+  // through the tabs if it isn't on the open one).
+  const devClick = (label) => js(`(() => {
+    const find = () => [...document.querySelectorAll("#dev-menu .dev-body button")]
+      .find((b) => b.textContent === ${JSON.stringify(label)});
+    let found = find();
+    for (const tab of document.querySelectorAll("#dev-menu .dev-tabs button")) {
+      if (found) break;
+      tab.click();
+      found = find();
+    }
+    found.click();
+  })()`);
+  // Opens the dev menu's tab `id` (its rows' buttons are only there then).
+  const devTab = (id) => js(`document.querySelector('#dev-menu .dev-tabs [data-tab="${id}"]').click()`);
   const dev = async (...labels) => {
     await js('document.querySelector("#dev-btn").click()');
     for (const label of labels) await devClick(label);
@@ -322,6 +335,22 @@ app.whenReady().then(async () => {
   try {
     await win.loadFile(path.resolve(__dirname, '../src/index.html'));
     await wait(700);
+    // The dev menu is in tabs: one category at a time, the read-out only
+    // on Info, and it opens again on the tab last used.
+    await press('document.querySelector("#dev-btn")');
+    assert.deepEqual(await js('[...document.querySelectorAll("#dev-menu .dev-tabs button")].map((b) => b.textContent)'),
+      ['Life', 'Places', 'Lake', 'World', 'Settings', 'Info']);
+    assert.match(await js('document.querySelector("#dev-menu .dev-body").textContent'), /New life.*Speed.*Skip/s);
+    assert.equal(await js('document.querySelector("#dev-menu .dev-readout").hidden'), true);
+    await press('document.querySelector(\'#dev-menu .dev-tabs [data-tab="lake"]\')');
+    assert.match(await js('document.querySelector("#dev-menu .dev-body").textContent'), /Fish.*Catch.*Reveal.*Wildlife/s);
+    assert.doesNotMatch(await js('document.querySelector("#dev-menu .dev-body").textContent'), /New life/);
+    await press('document.querySelector(\'#dev-menu .dev-tabs [data-tab="info"]\')');
+    assert.equal(await js('document.querySelector("#dev-menu .dev-readout").hidden'), false);
+    await press('document.querySelector("#dev-menu .panel-close")');
+    await press('document.querySelector("#dev-btn")');
+    assert.equal(await js('document.querySelector("#dev-menu .dev-tabs .active").textContent'), 'Info');
+    await press('document.querySelector("#dev-menu .panel-close")');
     // No OS drag regions anywhere (and the check does see one when set).
     assert.deepEqual(await appRegions(), []);
     await js('document.querySelector("#place").style.setProperty("-webkit-app-region", "drag")');
@@ -530,6 +559,12 @@ app.whenReady().then(async () => {
       await wait(100);
     }
     assert.equal(await js('document.querySelector("#activity-bar").hidden'), true, 'still picking');
+    // A won apple's bubble comes as picking ends (after it's held up), so
+    // it may show just after the bar goes.
+    for (let i = 0; i < 30 && !told; i++) {
+      told = /apple/.test(await js('document.querySelector("#speech").textContent'));
+      await wait(100);
+    }
     assert.ok(told, 'no bubble about the apple');
     assert.equal(saved.fortuneTree.appleReady, false);
     assert.equal(saved.fortuneTree.picking, null);
@@ -719,6 +754,7 @@ app.whenReady().then(async () => {
     assert.equal(await js('document.querySelector("#activity-bar").hidden'), true);
     // The dev menu previews a legendary reveal card.
     await js('document.querySelector("#dev-btn").click()');
+    await devTab('lake');
     await js(`[...document.querySelectorAll("#dev-menu .dev-row")].find(r=>r.textContent.startsWith("Reveal"))
       .querySelector("button:last-child").click()`);
     for (let i = 0; i < 20 && !(await revealShown()); i++) await wait(100);
@@ -909,6 +945,7 @@ app.whenReady().then(async () => {
     // and shows in the read-out; Off ends it.
     const ownRow = `[...document.querySelectorAll("#dev-menu .dev-row")].find((r) => r.querySelector(".dev-label")?.textContent === "Let them choose")`;
     await js('document.querySelector("#dev-btn").click()');
+    await devTab('settings');
     assert.equal(await js(`${ownRow}.querySelector(".active")?.textContent`), 'On', 'Let them choose: not On by default');
     assert.equal(await js(`${ownRow}.previousElementSibling.querySelector(".dev-label").textContent`), 'Work trips');
     await devClick('Choose now');
@@ -932,14 +969,18 @@ app.whenReady().then(async () => {
     // Parallax: On by default, next to Let them choose, saved; Off, a trip
     // switches places at once (no pan or fade); On again.
     const parallaxRow = `[...document.querySelectorAll("#dev-menu .dev-row")].find((r) => r.querySelector(".dev-label")?.textContent === "Parallax")`;
+    await devTab('settings');
     assert.equal(await js(`${parallaxRow}.querySelector(".active")?.textContent`), 'On', 'Parallax: not On by default');
     assert.equal(await js(`${parallaxRow}.previousElementSibling.querySelector(".dev-label").textContent`), 'Let them choose');
     await js(`[...${parallaxRow}.querySelectorAll("button")].find((b) => b.textContent === "Off").click()`);
     await wait(100);
     assert.equal(savedSettings.parallax, false, 'Parallax Off not saved');
+    // A trip their own plan started may still be under way (calling the
+    // plan off leaves the walk), and a long one can take a minute: the dev
+    // Go to the place they're in now ends it there.
+    await devTab('places');
+    await js('document.querySelector("#dev-menu .dev-body button.active").click()');
     await js('if (!document.querySelector("#dev-menu").hidden) document.querySelector("#dev-btn").click()');
-    // (A trip their own plan started may still be under way, maybe with
-    // another leg to go: Go to has to stay enabled a while.)
     for (let calm = 0, i = 0; calm < 8 && i < 400; i++) {
       calm = await js('document.querySelector("#go-btn").disabled') ? 0 : calm + 1;
       await wait(100);
@@ -957,6 +998,7 @@ app.whenReady().then(async () => {
     await arrive(elsewhere);
     assert.deepEqual((await transitionsSeen()).kinds, [], 'Parallax Off: a trip still panned or faded');
     await js('document.querySelector("#dev-btn").click()');
+    await devTab('settings');
     await js(`[...${parallaxRow}.querySelectorAll("button")].find((b) => b.textContent === "On").click()`);
     await wait(100);
     assert.equal(savedSettings.parallax, true);
@@ -999,6 +1041,7 @@ app.whenReady().then(async () => {
     assert.equal(saved.weather.previous, 'storm');
     const lightningRow = `[...document.querySelectorAll("#dev-menu .dev-row")].find((r) => r.querySelector(".dev-label")?.textContent === "Lightning flashes")`;
     await js('document.querySelector("#dev-btn").click()');
+    await devTab('settings');
     assert.equal(await js(`${lightningRow}.querySelector(".active")?.textContent`), 'On', 'Lightning flashes: not On by default');
     assert.equal(await js(`${lightningRow}.previousElementSibling.querySelector(".dev-label").textContent`), 'Parallax');
     assert.match(await js('document.querySelector("#dev-menu .dev-readout").textContent'), /Weather: /);
@@ -1147,7 +1190,7 @@ app.whenReady().then(async () => {
     await arrive('Farm');
     assert.deepEqual(await appRegions(), []);
     assert.deepEqual(errors, []);
-    console.log(`PASS: the Fortune Tree's wishing well (its bubble, click area apart from the tree's, drags from it and the background), activities start only on arrival (walking to the tree from the far side, then "Busking - 0:00"; the sofa; the dock), no -webkit-app-region anywhere, JS window drags (background, character, tree: the window follows, no poke, no menu), plain clicks on every prop in every place, native gentle/rapid clicks, spam, calming, moving hit regions, drag rejection, 25 poses, offscreen, prop/event priority, real clicks on props and menus, prop click areas on top in every place (at rest, after travel, menus closed, an event waiting, the activity bar, a catch reveal), rest/travel/busking preserved, transparent sprite, end of life, summary, Book, new life, the Lake (frogs, butterflies, a frog on the shore hunting and a real click on it), fishing (rod, bite, catch, reveal, collection, activity bar, selling), work trips (the setting saved, "Off to work!", the "At work" label calling them back), picking the golden apple (real clicks, walking under it, the menu while picking, the bubble after), the Fortune Tree's wind (Gust now there only; props still on top with the apple glowing in a gust), the hover outline (tree, character, sofa, dock: shown while hovering, gone on leaving, none with a menu open, clicks unchanged, no native tooltips), the dev Rest now (lying down asleep where they are, outlined on hover, up again), their own plans (Let them choose On by default next to Work trips, saved; Choose now says what and shows in the read-out; Off ends it), parallax (the front door fades and a side trip pans for about 1.2 s with nothing clickable meanwhile; the Parallax setting On by default next to Let them choose, saved, Off switching places at once), the weather (the icon named on hover and drawn, the dev Weather row and Next weather saved, Lightning flashes On by default next to Parallax and saved, props on top and clickable in a thunderstorm, no busking or fishing offered in it), the Farm (paddies on top and opening their menu, feet on the path, buying offered, Give paddies, the hover outline, planting on arrival, Grow paddies, the harvest's bubble and pay), the Cafe in town (Go to with a fade, walls, feet on the floor, real clicks on the master and the cat, the counter's menu, ordering a coffee and Stop refunding it, the door back to where they came from), the 6-Eleven (Go to with a fade, real clicks on the clerk and the pigeon, the register's menu, buying an onigiri and Stop refunding it, the door back); no renderer errors.`);
+    console.log(`PASS: the Fortune Tree's wishing well (its bubble, click area apart from the tree's, drags from it and the background), activities start only on arrival (walking to the tree from the far side, then "Busking - 0:00"; the sofa; the dock), no -webkit-app-region anywhere, the dev menu's tabs, JS window drags (background, character, tree: the window follows, no poke, no menu), plain clicks on every prop in every place, native gentle/rapid clicks, spam, calming, moving hit regions, drag rejection, 25 poses, offscreen, prop/event priority, real clicks on props and menus, prop click areas on top in every place (at rest, after travel, menus closed, an event waiting, the activity bar, a catch reveal), rest/travel/busking preserved, transparent sprite, end of life, summary, Book, new life, the Lake (frogs, butterflies, a frog on the shore hunting and a real click on it), fishing (rod, bite, catch, reveal, collection, activity bar, selling), work trips (the setting saved, "Off to work!", the "At work" label calling them back), picking the golden apple (real clicks, walking under it, the menu while picking, the bubble after), the Fortune Tree's wind (Gust now there only; props still on top with the apple glowing in a gust), the hover outline (tree, character, sofa, dock: shown while hovering, gone on leaving, none with a menu open, clicks unchanged, no native tooltips), the dev Rest now (lying down asleep where they are, outlined on hover, up again), their own plans (Let them choose On by default next to Work trips, saved; Choose now says what and shows in the read-out; Off ends it), parallax (the front door fades and a side trip pans for about 1.2 s with nothing clickable meanwhile; the Parallax setting On by default next to Let them choose, saved, Off switching places at once), the weather (the icon named on hover and drawn, the dev Weather row and Next weather saved, Lightning flashes On by default next to Parallax and saved, props on top and clickable in a thunderstorm, no busking or fishing offered in it), the Farm (paddies on top and opening their menu, feet on the path, buying offered, Give paddies, the hover outline, planting on arrival, Grow paddies, the harvest's bubble and pay), the Cafe in town (Go to with a fade, walls, feet on the floor, real clicks on the master and the cat, the counter's menu, ordering a coffee and Stop refunding it, the door back to where they came from), the 6-Eleven (Go to with a fade, real clicks on the clerk and the pigeon, the register's menu, buying an onigiri and Stop refunding it, the door back); no renderer errors.`);
   } catch (error) {
     console.error(error);
     process.exitCode = 1;

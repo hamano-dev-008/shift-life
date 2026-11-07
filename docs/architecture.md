@@ -2224,6 +2224,14 @@ traits; clicking it pins the panel open.
 a gear button (left of minimize) opens it, but
 only when running from source: `main.js` answers `app:is-dev` with
 `!app.isPackaged`, so a packaged build never shows it.
+- Its buttons are in tabs (`DEV_TABS` in `data/dev.js`), one shown at
+  a time; it opens on the tab last used (kept while the app runs).
+  Life: New life, speed, skip ahead, trigger an event, add money,
+  health, housing tier, end life. Places: Go to, the Tree (finish a
+  session, apple now), Home (rest), the Farm. Lake: fishing, catches,
+  reveal previews, wildlife. World: the weather, a gust at the tree.
+  Settings: work trips, let them choose (and choose now), parallax,
+  lightning flashes. Info: the read-out (hidden on the other tabs).
 - It offers: New life (confirmed in the menu with Yes/No, then replaces
   the life in place and saves over the old one), clock speed (normal,
   fast, very fast; `SPEEDS` in `data/balance.js`), skip ahead +1/+10
